@@ -1,0 +1,38 @@
+"use client";
+
+import * as React from "react";
+import { Tabs as TabsPrimitive } from "radix-ui";
+import { cn } from "@/lib/utils";
+
+function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
+  return <TabsPrimitive.Root data-slot="tabs" className={cn("flex flex-col", className)} {...props} />;
+}
+
+function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
+  return <TabsPrimitive.List data-slot="tabs-list" className={cn("inline-flex items-end", className)} {...props} />;
+}
+
+/**
+ * Underline tab: the active tab carries a 2px violet rule, matching the
+ * transit-line motif used through the homepage.
+ */
+function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+  return (
+    <TabsPrimitive.Trigger
+      data-slot="tabs-trigger"
+      className={cn(
+        "relative inline-flex h-11 items-center gap-2 px-1 text-[15px] font-medium text-slate transition-colors hover:text-ink",
+        "after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent after:transition-colors",
+        "data-[state=active]:text-ink data-[state=active]:after:bg-brand",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) {
+  return <TabsPrimitive.Content data-slot="tabs-content" className={cn("outline-none", className)} {...props} />;
+}
+
+export { Tabs, TabsList, TabsTrigger, TabsContent };

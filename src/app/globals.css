@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/*
+ * PropertyHub tokens
+ * violet   #7047EB  brand, primary actions
+ * violet-d #5530D0  hover / violet text on white (AA)
+ * ink      #1A1630  text, footer ground
+ * slate    #5E5872  secondary text (6.4:1 on white)
+ * mist     #F5F3F9  section ground
+ * line     #E4E0EC  hairlines, inputs
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #1a1630;
+}
+
+@theme inline {
+  --font-sans: "DM Sans Variable", "IBM Plex Sans Thai", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-violet-50: #f3effe;
+  --color-violet-100: #e6defd;
+  --color-violet-200: #cbbcfa;
+  --color-violet-500: #7047eb;
+  --color-violet-600: #5530d0;
+  --color-violet-700: #4424a8;
+
+  --color-brand: #7047eb;
+  --color-brand-strong: #5530d0;
+  --color-brand-soft: #f3effe;
+  --color-ink: #1a1630;
+  --color-ink-soft: #2a2545;
+  --color-hero: #261a5c;
+  --color-slate: #5e5872;
+  --color-mist: #f5f3f9;
+  --color-line: #e4e0ec;
+  --color-line-strong: #cfc9db;
+
+  /* Transit line colours, used only to identify lines */
+  --color-bts-sukhumvit: #437f25;
+  --color-bts-silom: #005a44;
+  --color-mrt-blue: #1f4e9c;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --animate-sheet-in: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: fade-in 180ms ease-out;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 88px;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01" 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-violet-100);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
