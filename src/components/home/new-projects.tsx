@@ -3,6 +3,7 @@ import { PropertyPhoto } from "@/components/property/property-photo";
 import { propertyTypeLabels } from "@/data/catalog";
 import { routes } from "@/data/navigation";
 import { formatPrice } from "@/lib/format";
+import { cardImageZoom, cardLink, cardTitle, interactiveCard } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { NewProject, ProjectStatus } from "@/types/property";
 import { Container, SectionHeader } from "./section-header";
@@ -49,23 +50,21 @@ export function NewProjects({ projects }: { projects: NewProject[] }) {
           action={{ label: "ดูโครงการใหม่ทั้งหมด", href: routes.newProjects }}
         />
 
-        <ul className="mt-10 grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {projects.map((project) => (
-            <li key={project.id} className="relative flex flex-col">
+            <li key={project.id} className={interactiveCard}>
               <PropertyPhoto
                 image={project.image}
                 sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                className="aspect-[4/5] rounded-md"
+                className="aspect-[4/5]"
+                imageClassName={cardImageZoom}
               />
-              <div className="flex flex-1 flex-col gap-3 pt-5">
+              <div className="flex flex-1 flex-col gap-3 p-5">
                 <p className="text-sm text-slate">
                   {propertyTypeLabels[project.type]} โดย {project.developer}
                 </p>
-                <h3 className="text-xl leading-tight font-semibold text-ink">
-                  <Link
-                    href={routes.project(project.slug)}
-                    className="after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-md focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-brand"
-                  >
+                <h3 className={cn("text-xl leading-tight font-semibold text-ink", cardTitle)}>
+                  <Link href={routes.project(project.slug)} data-card-link className={cardLink}>
                     {project.name}
                   </Link>
                 </h3>

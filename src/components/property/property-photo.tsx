@@ -11,10 +11,12 @@ interface PropertyPhotoProps {
   sizes: string;
   priority?: boolean;
   className?: string;
+  /** Extra classes for the <img> itself, e.g. a hover zoom. */
+  imageClassName?: string;
 }
 
 /** next/image with a quiet placeholder if a listing photo fails to load. */
-export function PropertyPhoto({ image, sizes, priority, className }: PropertyPhotoProps) {
+export function PropertyPhoto({ image, sizes, priority, className, imageClassName }: PropertyPhotoProps) {
   const [failed, setFailed] = useState(false);
 
   return (
@@ -34,7 +36,7 @@ export function PropertyPhoto({ image, sizes, priority, className }: PropertyPho
           fill
           sizes={sizes}
           priority={priority}
-          className="object-cover"
+          className={cn("object-cover", imageClassName)}
           onError={() => setFailed(true)}
         />
       )}

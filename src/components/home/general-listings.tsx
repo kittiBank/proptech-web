@@ -104,7 +104,7 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
         </div>
 
         {shown.length > 0 ? (
-          <ul className="mt-8 grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {shown.map((p) => (
               <li key={p.id} className="flex">
                 <PropertyCard property={p} className="w-full" />

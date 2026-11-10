@@ -23,7 +23,7 @@ export function PinnedProperties({ properties }: { properties: Property[] }) {
           action={{ label: "ปักหมุดประกาศของคุณ", href: `${routes.postProperty}?plan=pin` }}
         />
 
-        <ul className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {properties.slice(0, 8).map((p, i) => (
             <li key={p.id} className="flex">
               <PropertyCard property={p} priority={i < 4} className="w-full" />

@@ -3,6 +3,7 @@ import { BadgeCheck, Bath, BedDouble, Maximize2, Pin, Trees } from "lucide-react
 import { propertyTypeLabels } from "@/data/catalog";
 import { routes } from "@/data/navigation";
 import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
+import { cardImageZoom, cardLink, cardTitle, interactiveCard } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Property } from "@/types/property";
 import { FavoriteButton } from "./favorite-button";
@@ -54,20 +55,14 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
   const href = routes.property(property.slug);
 
   return (
-    <article
-      className={cn(
-        "group relative flex flex-col",
-        variant === "compact" && "lg:grid lg:grid-cols-[46%_1fr] lg:gap-6",
-        className,
-      )}
-    >
+    <article className={cn(interactiveCard, variant === "compact" && "lg:grid lg:grid-cols-[46%_1fr]", className)}>
       <div className="relative">
         <PropertyPhoto
           image={property.image}
           sizes={sizes ?? "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"}
           priority={priority}
+          imageClassName={cardImageZoom}
           className={cn(
-            "rounded-md",
             isLead
               ? "aspect-[4/3] lg:aspect-[3/2]"
               : variant === "compact"
@@ -101,9 +96,9 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
 
       <div
         className={cn(
-          "flex flex-1 flex-col pt-4",
-          isLead ? "gap-2.5" : "gap-2",
-          variant === "compact" && "lg:justify-center lg:pt-0",
+          "flex flex-1 flex-col p-4",
+          isLead ? "gap-2.5 sm:p-5" : "gap-2",
+          variant === "compact" && "lg:justify-center",
         )}
       >
         <p
@@ -117,14 +112,12 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
         <h3
           className={cn(
             "text-ink",
+            cardTitle,
             isLead ? "text-lg leading-snug font-medium" : "line-clamp-2 text-[15px] leading-snug",
           )}
         >
           {/* Stretched link: the whole card is clickable, the favourite button sits above it. */}
-          <Link
-            href={href}
-            className="after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-md focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-brand"
-          >
+          <Link href={href} data-card-link className={cardLink}>
             {property.title}
           </Link>
         </h3>
@@ -135,12 +128,13 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
         {property.station && (
           <TransitBadge station={property.station} distance={property.stationDistance} className="mt-0.5" />
         )}
-        {variant === "default" && <span aria-hidden="true" className="h-1" />}
         {variant === "default" && (
-          <p className="mt-auto flex flex-wrap gap-x-3 border-t border-line pt-3 text-[13px] text-slate">
-            <span>{property.agent.kind === "owner" ? "เจ้าของขายเอง" : "นายหน้า"}</span>
-            <span>ลงประกาศ {formatRelativeDays(property.postedAt)}</span>
-          </p>
+          <div className="mt-auto pt-1">
+            <p className="flex flex-wrap gap-x-3 border-t border-line pt-3 text-[13px] text-slate">
+              <span>{property.agent.kind === "owner" ? "เจ้าของขายเอง" : "นายหน้า"}</span>
+              <span>ลงประกาศ {formatRelativeDays(property.postedAt)}</span>
+            </p>
+          </div>
         )}
         {isLead && property.highlight && (
           <p className="mt-1 border-t border-line pt-3 text-[15px] text-ink">{property.highlight}</p>
