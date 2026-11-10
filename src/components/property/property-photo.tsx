@@ -20,7 +20,11 @@ export function PropertyPhoto({ image, sizes, priority, className }: PropertyPho
   return (
     <div className={cn("relative overflow-hidden bg-violet-50", className)}>
       {failed ? (
-        <div className="absolute inset-0 flex items-center justify-center text-violet-200" role="img" aria-label={image.alt}>
+        <div
+          className="absolute inset-0 flex items-center justify-center text-violet-200"
+          role="img"
+          aria-label={image.alt}
+        >
           <Building2 className="size-10" strokeWidth={1.25} aria-hidden="true" />
         </div>
       ) : (

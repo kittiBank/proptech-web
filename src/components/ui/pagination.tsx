@@ -57,10 +57,7 @@ export function Pagination({ page, pageCount, onPageChange, className, label = "
                 onClick={() => onPageChange(item)}
                 aria-current={item === page ? "page" : undefined}
                 aria-label={`หน้า ${item}`}
-                className={cn(
-                  itemBase,
-                  item === page ? "bg-ink font-semibold text-white" : "text-ink hover:bg-mist",
-                )}
+                className={cn(itemBase, item === page ? "bg-ink font-semibold text-white" : "text-ink hover:bg-mist")}
               >
                 {item}
               </button>

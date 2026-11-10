@@ -68,7 +68,11 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
           priority={priority}
           className={cn(
             "rounded-md",
-            isLead ? "aspect-[4/3] lg:aspect-[3/2]" : variant === "compact" ? "aspect-[16/10] lg:aspect-[4/5]" : "aspect-[4/3]",
+            isLead
+              ? "aspect-[4/3] lg:aspect-[3/2]"
+              : variant === "compact"
+                ? "aspect-[16/10] lg:aspect-[4/5]"
+                : "aspect-[4/3]",
           )}
         />
         <div className="absolute top-3 left-3 flex gap-1.5">
@@ -95,7 +99,13 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
         />
       </div>
 
-      <div className={cn("flex flex-1 flex-col pt-4", isLead ? "gap-2.5" : "gap-2", variant === "compact" && "lg:justify-center lg:pt-0")}>
+      <div
+        className={cn(
+          "flex flex-1 flex-col pt-4",
+          isLead ? "gap-2.5" : "gap-2",
+          variant === "compact" && "lg:justify-center lg:pt-0",
+        )}
+      >
         <p
           className={cn(
             "font-semibold tracking-tight text-ink tabular-nums",
@@ -104,9 +114,17 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
         >
           {formatListingPrice(property.price, property.mode)}
         </p>
-        <h3 className={cn("text-ink", isLead ? "text-lg leading-snug font-medium" : "line-clamp-2 text-[15px] leading-snug")}>
+        <h3
+          className={cn(
+            "text-ink",
+            isLead ? "text-lg leading-snug font-medium" : "line-clamp-2 text-[15px] leading-snug",
+          )}
+        >
           {/* Stretched link: the whole card is clickable, the favourite button sits above it. */}
-          <Link href={href} className="after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-brand focus-visible:after:rounded-md">
+          <Link
+            href={href}
+            className="after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-md focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-brand"
+          >
             {property.title}
           </Link>
         </h3>

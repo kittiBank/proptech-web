@@ -71,7 +71,8 @@ export function NewProjects({ projects }: { projects: NewProject[] }) {
                 </h3>
                 <p className="text-[15px] leading-relaxed text-slate">{project.summary}</p>
                 <p className="text-[15px] text-ink">
-                  เริ่ม <span className="text-lg font-semibold tabular-nums">฿{formatPrice(project.startingPrice)}</span>
+                  เริ่ม{" "}
+                  <span className="text-lg font-semibold tabular-nums">฿{formatPrice(project.startingPrice)}</span>
                   <span className="text-slate"> ใน{project.district}</span>
                 </p>
                 <div className="mt-auto pt-2">

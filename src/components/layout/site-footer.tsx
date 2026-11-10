@@ -19,8 +19,11 @@ export function SiteFooter() {
           <p className="max-w-sm text-[15px] leading-relaxed text-white/70">
             ตลาดซื้อ ขาย เช่าบ้านและคอนโดสำหรับคนกรุงเทพฯ ทุกประกาศแสดงระยะเดินถึงสถานีและราคาต่อตารางเมตร
           </p>
-          <address className="flex flex-col gap-3 text-[15px] not-italic text-white/80">
-            <a href={`tel:${contact.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-3 hover:text-white">
+          <address className="flex flex-col gap-3 text-[15px] text-white/80 not-italic">
+            <a
+              href={`tel:${contact.phone.replace(/\s/g, "")}`}
+              className="inline-flex items-center gap-3 hover:text-white"
+            >
               <Phone className="size-4 text-violet-200" aria-hidden="true" />
               {contact.phone}
               <span className="text-white/60">{contact.hours}</span>
@@ -43,7 +46,10 @@ export function SiteFooter() {
               <ul className="flex flex-col gap-1">
                 {group.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="inline-flex min-h-9 items-center text-[15px] text-white/70 hover:text-white">
+                    <Link
+                      href={link.href}
+                      className="inline-flex min-h-9 items-center text-[15px] text-white/70 hover:text-white"
+                    >
                       {link.label}
                     </Link>
                   </li>

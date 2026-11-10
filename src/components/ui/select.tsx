@@ -45,7 +45,9 @@ function SelectContent({
         )}
         {...props}
       >
-        <SelectPrimitive.Viewport className="max-h-[min(360px,var(--radix-select-content-available-height))] p-1">{children}</SelectPrimitive.Viewport>
+        <SelectPrimitive.Viewport className="max-h-[min(360px,var(--radix-select-content-available-height))] p-1">
+          {children}
+        </SelectPrimitive.Viewport>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );
@@ -56,7 +58,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex h-10 cursor-default select-none items-center rounded-sm pr-9 pl-3 text-[15px] outline-none data-[highlighted]:bg-mist data-[state=checked]:font-medium data-[state=checked]:text-brand-strong",
+        "relative flex h-10 cursor-default items-center rounded-sm pr-9 pl-3 text-[15px] outline-none select-none data-[highlighted]:bg-mist data-[state=checked]:font-medium data-[state=checked]:text-brand-strong",
         className,
       )}
       {...props}

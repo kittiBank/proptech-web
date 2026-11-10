@@ -33,13 +33,21 @@ export function MobileNav() {
           <ul>
             {mainNav.map((item) => (
               <li key={item.label} className="border-b border-line">
-                <NavLink item={item} onNavigate={close} className="flex h-14 items-center text-[17px] font-medium text-ink">
+                <NavLink
+                  item={item}
+                  onNavigate={close}
+                  className="flex h-14 items-center text-[17px] font-medium text-ink"
+                >
                   {item.label}
                 </NavLink>
               </li>
             ))}
             <li className="border-b border-line">
-              <Link href="/favorites" onClick={close} className="flex h-14 items-center text-[17px] font-medium text-ink">
+              <Link
+                href="/favorites"
+                onClick={close}
+                className="flex h-14 items-center text-[17px] font-medium text-ink"
+              >
                 รายการโปรด
               </Link>
             </li>

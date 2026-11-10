@@ -35,7 +35,10 @@ export function PostCta() {
 
           <ol className="flex flex-col justify-center gap-0 border-t border-white/20 bg-violet-600 p-8 sm:p-12 lg:border-t-0 lg:border-l">
             {steps.map((step, i) => (
-              <li key={step.title} className="flex gap-5 border-b border-white/15 py-5 first:pt-0 last:border-b-0 last:pb-0">
+              <li
+                key={step.title}
+                className="flex gap-5 border-b border-white/15 py-5 first:pt-0 last:border-b-0 last:pb-0"
+              >
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-white/50 text-[15px] font-semibold tabular-nums">
                   {i + 1}
                 </span>

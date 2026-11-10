@@ -56,7 +56,8 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
           description={
             applied ? (
               <>
-                {describeFilters(applied)} พบ <span className="font-medium text-ink tabular-nums">{formatNumber(results.length)}</span> รายการ
+                {describeFilters(applied)} พบ{" "}
+                <span className="font-medium text-ink tabular-nums">{formatNumber(results.length)}</span> รายการ
               </>
             ) : (
               "ประกาศล่าสุดจากเจ้าของและนายหน้าทั่วกรุงเทพฯ เรียงจากใหม่ไปเก่า"
@@ -96,7 +97,8 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
           </div>
           {results.length > 0 && (
             <p className="text-sm text-slate tabular-nums" aria-live="polite">
-              แสดง {formatNumber(firstIndex)}–{formatNumber(firstIndex + shown.length - 1)} จาก {formatNumber(results.length)} ประกาศ
+              แสดง {formatNumber(firstIndex)}–{formatNumber(firstIndex + shown.length - 1)} จาก{" "}
+              {formatNumber(results.length)} ประกาศ
             </p>
           )}
         </div>
@@ -122,7 +124,13 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
           </div>
         )}
 
-        <Pagination page={page} pageCount={pageCount} onPageChange={goToPage} className="mt-14" label="หน้าของประกาศล่าสุด" />
+        <Pagination
+          page={page}
+          pageCount={pageCount}
+          onPageChange={goToPage}
+          className="mt-14"
+          label="หน้าของประกาศล่าสุด"
+        />
       </Container>
     </section>
   );
