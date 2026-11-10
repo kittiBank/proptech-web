@@ -11,16 +11,22 @@ interface PropertyPhotoProps {
   sizes: string;
   priority?: boolean;
   className?: string;
+  /** Extra classes for the <img> itself, e.g. a hover zoom. */
+  imageClassName?: string;
 }
 
 /** next/image with a quiet placeholder if a listing photo fails to load. */
-export function PropertyPhoto({ image, sizes, priority, className }: PropertyPhotoProps) {
+export function PropertyPhoto({ image, sizes, priority, className, imageClassName }: PropertyPhotoProps) {
   const [failed, setFailed] = useState(false);
 
   return (
     <div className={cn("relative overflow-hidden bg-violet-50", className)}>
       {failed ? (
-        <div className="absolute inset-0 flex items-center justify-center text-violet-200" role="img" aria-label={image.alt}>
+        <div
+          className="absolute inset-0 flex items-center justify-center text-violet-200"
+          role="img"
+          aria-label={image.alt}
+        >
           <Building2 className="size-10" strokeWidth={1.25} aria-hidden="true" />
         </div>
       ) : (
@@ -30,7 +36,7 @@ export function PropertyPhoto({ image, sizes, priority, className }: PropertyPho
           fill
           sizes={sizes}
           priority={priority}
-          className="object-cover"
+          className={cn("object-cover", imageClassName)}
           onError={() => setFailed(true)}
         />
       )}

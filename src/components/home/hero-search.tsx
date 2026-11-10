@@ -66,12 +66,13 @@ export function HeroSearch({ listingTotals, lines }: HeroSearchProps) {
             </TabsList>
             <p className="hidden text-sm text-slate sm:block" aria-live="polite">
               {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
-              <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span> รายการ
+              <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
+              รายการ
             </p>
           </div>
         </Tabs>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-[1.35fr_1.25fr_1fr_1fr_auto] md:items-stretch">
+        <div className="grid md:grid-cols-2 md:items-stretch lg:grid-cols-[1.35fr_1.25fr_1fr_1fr_auto]">
           <label className={fieldClass}>
             <span className="text-[13px] font-medium text-slate">ทำเล เขต หรือชื่อโครงการ</span>
             <span className="flex items-center gap-2">
@@ -185,7 +186,13 @@ export function HeroSearch({ listingTotals, lines }: HeroSearchProps) {
             href="/#listings"
             onClick={(e) => {
               e.preventDefault();
-              submit({ mode: s.mode, keyword: s.keyword ?? "", station: s.station ?? "any", type: s.type ?? "all", priceRange: "any" });
+              submit({
+                mode: s.mode,
+                keyword: s.keyword ?? "",
+                station: s.station ?? "any",
+                type: s.type ?? "all",
+                priceRange: "any",
+              });
             }}
             className="text-white underline decoration-white/40 underline-offset-4 hover:decoration-white"
           >

@@ -6,30 +6,42 @@ A property marketplace for Bangkok where people buy, sell and rent condos, house
 
 ## Tech stack
 
-| Layer | Stack | Status |
-| --- | --- | --- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui + Radix UI, Lucide | In use |
-| Backend | NestJS, REST + OpenAPI, Prisma, JWT auth | Planned |
-| Database | PostgreSQL + PostGIS, Redis | Planned |
-| Storage | S3-compatible object storage + CDN for listing photos | Planned |
-| DevOps | GitHub Actions, Docker, Vercel (web) | Planned |
+| Layer    | Stack                                                                                          | Status  |
+| -------- | ---------------------------------------------------------------------------------------------- | ------- |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui + Radix UI, Lucide   | In use  |
+| Tooling  | pnpm, ESLint, Prettier (+ Tailwind class sorting), Vitest + Testing Library, GitHub Actions CI | In use  |
+| Backend  | NestJS, REST + OpenAPI, Prisma, JWT auth                                                       | Planned |
+| Database | PostgreSQL + PostGIS, Redis                                                                    | Planned |
+| Storage  | S3-compatible object storage + CDN for listing photos                                          | Planned |
+| DevOps   | GitHub Actions, Docker, Vercel (web)                                                           | Planned |
 
 ## How to run
 
-Requires Node.js 20.9 or later (22 recommended).
+Requires Node.js 22 (see `.nvmrc`) and pnpm. Run `corepack enable` once and the pinned pnpm version is used automatically.
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000
+pnpm install
+pnpm dev             # http://localhost:3000
 ```
 
 Other scripts:
 
 ```bash
-npm run lint       # ESLint
-npx tsc --noEmit   # type check
-npm run build      # production build
-npm start          # serve the production build
+pnpm lint            # ESLint
+pnpm typecheck       # tsc --noEmit
+pnpm format          # Prettier, writes changes (format:check only reports)
+pnpm test            # Vitest in watch mode (test:run runs once)
+pnpm build           # production build
+pnpm start           # serve the production build
+pnpm check:images    # confirm every mock photo URL still loads
 ```
+
+CI (`.github/workflows/ci.yml`) runs format check, lint, type check, tests and build on every pull request.
+
+## Project layout
+
+- `src/app/(site)/` holds the public pages. Its `layout.tsx` adds the shared header and footer (`components/layout/site-shell.tsx`), so a new page placed here gets them automatically.
+- `src/app/not-found.tsx` handles unknown URLs and uses the same shell.
+- Tests sit next to the code they cover as `*.test.ts(x)`.
 
 Set `NEXT_PUBLIC_API_URL` once the backend API is available.

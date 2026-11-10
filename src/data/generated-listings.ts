@@ -19,7 +19,7 @@ function mulberry32(seed: number) {
 }
 
 const rand = mulberry32(20261110);
-const pick = <T,>(list: readonly T[]): T => list[Math.floor(rand() * list.length)];
+const pick = <T>(list: readonly T[]): T => list[Math.floor(rand() * list.length)];
 const between = (min: number, max: number) => min + rand() * (max - min);
 const roundTo = (value: number, step: number) => Math.round(value / step) * step;
 
@@ -48,7 +48,16 @@ const stations = transitLines.flatMap((line) =>
   })),
 );
 
-const condoNames = ["ลอฟท์ไลน์", "เดอะ ฮาร์เบอร์", "นอร์ธวิว", "ซิตี้ เฮเว่น", "แกรนด์ เรสซิเดนซ์", "ไลฟ์ สเปซ", "อาร์ทิซาน", "เดอะ เนสท์"];
+const condoNames = [
+  "ลอฟท์ไลน์",
+  "เดอะ ฮาร์เบอร์",
+  "นอร์ธวิว",
+  "ซิตี้ เฮเว่น",
+  "แกรนด์ เรสซิเดนซ์",
+  "ไลฟ์ สเปซ",
+  "อาร์ทิซาน",
+  "เดอะ เนสท์",
+];
 const agents = [
   { name: "ณัฐชา ประเสริฐวงศ์", kind: "agent" },
   { name: "ธนพล เจริญรัตน์", kind: "owner" },
@@ -120,11 +129,22 @@ function buildListing(index: number): Property {
   switch (type) {
     case "condo": {
       bedrooms = pick([0, 1, 1, 1, 2, 2, 3]);
-      area = Math.round(bedrooms === 0 ? between(24, 32) : bedrooms === 1 ? between(30, 48) : bedrooms === 2 ? between(55, 90) : between(100, 160));
+      area = Math.round(
+        bedrooms === 0
+          ? between(24, 32)
+          : bedrooms === 1
+            ? between(30, 48)
+            : bedrooms === 2
+              ? between(55, 90)
+              : between(100, 160),
+      );
       bathrooms = Math.max(1, bedrooms === 3 ? 3 : bedrooms);
       floor = Math.round(between(4, 38));
       projectName = `${pick(condoNames)} ${loc.station.name}`;
-      price = mode === "buy" ? roundTo(area * loc.median * between(0.78, 1.12), 10_000) : roundTo(area * between(420, 820), 500);
+      price =
+        mode === "buy"
+          ? roundTo(area * loc.median * between(0.78, 1.12), 10_000)
+          : roundTo(area * between(420, 820), 500);
       title = `${bedrooms === 0 ? "สตูดิโอ" : `${bedrooms} ห้องนอน`} ${pick(["ชั้นสูง วิวเมือง", "ตกแต่งครบ พร้อมอยู่", "ห้องมุม ลมดี", "ใกล้รถไฟฟ้า", "ราคาดีในโครงการ", "เลี้ยงสัตว์ได้"])}`;
       break;
     }
@@ -133,7 +153,8 @@ function buildListing(index: number): Property {
       bathrooms = bedrooms;
       landSize = Math.round(between(50, 140));
       area = Math.round(landSize * between(2.4, 3.2));
-      price = mode === "buy" ? roundTo(between(5_500_000, 32_000_000), 100_000) : roundTo(between(35_000, 160_000), 5_000);
+      price =
+        mode === "buy" ? roundTo(between(5_500_000, 32_000_000), 100_000) : roundTo(between(35_000, 160_000), 5_000);
       title = `บ้านเดี่ยว ${bedrooms} ห้องนอน ${pick(["ในซอยเงียบ", "พร้อมสวนหน้าบ้าน", "รีโนเวทใหม่", "ในหมู่บ้านมีรปภ.", "จอดรถได้ 3 คัน"])}`;
       break;
     }
@@ -157,7 +178,8 @@ function buildListing(index: number): Property {
       area = Math.round(between(60, 400));
       bathrooms = Math.round(between(1, 4));
       landSize = rand() < 0.5 ? Math.round(between(16, 30)) : undefined;
-      price = mode === "buy" ? roundTo(between(5_000_000, 42_000_000), 100_000) : roundTo(between(25_000, 220_000), 5_000);
+      price =
+        mode === "buy" ? roundTo(between(5_000_000, 42_000_000), 100_000) : roundTo(between(25_000, 220_000), 5_000);
       title = `${pick(["อาคารพาณิชย์ 4 ชั้น", "สำนักงานให้เช่า", "พื้นที่ร้านค้าชั้นล่าง", "โฮมออฟฟิศ"])} ${area} ตร.ม.`;
       break;
     }

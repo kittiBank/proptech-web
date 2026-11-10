@@ -17,7 +17,8 @@ export function Hero({ listingTotals, lines }: HeroProps) {
           id="hero-title"
           className="text-[34px] leading-[1.25] font-semibold tracking-[-0.02em] text-white sm:text-[48px] lg:text-[60px] lg:leading-[1.2]"
         >
-          <span className="block lg:inline">บ้านหลังต่อไป</span> <span className="block lg:inline">ห่างสถานีกี่ก้าว</span>
+          <span className="block lg:inline">บ้านหลังต่อไป</span>{" "}
+          <span className="block lg:inline">ห่างสถานีกี่ก้าว</span>
         </h1>
         <p className="mt-4 max-w-[52ch] text-[17px] leading-relaxed text-white/80 sm:text-lg">
           ซื้อหรือเช่าบ้าน คอนโด และที่ดินกว่า 96,000 ประกาศทั่วกรุงเทพฯ ทุกประกาศบอกระยะเดินถึง BTS และ MRT
