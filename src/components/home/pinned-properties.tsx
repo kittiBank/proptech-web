@@ -1,12 +1,24 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
 import { PropertyCard } from "@/components/property/property-card";
+import { CardGridSkeleton, QueryError } from "@/components/ui/query-state";
 import { routes } from "@/data/navigation";
-import type { Property } from "@/types/property";
+import { propertyQueries } from "@/lib/api/queries";
 import { Container, SectionHeader } from "./section-header";
 
+const PINNED_LIMIT = 8;
+
 /** Paid highlight placements: two rows, four per row on desktop. */
-export function PinnedProperties({ properties }: { properties: Property[] }) {
-  if (properties.length === 0) return null;
+export function PinnedProperties() {
+  const { data, isPending, isError, refetch, isFetching } = useQuery(
+    propertyQueries.list({ pinned: true, limit: PINNED_LIMIT }),
+  );
+  const properties = data?.data ?? [];
+
+  // No paid placements right now: leave the section out rather than show an empty band.
+  if (!isPending && !isError && properties.length === 0) return null;
 
   return (
     <section aria-labelledby="pinned-title" className="bg-mist py-16 sm:py-20">
@@ -23,13 +35,19 @@ export function PinnedProperties({ properties }: { properties: Property[] }) {
           action={{ label: "ปักหมุดประกาศของคุณ", href: `${routes.postProperty}?plan=pin` }}
         />
 
-        <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {properties.slice(0, 8).map((p, i) => (
-            <li key={p.id} className="flex">
-              <PropertyCard property={p} priority={i < 4} className="w-full" />
-            </li>
-          ))}
-        </ul>
+        {isPending ? (
+          <CardGridSkeleton count={PINNED_LIMIT} label="กำลังโหลดประกาศไฮไลต์" className="mt-10" />
+        ) : isError ? (
+          <QueryError what="ประกาศไฮไลต์" onRetry={() => refetch()} retrying={isFetching} className="mt-10" />
+        ) : (
+          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {properties.map((p, i) => (
+              <li key={p.id} className="flex">
+                <PropertyCard property={p} priority={i < 4} className="w-full" />
+              </li>
+            ))}
+          </ul>
+        )}
       </Container>
     </section>
   );

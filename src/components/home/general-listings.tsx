@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { SearchX } from "lucide-react";
 import { PropertyCard } from "@/components/property/property-card";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
+import { CardGridSkeleton, QueryError } from "@/components/ui/query-state";
 import { propertyTypeLabels } from "@/data/catalog";
+import { propertyQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
-import { describeFilters, filterProperties } from "@/lib/search";
+import { describeFilters, toPropertyQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { useRequiredHomeSearch } from "@/providers/home-search-provider";
-import type { Property, PropertyType } from "@/types/property";
+import type { PropertyType } from "@/types/property";
 import { Container, SectionHeader } from "./section-header";
 
 /** 10 rows of the 4-column desktop grid per page. */
@@ -20,22 +23,31 @@ const PAGE_SIZE = COLUMNS * ROWS_PER_PAGE;
 
 const typeFilters: ("all" | PropertyType)[] = ["all", "condo", "house", "townhouse", "land", "commercial"];
 
-export function GeneralListings({ properties }: { properties: Property[] }) {
+export function GeneralListings() {
   const { applied, reset } = useRequiredHomeSearch();
   const [typeFilter, setTypeFilter] = useState<"all" | PropertyType>("all");
   const [pageState, setPageState] = useState({ page: 1, key: "" });
 
-  const results = useMemo(() => {
-    const base = applied ? filterProperties(properties, applied) : properties;
-    return typeFilter === "all" ? base : base.filter((p) => p.type === typeFilter);
-  }, [properties, applied, typeFilter]);
-
   // Any change to the search or type filter starts again from page 1.
   const resultKey = `${JSON.stringify(applied)}|${typeFilter}`;
   const page = pageState.key === resultKey ? pageState.page : 1;
-  const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
-  const shown = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const firstIndex = results.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+
+  // Filtering, sorting and paging happen on the server; pinned placements have their own section.
+  const { data, isPending, isError, isFetching, isPlaceholderData, refetch } = useQuery(
+    propertyQueries.list({
+      ...toPropertyQuery(applied, { type: typeFilter }),
+      pinned: false,
+      sort: "-postedAt",
+      page,
+      limit: PAGE_SIZE,
+    }),
+  );
+
+  const shown = data?.data ?? [];
+  const total = data?.meta.total ?? 0;
+  const pageCount = data?.meta.totalPages ?? 1;
+  // From the response, so the range stays right while the next page is still loading.
+  const firstIndex = data && total > 0 ? (data.meta.page - 1) * data.meta.limit + 1 : 0;
 
   const goToPage = (next: number) => {
     setPageState({ page: Math.min(Math.max(1, next), pageCount), key: resultKey });
@@ -56,8 +68,13 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
           description={
             applied ? (
               <>
-                {describeFilters(applied)} พบ{" "}
-                <span className="font-medium text-ink tabular-nums">{formatNumber(results.length)}</span> รายการ
+                {describeFilters(applied)}
+                {data && (
+                  <>
+                    {" "}
+                    พบ <span className="font-medium text-ink tabular-nums">{formatNumber(total)}</span> รายการ
+                  </>
+                )}
               </>
             ) : (
               "ประกาศล่าสุดจากเจ้าของและนายหน้าทั่วกรุงเทพฯ เรียงจากใหม่ไปเก่า"
@@ -95,16 +112,26 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
               })}
             </div>
           </div>
-          {results.length > 0 && (
+          {total > 0 && (
             <p className="text-sm text-slate tabular-nums" aria-live="polite">
-              แสดง {formatNumber(firstIndex)}–{formatNumber(firstIndex + shown.length - 1)} จาก{" "}
-              {formatNumber(results.length)} ประกาศ
+              แสดง {formatNumber(firstIndex)}–{formatNumber(firstIndex + shown.length - 1)} จาก {formatNumber(total)}{" "}
+              ประกาศ
             </p>
           )}
         </div>
 
-        {shown.length > 0 ? (
-          <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {isPending ? (
+          <CardGridSkeleton count={COLUMNS * 2} label="กำลังโหลดประกาศ" className="mt-8" />
+        ) : isError ? (
+          <QueryError what="ประกาศ" onRetry={() => refetch()} retrying={isFetching} className="mt-8" />
+        ) : shown.length > 0 ? (
+          <ul
+            aria-busy={isPlaceholderData}
+            className={cn(
+              "mt-8 grid gap-6 transition-opacity sm:grid-cols-2 lg:grid-cols-4",
+              isPlaceholderData && "opacity-60",
+            )}
+          >
             {shown.map((p) => (
               <li key={p.id} className="flex">
                 <PropertyCard property={p} className="w-full" />
@@ -124,13 +151,15 @@ export function GeneralListings({ properties }: { properties: Property[] }) {
           </div>
         )}
 
-        <Pagination
-          page={page}
-          pageCount={pageCount}
-          onPageChange={goToPage}
-          className="mt-14"
-          label="หน้าของประกาศล่าสุด"
-        />
+        {data && (
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            onPageChange={goToPage}
+            className="mt-14"
+            label="หน้าของประกาศล่าสุด"
+          />
+        )}
       </Container>
     </section>
   );

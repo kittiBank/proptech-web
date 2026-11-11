@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { House, KeyRound, MapPin, Search, TrainFront } from "lucide-react";
 import { lineColor } from "@/components/property/transit-badge";
 import { Button } from "@/components/ui/button";
@@ -16,15 +17,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { popularSearches, priceRanges, propertyTypeLabels } from "@/data/catalog";
+import { categoriesQuery, stationsQuery } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
 import { useRequiredHomeSearch } from "@/providers/home-search-provider";
 import { cn } from "@/lib/utils";
-import type { ListingMode, PropertyType, TransitLine } from "@/types/property";
-
-interface HeroSearchProps {
-  listingTotals: Record<ListingMode, number>;
-  lines: TransitLine[];
-}
+import type { ListingMode, PropertyCategory, PropertyType } from "@/types/property";
 
 const fieldClass =
   "flex min-w-0 flex-col justify-center gap-1 border-b border-line px-4 py-3 sm:px-5 lg:border-b-0 lg:border-r lg:py-4 md:odd:border-r";
@@ -35,8 +32,18 @@ const toggleClass =
 
 const typeOptions = Object.entries(propertyTypeLabels) as [PropertyType, string][];
 
-export function HeroSearch({ listingTotals, lines }: HeroSearchProps) {
+/** Sale/rent split of the category totals; replaced by API facets later. */
+function toListingTotals(categories: PropertyCategory[]): Record<ListingMode, number> {
+  const total = categories.reduce((sum, c) => sum + c.listingCount, 0);
+  return { buy: Math.round(total * 0.63), rent: Math.round(total * 0.37) };
+}
+
+export function HeroSearch() {
   const { draft, setDraft, submit } = useRequiredHomeSearch();
+  // The form stays usable without these: the station list falls back to "any"
+  // and the listing count is hidden until categories arrive.
+  const { data: lines = [] } = useQuery({ ...stationsQuery, select: (res) => res.data });
+  const { data: listingTotals } = useQuery({ ...categoriesQuery, select: (res) => toListingTotals(res.data) });
 
   return (
     <div id="search" className="w-full">
@@ -64,11 +71,13 @@ export function HeroSearch({ listingTotals, lines }: HeroSearchProps) {
                 เช่า
               </TabsTrigger>
             </TabsList>
-            <p className="hidden text-sm text-slate sm:block" aria-live="polite">
-              {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
-              <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
-              รายการ
-            </p>
+            {listingTotals && (
+              <p className="hidden text-sm text-slate sm:block" aria-live="polite">
+                {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
+                <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
+                รายการ
+              </p>
+            )}
           </div>
         </Tabs>
 
