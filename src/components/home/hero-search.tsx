@@ -2,25 +2,16 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { House, KeyRound, MapPin, Search, TrainFront } from "lucide-react";
-import { lineColor } from "@/components/property/transit-badge";
+import { House, KeyRound, MapPin, Search, X } from "lucide-react";
+import { PriceOptions, priceLabel, StationOptions, TypeOptions } from "@/components/search/search-options";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { popularSearches, priceRanges, propertyTypeLabels } from "@/data/catalog";
-import { categoriesQuery, stationsQuery } from "@/lib/api/queries";
+import { popularSearches } from "@/data/catalog";
+import { categoriesQuery } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
+import { hasActiveFilters } from "@/lib/search";
 import { useRequiredHomeSearch } from "@/providers/home-search-provider";
-import { cn } from "@/lib/utils";
 import type { ListingMode, PropertyCategory, PropertyType } from "@/types/property";
 
 const fieldClass =
@@ -30,8 +21,6 @@ const fieldClass =
 const toggleClass =
   "inline-flex h-9 min-w-[96px] items-center justify-center gap-1.5 rounded-sm px-4 text-[15px] font-medium text-slate transition-colors after:hidden hover:text-ink data-[state=active]:bg-white data-[state=active]:text-ink data-[state=active]:ring-1 data-[state=active]:ring-line-strong data-[state=active]:[&_svg]:text-brand";
 
-const typeOptions = Object.entries(propertyTypeLabels) as [PropertyType, string][];
-
 /** Sale/rent split of the category totals; replaced by API facets later. */
 function toListingTotals(categories: PropertyCategory[]): Record<ListingMode, number> {
   const total = categories.reduce((sum, c) => sum + c.listingCount, 0);
@@ -39,10 +28,9 @@ function toListingTotals(categories: PropertyCategory[]): Record<ListingMode, nu
 }
 
 export function HeroSearch() {
-  const { draft, setDraft, submit } = useRequiredHomeSearch();
-  // The form stays usable without these: the station list falls back to "any"
-  // and the listing count is hidden until categories arrive.
-  const { data: lines = [] } = useQuery({ ...stationsQuery, select: (res) => res.data });
+  const { draft, setDraft, submit, applied, clearFilters } = useRequiredHomeSearch();
+  const canClear = hasActiveFilters(draft) || applied !== null;
+  // The listing count is hidden until categories arrive; the form works without it.
   const { data: listingTotals } = useQuery({ ...categoriesQuery, select: (res) => toListingTotals(res.data) });
 
   return (
@@ -60,7 +48,7 @@ export function HeroSearch() {
           <div className="flex items-center justify-between gap-4 border-b border-line px-3 py-2.5 sm:px-4">
             <TabsList
               aria-label="ต้องการซื้อหรือเช่า"
-              className="grid w-full grid-cols-2 items-center gap-1 rounded-md bg-mist p-1 sm:inline-flex sm:w-auto"
+              className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1 rounded-md bg-mist p-1 sm:inline-flex sm:flex-none"
             >
               <TabsTrigger value="buy" className={toggleClass}>
                 <House aria-hidden="true" className="size-4" />
@@ -71,13 +59,20 @@ export function HeroSearch() {
                 เช่า
               </TabsTrigger>
             </TabsList>
-            {listingTotals && (
-              <p className="hidden text-sm text-slate sm:block" aria-live="polite">
-                {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
-                <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
-                รายการ
-              </p>
-            )}
+            <div className="flex items-center gap-4">
+              {listingTotals && (
+                <p className="hidden text-sm text-slate md:block" aria-live="polite">
+                  {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
+                  <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
+                  รายการ
+                </p>
+              )}
+              {/* Always rendered so the row does not shift; disabled while there is nothing to clear. */}
+              <Button type="button" variant="ghost" size="sm" onClick={clearFilters} disabled={!canClear}>
+                <X aria-hidden="true" />
+                ล้างตัวกรอง
+              </Button>
+            </div>
           </div>
         </Tabs>
 
@@ -107,36 +102,7 @@ export function HeroSearch() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="any">
-                  <span className="inline-flex items-center gap-2">
-                    <TrainFront className="size-4 text-brand" aria-hidden="true" />
-                    ทุกสถานี
-                  </span>
-                </SelectItem>
-                {lines.map((line) => (
-                  <SelectGroup key={line.id}>
-                    <SelectSeparator />
-                    <SelectLabel>
-                      <span className={cn("h-1 w-4 rounded-full", lineColor[line.id])} aria-hidden="true" />
-                      {line.name}
-                    </SelectLabel>
-                    {line.stations.map((st) => (
-                      <SelectItem key={st.stationCode} value={st.stationCode}>
-                        <span className="inline-flex items-center gap-2">
-                          <span
-                            className={cn(
-                              "inline-flex h-5 min-w-9 items-center justify-center rounded-sm px-1 text-[11px] font-semibold text-white tabular-nums",
-                              lineColor[line.id],
-                            )}
-                          >
-                            {st.stationCode}
-                          </span>
-                          {st.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
+                <StationOptions />
               </SelectContent>
             </Select>
           </div>
@@ -150,30 +116,21 @@ export function HeroSearch() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">ทุกประเภท</SelectItem>
-                {typeOptions.map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
+                <TypeOptions />
               </SelectContent>
             </Select>
           </div>
 
           <div className={fieldClass}>
             <span id="price-label" className="text-[13px] font-medium text-slate">
-              {draft.mode === "buy" ? "ราคาขาย" : "ค่าเช่าต่อเดือน"}
+              {priceLabel(draft.mode)}
             </span>
             <Select value={draft.priceRange} onValueChange={(v) => setDraft({ priceRange: v })}>
               <SelectTrigger aria-labelledby="price-label" className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {priceRanges[draft.mode].map((range) => (
-                  <SelectItem key={range.value} value={range.value}>
-                    {range.label}
-                  </SelectItem>
-                ))}
+                <PriceOptions mode={draft.mode} />
               </SelectContent>
             </Select>
           </div>

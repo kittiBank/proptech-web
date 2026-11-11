@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { SearchFilters } from "@/types/property";
-import { defaultFilters, describeFilters, findStation, toPropertyQuery, toSearchParams } from "./search";
+import {
+  defaultFilters,
+  describeFilters,
+  findStation,
+  hasActiveFilters,
+  toPropertyQuery,
+  toSearchParams,
+} from "./search";
 
 const filters = (override: Partial<SearchFilters>): SearchFilters => ({ ...defaultFilters, ...override });
 
@@ -57,5 +64,19 @@ describe("findStation / describeFilters", () => {
   it("builds a readable Thai summary", () => {
     const text = describeFilters(filters({ mode: "buy", type: "condo", station: "E4" }));
     expect(text.startsWith("ซื้อ คอนโด ใกล้ BTS")).toBe(true);
+  });
+});
+
+describe("hasActiveFilters", () => {
+  it("ignores Buy/Rent and blank keywords", () => {
+    expect(hasActiveFilters(defaultFilters)).toBe(false);
+    expect(hasActiveFilters(filters({ mode: "rent", keyword: "   " }))).toBe(false);
+  });
+
+  it("flags any other filter", () => {
+    expect(hasActiveFilters(filters({ keyword: "สาทร" }))).toBe(true);
+    expect(hasActiveFilters(filters({ type: "land" }))).toBe(true);
+    expect(hasActiveFilters(filters({ station: "E4" }))).toBe(true);
+    expect(hasActiveFilters(filters({ priceRange: "3-5m" }))).toBe(true);
   });
 });

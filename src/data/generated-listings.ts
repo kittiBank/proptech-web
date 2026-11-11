@@ -1,5 +1,5 @@
-import type { ListingMode, Property, PropertyImage, PropertyType, TransitStation } from "@/types/property";
-import { photos } from "./images";
+import type { ListingMode, Property, PropertyType, TransitStation } from "@/types/property";
+import { photosByType } from "./images";
 import { transitLines } from "./locations";
 
 /**
@@ -68,38 +68,6 @@ const agents = [
   { name: "ศิริพร มั่นคง", kind: "owner" },
   { name: "บ้านดี พร็อพเพอร์ตี้", kind: "agent" },
 ] as const;
-
-const imagesByType: Record<PropertyType, PropertyImage[]> = {
-  condo: [
-    { src: photos.livingRoom, alt: "ห้องนั่งเล่นคอนโด" },
-    { src: photos.openPlan, alt: "ห้องนั่งเล่นเชื่อมห้องครัว" },
-    { src: photos.studio, alt: "ห้องสตูดิโอ" },
-    { src: photos.apartment, alt: "ห้องนั่งเล่นโทนสว่าง" },
-    { src: photos.brightLiving, alt: "ห้องนั่งเล่นสีขาว" },
-    { src: photos.cozyLiving, alt: "มุมนั่งเล่นพร้อมโซฟา" },
-    { src: photos.bedroom, alt: "ห้องนอน" },
-    { src: photos.kitchen, alt: "ห้องครัว" },
-    { src: photos.loungeChair, alt: "มุมพักผ่อน" },
-  ],
-  house: [
-    { src: photos.modernHouse, alt: "บ้านเดี่ยวสมัยใหม่" },
-    { src: photos.houseDusk, alt: "บ้านเดี่ยวยามเย็น" },
-    { src: photos.luxuryHouse, alt: "บ้านเดี่ยวหลังใหญ่" },
-    { src: photos.familyHouse, alt: "บ้านเดี่ยวพร้อมสนามหญ้า" },
-    { src: photos.gardenHouse, alt: "บ้านพร้อมสวน" },
-    { src: photos.whiteHouse, alt: "บ้านเดี่ยวสีขาว" },
-  ],
-  townhouse: [
-    { src: photos.townhouseRow, alt: "ทาวน์โฮมด้านหน้า" },
-    { src: photos.suburbanHouse, alt: "ทาวน์โฮมสองชั้น" },
-    { src: photos.modernHouse2, alt: "ทาวน์โฮมดีไซน์โมเดิร์น" },
-  ],
-  land: [{ src: photos.land, alt: "ที่ดินเปล่า" }],
-  commercial: [
-    { src: photos.office, alt: "พื้นที่สำนักงาน" },
-    { src: photos.shopfront, alt: "หน้าร้าน" },
-  ],
-};
 
 function pickType(): PropertyType {
   const r = rand();
@@ -206,7 +174,7 @@ function buildListing(index: number): Property {
     locationId: loc.locationId,
     station: nearStation ? loc.station : undefined,
     stationDistance: nearStation ? roundTo(between(120, 1200), 10) : undefined,
-    image: pick(imagesByType[type]),
+    image: pick(photosByType[type]),
     postedAt: posted.toISOString().slice(0, 10),
     isVerified: rand() < 0.7,
     agent: { ...pick(agents) },

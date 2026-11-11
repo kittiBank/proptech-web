@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SearchX } from "lucide-react";
 import { PropertyCard } from "@/components/property/property-card";
@@ -14,12 +14,15 @@ import { describeFilters, toPropertyQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { useRequiredHomeSearch } from "@/providers/home-search-provider";
 import type { PropertyType } from "@/types/property";
+import { AdCarousel } from "./ad-carousel";
 import { Container, SectionHeader } from "./section-header";
 
-/** 10 rows of the 4-column desktop grid per page. */
-const COLUMNS = 4;
-const ROWS_PER_PAGE = 10;
+/** 8 rows of the 3-column desktop grid per page. */
+const COLUMNS = 3;
+const ROWS_PER_PAGE = 8;
 const PAGE_SIZE = COLUMNS * ROWS_PER_PAGE;
+/** The sponsored slot sits after this many cards: mid-page, and a whole number of rows at 1, 2 and 3 columns. */
+const AD_AFTER = PAGE_SIZE / 2;
 
 const typeFilters: ("all" | PropertyType)[] = ["all", "condo", "house", "townhouse", "land", "commercial"];
 
@@ -121,21 +124,28 @@ export function GeneralListings() {
         </div>
 
         {isPending ? (
-          <CardGridSkeleton count={COLUMNS * 2} label="กำลังโหลดประกาศ" className="mt-8" />
+          <CardGridSkeleton count={COLUMNS * 2} columns={3} label="กำลังโหลดประกาศ" className="mt-8" />
         ) : isError ? (
           <QueryError what="ประกาศ" onRetry={() => refetch()} retrying={isFetching} className="mt-8" />
         ) : shown.length > 0 ? (
           <ul
             aria-busy={isPlaceholderData}
             className={cn(
-              "mt-8 grid gap-6 transition-opacity sm:grid-cols-2 lg:grid-cols-4",
+              "mt-8 grid gap-6 transition-opacity sm:grid-cols-2 lg:grid-cols-3",
               isPlaceholderData && "opacity-60",
             )}
           >
-            {shown.map((p) => (
-              <li key={p.id} className="flex">
-                <PropertyCard property={p} className="w-full" />
-              </li>
+            {shown.map((p, i) => (
+              <Fragment key={p.id}>
+                {i === AD_AFTER && (
+                  <li className="col-span-full my-2">
+                    <AdCarousel placement="home-feed" />
+                  </li>
+                )}
+                <li className="flex">
+                  <PropertyCard property={p} className="w-full" />
+                </li>
+              </Fragment>
             ))}
           </ul>
         ) : (

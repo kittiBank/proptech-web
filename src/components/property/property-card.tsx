@@ -1,21 +1,19 @@
 import Link from "next/link";
-import { BadgeCheck, Bath, BedDouble, Maximize2, Pin, Trees } from "lucide-react";
-import { propertyTypeLabels } from "@/data/catalog";
+import { BadgeCheck, Bath, BedDouble, Eye, Maximize2, Pin, Trees } from "lucide-react";
 import { routes } from "@/data/navigation";
 import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
 import { cardImageZoom, cardLink, cardTitle, interactiveCard } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Property } from "@/types/property";
 import { FavoriteButton } from "./favorite-button";
-import { PropertyPhoto } from "./property-photo";
+import { PropertyGallery } from "./property-gallery";
+import { PropertyTags } from "./property-tags";
 import { TransitBadge } from "./transit-badge";
 
 interface PropertyCardProps {
   property: Property;
   sizes?: string;
   priority?: boolean;
-  /** `lead` = the large featured listing. */
-  variant?: "default" | "lead" | "compact";
   className?: string;
 }
 
@@ -50,36 +48,28 @@ export function PropertySpecs({ property, className }: { property: Property; cla
   );
 }
 
-export function PropertyCard({ property, sizes, priority, variant = "default", className }: PropertyCardProps) {
-  const isLead = variant === "lead";
+export function PropertyCard({ property, sizes, priority, className }: PropertyCardProps) {
   const href = routes.property(property.slug);
+  const gallery = property.gallery?.length ? property.gallery : [property.image];
 
   return (
-    <article className={cn(interactiveCard, variant === "compact" && "lg:grid lg:grid-cols-[46%_1fr]", className)}>
+    <article className={cn(interactiveCard, className)}>
       <div className="relative">
-        <PropertyPhoto
-          image={property.image}
-          sizes={sizes ?? "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"}
+        <PropertyGallery
+          images={gallery}
+          href={href}
+          sizes={sizes ?? "(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"}
           priority={priority}
           imageClassName={cardImageZoom}
-          className={cn(
-            isLead
-              ? "aspect-[4/3] lg:aspect-[3/2]"
-              : variant === "compact"
-                ? "aspect-[16/10] lg:aspect-[4/5]"
-                : "aspect-[4/3]",
-          )}
+          className="aspect-[4/3]"
         />
-        <div className="absolute top-3 left-3 flex gap-1.5">
+        <div className="pointer-events-none absolute top-3 left-3 z-[2] flex gap-1.5">
           {property.isPinned && (
             <span className="inline-flex items-center gap-1 rounded-sm bg-brand px-2 py-1 text-xs font-medium text-white">
               <Pin className="size-3.5 fill-white" aria-hidden="true" />
               ปักหมุด
             </span>
           )}
-          <span className="rounded-sm bg-ink px-2 py-1 text-xs font-medium text-white">
-            {property.mode === "buy" ? "ขาย" : "เช่า"}
-          </span>
           {property.isVerified && !property.isPinned && (
             <span className="inline-flex items-center gap-1 rounded-sm bg-white px-2 py-1 text-xs font-medium text-ink">
               <BadgeCheck className="size-3.5 text-brand" aria-hidden="true" />
@@ -94,51 +84,38 @@ export function PropertyCard({ property, sizes, priority, variant = "default", c
         />
       </div>
 
-      <div
-        className={cn(
-          "flex flex-1 flex-col p-4",
-          isLead ? "gap-2.5 sm:p-5" : "gap-2",
-          variant === "compact" && "lg:justify-center",
-        )}
-      >
-        <p
-          className={cn(
-            "font-semibold tracking-tight text-ink tabular-nums",
-            isLead ? "text-[28px] leading-none sm:text-[32px]" : "text-xl leading-none",
-          )}
-        >
-          {formatListingPrice(property.price, property.mode)}
-        </p>
-        <h3
-          className={cn(
-            "text-ink",
-            cardTitle,
-            isLead ? "text-lg leading-snug font-medium" : "line-clamp-2 text-[15px] leading-snug",
-          )}
-        >
-          {/* Stretched link: the whole card is clickable, the favourite button sits above it. */}
+      <div className="flex flex-1 flex-col gap-2.5 p-5">
+        <PropertyTags mode={property.mode} type={property.type} />
+        <h3 className={cn("line-clamp-2 text-lg leading-snug font-semibold text-ink", cardTitle)}>
+          {/* Stretched link: the whole card is clickable; gallery and favourite sit above it. */}
           <Link href={href} data-card-link className={cardLink}>
             {property.title}
           </Link>
         </h3>
-        <p className="text-sm text-slate">
-          {[propertyTypeLabels[property.type], property.projectName, property.district].filter(Boolean).join(", ")}
+        <p className="text-[22px] leading-none font-semibold tracking-tight text-ink tabular-nums">
+          {formatListingPrice(property.price, property.mode)}
         </p>
+        <p className="text-sm text-slate">{[property.projectName, property.district].filter(Boolean).join(", ")}</p>
         <PropertySpecs property={property} />
         {property.station && (
           <TransitBadge station={property.station} distance={property.stationDistance} className="mt-0.5" />
         )}
-        {variant === "default" && (
-          <div className="mt-auto pt-1">
-            <p className="flex flex-wrap gap-x-3 border-t border-line pt-3 text-[13px] text-slate">
+        <div className="mt-auto pt-1">
+          <div className="flex items-center justify-between gap-3 border-t border-line pt-3 text-[13px] text-slate">
+            <p className="flex flex-wrap gap-x-3">
               <span>{property.agent.kind === "owner" ? "เจ้าของขายเอง" : "นายหน้า"}</span>
               <span>ลงประกาศ {formatRelativeDays(property.postedAt)}</span>
             </p>
+            {property.viewCount !== undefined && (
+              <p className="inline-flex shrink-0 items-center gap-1 tabular-nums">
+                <Eye className="size-4" aria-hidden="true" />
+                <span className="sr-only">เข้าชม</span>
+                {formatNumber(property.viewCount)}
+                <span className="sr-only">ครั้ง</span>
+              </p>
+            )}
           </div>
-        )}
-        {isLead && property.highlight && (
-          <p className="mt-1 border-t border-line pt-3 text-[15px] text-ink">{property.highlight}</p>
-        )}
+        </div>
       </div>
     </article>
   );

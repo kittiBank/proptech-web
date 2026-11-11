@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { mainNav, routes } from "@/data/navigation";
 import { FavoritesLink } from "./favorites-link";
+import { HeaderSearch } from "./header-search";
 import { Logo } from "./logo";
 import { MobileNav } from "./mobile-nav";
 import { NavLink } from "./nav-link";
@@ -36,6 +37,7 @@ export function SiteHeader() {
           <MobileNav />
         </div>
       </div>
+      <HeaderSearch />
     </header>
   );
 }

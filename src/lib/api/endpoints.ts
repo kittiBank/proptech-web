@@ -1,4 +1,6 @@
 import type {
+  ListAdsQuery,
+  ListAdsResponse,
   ListCategoriesResponse,
   ListProjectsQuery,
   ListProjectsResponse,
@@ -23,4 +25,7 @@ export const api = {
 
   /** GET /categories — property types with listing counts. */
   listCategories: (signal?: AbortSignal) => apiGet<ListCategoriesResponse>("/categories", undefined, { signal }),
+
+  /** GET /ads — sponsored banners for one placement. */
+  listAds: (query: ListAdsQuery, signal?: AbortSignal) => apiGet<ListAdsResponse>("/ads", { ...query }, { signal }),
 };

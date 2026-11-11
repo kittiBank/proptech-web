@@ -11,6 +11,16 @@ export const defaultFilters: SearchFilters = {
   priceRange: "any",
 };
 
+/** True when any filter other than Buy/Rent is set. */
+export function hasActiveFilters(filters: SearchFilters): boolean {
+  return (
+    filters.keyword.trim() !== "" ||
+    filters.type !== defaultFilters.type ||
+    filters.station !== defaultFilters.station ||
+    filters.priceRange !== defaultFilters.priceRange
+  );
+}
+
 /**
  * Turns the hero search (plus the listing type tabs) into a `GET /properties`
  * query. The server does the filtering; see `src/mocks/db.ts` for the mock.

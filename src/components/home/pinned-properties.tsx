@@ -8,9 +8,10 @@ import { routes } from "@/data/navigation";
 import { propertyQueries } from "@/lib/api/queries";
 import { Container, SectionHeader } from "./section-header";
 
-const PINNED_LIMIT = 8;
+/** Two rows of three on desktop. */
+const PINNED_LIMIT = 6;
 
-/** Paid highlight placements: two rows, four per row on desktop. */
+/** Paid highlight placements: two rows, three per row on desktop. */
 export function PinnedProperties() {
   const { data, isPending, isError, refetch, isFetching } = useQuery(
     propertyQueries.list({ pinned: true, limit: PINNED_LIMIT }),
@@ -36,14 +37,14 @@ export function PinnedProperties() {
         />
 
         {isPending ? (
-          <CardGridSkeleton count={PINNED_LIMIT} label="กำลังโหลดประกาศไฮไลต์" className="mt-10" />
+          <CardGridSkeleton count={PINNED_LIMIT} columns={3} label="กำลังโหลดประกาศไฮไลต์" className="mt-10" />
         ) : isError ? (
           <QueryError what="ประกาศไฮไลต์" onRetry={() => refetch()} retrying={isFetching} className="mt-10" />
         ) : (
-          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {properties.map((p, i) => (
               <li key={p.id} className="flex">
-                <PropertyCard property={p} priority={i < 4} className="w-full" />
+                <PropertyCard property={p} priority={i < 3} className="w-full" />
               </li>
             ))}
           </ul>

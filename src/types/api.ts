@@ -6,7 +6,15 @@
  * Keep this file free of runtime imports: it is shared by the client, the
  * mocks and (later) the backend's DTO definitions.
  */
-import type { ListingMode, NewProject, Property, PropertyCategory, PropertyType, TransitLine } from "./property";
+import type {
+  Advertisement,
+  ListingMode,
+  NewProject,
+  Property,
+  PropertyCategory,
+  PropertyType,
+  TransitLine,
+} from "./property";
 
 // ---------------------------------------------------------------------------
 // Envelopes
@@ -46,6 +54,7 @@ export type ProjectDto = NewProject;
 export type CategoryDto = PropertyCategory;
 /** A transit line with its stations, as returned by `GET /stations`. */
 export type TransitLineDto = TransitLine;
+export type AdDto = Advertisement;
 
 // ---------------------------------------------------------------------------
 // Endpoints
@@ -88,6 +97,16 @@ export type ListStationsResponse = ListResponse<TransitLineDto>;
 
 /** `GET /categories` */
 export type ListCategoriesResponse = ListResponse<CategoryDto>;
+
+export type AdPlacement = "home-feed";
+
+/** `GET /ads` query string. */
+export interface ListAdsQuery {
+  placement: AdPlacement;
+}
+
+/** `GET /ads` */
+export type ListAdsResponse = ListResponse<AdDto>;
 
 export const PROPERTIES_DEFAULT_LIMIT = 20;
 export const PROPERTIES_MAX_LIMIT = 100;

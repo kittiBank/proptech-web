@@ -12,6 +12,8 @@ interface HomeSearchContextValue {
   applied: SearchFilters | null;
   submit: (override?: Partial<SearchFilters>) => void;
   reset: () => void;
+  /** Clear every filter but keep Buy/Rent, and drop any applied search. */
+  clearFilters: () => void;
   /** Switch Buy/Rent from anywhere (header nav) and bring the form into view. */
   focusMode: (mode: ListingMode) => void;
 }
@@ -50,6 +52,11 @@ export function HomeSearchProvider({ children }: { children: ReactNode }) {
     setDraftState(defaultFilters);
   }, []);
 
+  const clearFilters = useCallback(() => {
+    setApplied(null);
+    setDraftState((prev) => ({ ...defaultFilters, mode: prev.mode }));
+  }, []);
+
   const focusMode = useCallback(
     (mode: ListingMode) => {
       setDraft({ mode });
@@ -60,8 +67,8 @@ export function HomeSearchProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ draft, setDraft, applied, submit, reset, focusMode }),
-    [draft, setDraft, applied, submit, reset, focusMode],
+    () => ({ draft, setDraft, applied, submit, reset, clearFilters, focusMode }),
+    [draft, setDraft, applied, submit, reset, clearFilters, focusMode],
   );
 
   return <HomeSearchContext value={value}>{children}</HomeSearchContext>;

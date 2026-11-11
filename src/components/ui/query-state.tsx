@@ -44,16 +44,23 @@ export function Skeleton({ className }: { className?: string }) {
 export function CardGridSkeleton({
   count,
   label,
+  columns = 4,
   imageClassName = "aspect-[4/3]",
   className,
 }: {
   count: number;
   label: string;
+  /** Desktop columns, matching the grid it stands in for. */
+  columns?: 3 | 4;
   imageClassName?: string;
   className?: string;
 }) {
   return (
-    <div role="status" aria-label={label} className={cn("grid gap-6 sm:grid-cols-2 lg:grid-cols-4", className)}>
+    <div
+      role="status"
+      aria-label={label}
+      className={cn("grid gap-6 sm:grid-cols-2", columns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4", className)}
+    >
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="flex flex-col overflow-hidden rounded-lg border border-line bg-white">
           <Skeleton className={cn("rounded-none", imageClassName)} />

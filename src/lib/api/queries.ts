@@ -1,5 +1,5 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import type { ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
+import type { AdPlacement, ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
 import { api } from "./endpoints";
 
 const MINUTE = 60_000;
@@ -16,6 +16,7 @@ export const queryKeys = {
   projects: (query: ListProjectsQuery) => ["projects", query] as const,
   stations: ["stations"] as const,
   categories: ["categories"] as const,
+  ads: (placement: AdPlacement) => ["ads", placement] as const,
 };
 
 export const propertyQueries = {
@@ -50,3 +51,14 @@ export const categoriesQuery = queryOptions({
   queryFn: ({ signal }) => api.listCategories(signal),
   staleTime: 10 * MINUTE,
 });
+
+export const adQueries = {
+  placement: (placement: AdPlacement) =>
+    queryOptions({
+      queryKey: queryKeys.ads(placement),
+      queryFn: ({ signal }) => api.listAds({ placement }, signal),
+      staleTime: 5 * MINUTE,
+      // A missing banner is not worth retrying for.
+      retry: false,
+    }),
+};

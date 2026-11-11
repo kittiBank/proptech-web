@@ -40,8 +40,13 @@ export interface Property {
   station?: TransitStation;
   /** Walking distance to the station in metres. */
   stationDistance?: number;
+  /** Cover photo, used wherever a single image is shown. */
   image: PropertyImage;
+  /** Photos for the card slideshow, cover first. Falls back to `image` when absent. */
+  gallery?: PropertyImage[];
   postedAt: string;
+  /** Times the listing page has been opened. */
+  viewCount?: number;
   isVerified: boolean;
   agent: {
     name: string;
@@ -106,6 +111,18 @@ export interface SearchFilters {
   /** Station code (e.g. "E6") or "any". */
   station: string;
   priceRange: string;
+}
+
+/** Sponsored banner shown between listings. */
+export interface Advertisement {
+  id: string;
+  /** Advertiser shown on the "sponsored" label. */
+  sponsor: string;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  href: string;
+  image: PropertyImage;
 }
 
 export interface PriceRangeOption {

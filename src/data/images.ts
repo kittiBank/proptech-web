@@ -1,3 +1,5 @@
+import type { PropertyImage, PropertyType } from "@/types/property";
+
 /**
  * Mock photography. In production these come from the listing media service;
  * here they are Unsplash photos served through next/image.
@@ -40,3 +42,41 @@ export const photos = {
   shopfront: unsplash("1441986300917-64674bd600d8"),
   land: unsplash("1500382017468-9049fed747ef"),
 } as const;
+
+/** Photo pools per property type: covers for generated listings and extra gallery shots. */
+export const photosByType: Record<PropertyType, PropertyImage[]> = {
+  condo: [
+    { src: photos.livingRoom, alt: "ห้องนั่งเล่นคอนโด" },
+    { src: photos.openPlan, alt: "ห้องนั่งเล่นเชื่อมห้องครัว" },
+    { src: photos.studio, alt: "ห้องสตูดิโอ" },
+    { src: photos.apartment, alt: "ห้องนั่งเล่นโทนสว่าง" },
+    { src: photos.brightLiving, alt: "ห้องนั่งเล่นสีขาว" },
+    { src: photos.cozyLiving, alt: "มุมนั่งเล่นพร้อมโซฟา" },
+    { src: photos.bedroom, alt: "ห้องนอน" },
+    { src: photos.kitchen, alt: "ห้องครัว" },
+    { src: photos.loungeChair, alt: "มุมพักผ่อน" },
+  ],
+  house: [
+    { src: photos.modernHouse, alt: "บ้านเดี่ยวสมัยใหม่" },
+    { src: photos.houseDusk, alt: "บ้านเดี่ยวยามเย็น" },
+    { src: photos.luxuryHouse, alt: "บ้านเดี่ยวหลังใหญ่" },
+    { src: photos.familyHouse, alt: "บ้านเดี่ยวพร้อมสนามหญ้า" },
+    { src: photos.gardenHouse, alt: "บ้านพร้อมสวน" },
+    { src: photos.whiteHouse, alt: "บ้านเดี่ยวสีขาว" },
+  ],
+  townhouse: [
+    { src: photos.townhouseRow, alt: "ทาวน์โฮมด้านหน้า" },
+    { src: photos.suburbanHouse, alt: "ทาวน์โฮมสองชั้น" },
+    { src: photos.modernHouse2, alt: "ทาวน์โฮมดีไซน์โมเดิร์น" },
+  ],
+  land: [
+    { src: photos.land, alt: "ที่ดินเปล่า" },
+    { src: photos.cityStreet, alt: "ถนนหน้าที่ดิน" },
+    { src: photos.bangkokSkyline, alt: "วิวเมืองจากที่ดิน" },
+  ],
+  commercial: [
+    { src: photos.office, alt: "พื้นที่สำนักงาน" },
+    { src: photos.shopfront, alt: "หน้าร้าน" },
+    { src: photos.cityTowers, alt: "อาคารสำนักงานโดยรอบ" },
+  ],
+};

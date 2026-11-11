@@ -19,7 +19,7 @@ describe("PinnedProperties", () => {
     renderWithQuery(<PinnedProperties />);
 
     expect(screen.getByRole("status", { name: "กำลังโหลดประกาศไฮไลต์" })).toBeInTheDocument();
-    expect(await screen.findAllByRole("article")).toHaveLength(8);
+    expect(await screen.findAllByRole("article")).toHaveLength(6);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
@@ -32,7 +32,7 @@ describe("PinnedProperties", () => {
 
     server.resetHandlers();
     await user.click(screen.getByRole("button", { name: "ลองอีกครั้ง" }));
-    expect(await screen.findAllByRole("article")).toHaveLength(8);
+    expect(await screen.findAllByRole("article")).toHaveLength(6);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

@@ -53,6 +53,24 @@ describe("GET /properties", () => {
   });
 });
 
+describe("gallery and ads", () => {
+  it("gives every listing a gallery that starts with its cover", async () => {
+    const { data } = await api.listProperties({ limit: 100 });
+    for (const p of data) {
+      expect(p.gallery?.[0]).toEqual(p.image);
+      expect(new Set(p.gallery?.map((img) => img.src)).size).toBe(p.gallery?.length);
+    }
+    expect(data.some((p) => (p.gallery?.length ?? 0) >= 3)).toBe(true);
+  });
+
+  it("lists ads for a placement and rejects unknown placements", async () => {
+    const res = await api.listAds({ placement: "home-feed" });
+    expect(res.data.length).toBeGreaterThan(1);
+    // @ts-expect-error unknown placement on purpose
+    await expect(api.listAds({ placement: "nope" })).rejects.toMatchObject({ status: 400 });
+  });
+});
+
 describe("reference data", () => {
   it("lists stations grouped by line, projects and categories", async () => {
     const [stations, projects, categories] = await Promise.all([

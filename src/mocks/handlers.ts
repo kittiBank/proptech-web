@@ -3,7 +3,7 @@ import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
 import { PROPERTIES_MAX_LIMIT, type ApiErrorBody, type ListPropertiesQuery, type PropertySort } from "@/types/api";
 import type { ListingMode, PropertyType } from "@/types/property";
-import { queryCategories, queryProjects, queryProperties, queryStations } from "./db";
+import { queryAds, queryCategories, queryProjects, queryProperties, queryStations } from "./db";
 import { getMockScenario } from "./scenario";
 
 /** Matches the mock base path on any origin (browser page, jsdom, Node). */
@@ -112,6 +112,14 @@ export const handlers = [
   ),
   http.get(endpoint("/stations"), withScenario(queryStations)),
   http.get(endpoint("/categories"), withScenario(queryCategories)),
+  http.get(
+    endpoint("/ads"),
+    withScenario((request) => {
+      const placement = new URL(request.url).searchParams.get("placement");
+      if (placement !== "home-feed") throw new ValidationError(["placement must be one of: home-feed"]);
+      return queryAds({ placement });
+    }),
+  ),
 ];
 
 /** Handy for tests: `server.use(failingHandler("/properties"))`. */

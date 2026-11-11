@@ -1,10 +1,13 @@
+import { advertisements } from "@/data/ads";
 import { propertyCategories, propertyTypeLabels } from "@/data/catalog";
 import { generatedListings } from "@/data/generated-listings";
+import { photosByType } from "@/data/images";
 import { transitLines } from "@/data/locations";
 import { newProjects } from "@/data/projects";
 import { pinnedPropertyIds, properties } from "@/data/properties";
 import {
   PROPERTIES_DEFAULT_LIMIT,
+  type ListAdsQuery,
   type ListProjectsQuery,
   type ListPropertiesQuery,
   type ListPropertiesResponse,
@@ -20,8 +23,27 @@ import {
 
 const pinnedIds = new Set(pinnedPropertyIds);
 
+/** Small stable hash so each listing always gets the same gallery. */
+function hash(text: string): number {
+  let h = 0;
+  for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return Math.abs(h);
+}
+
+/** Cover plus 2–4 more photos of the same property type, and a view count: stand-ins for the media and analytics services. */
+function withGallery(property: PropertyDto): PropertyDto {
+  const seed = hash(property.id);
+  const others = photosByType[property.type].filter((img) => img.src !== property.image.src);
+  const count = Math.min(others.length, 2 + (seed % 3));
+  const start = seed % Math.max(1, others.length);
+  const extra = Array.from({ length: count }, (_, i) => others[(start + i) % others.length]);
+  // Stand-in for analytics: paid placements get more traffic.
+  const viewCount = (property.isPinned ? 1_500 : 40) + (seed % (property.isPinned ? 6_000 : 2_400));
+  return { ...property, gallery: [property.image, ...extra], viewCount };
+}
+
 const allListings: PropertyDto[] = [...properties, ...generatedListings].map((p) =>
-  pinnedIds.has(p.id) ? { ...p, isPinned: true } : p,
+  withGallery(pinnedIds.has(p.id) ? { ...p, isPinned: true } : p),
 );
 
 /** Paid placements, in the order they were booked. */
@@ -95,4 +117,8 @@ export function queryStations() {
 
 export function queryCategories() {
   return { data: propertyCategories };
+}
+
+export function queryAds(query: ListAdsQuery) {
+  return { data: advertisements[query.placement] };
 }
