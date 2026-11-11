@@ -1,30 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { properties } from "@/data/properties";
 import type { SearchFilters } from "@/types/property";
-import { defaultFilters, describeFilters, filterProperties, findStation, toSearchParams } from "./search";
+import { defaultFilters, describeFilters, findStation, toPropertyQuery, toSearchParams } from "./search";
 
 const filters = (override: Partial<SearchFilters>): SearchFilters => ({ ...defaultFilters, ...override });
 
-describe("filterProperties", () => {
-  it("returns only listings for the chosen mode", () => {
-    const rent = filterProperties(properties, filters({ mode: "rent" }));
-    expect(rent.length).toBeGreaterThan(0);
-    expect(rent.every((p) => p.mode === "rent")).toBe(true);
+describe("toPropertyQuery", () => {
+  it("asks for everything when nothing is searched", () => {
+    expect(toPropertyQuery(null)).toEqual({});
   });
 
-  it("applies the price bracket for the mode", () => {
-    const result = filterProperties(properties, filters({ mode: "buy", priceRange: "0-3m" }));
-    expect(result.every((p) => p.price <= 3_000_000)).toBe(true);
+  it("maps the hero search onto API query fields", () => {
+    expect(
+      toPropertyQuery(
+        filters({ mode: "rent", keyword: "  อารีย์ ", type: "condo", station: "N5", priceRange: "15-30k" }),
+      ),
+    ).toEqual({ mode: "rent", q: "อารีย์", type: "condo", station: "N5", minPrice: 15_000, maxPrice: 30_000 });
   });
 
-  it("matches every keyword term, case-insensitively", () => {
-    const [sample] = properties.filter((p) => p.mode === "buy" && p.station);
-    const result = filterProperties(properties, filters({ keyword: sample.station!.code.toLowerCase() }));
-    expect(result).toContainEqual(sample);
+  it("leaves out open-ended price bounds", () => {
+    expect(toPropertyQuery(filters({ priceRange: "20m+" }))).toEqual({ mode: "buy", minPrice: 20_000_000 });
   });
 
-  it("returns nothing when no listing matches", () => {
-    expect(filterProperties(properties, filters({ keyword: "no-such-place-xyz" }))).toEqual([]);
+  it("lets a type tab override the hero type", () => {
+    expect(toPropertyQuery(filters({ type: "condo" }), { type: "house" }).type).toBe("house");
+    expect(toPropertyQuery(filters({ type: "condo" }), { type: "all" }).type).toBe("condo");
+    expect(toPropertyQuery(null, { type: "land" })).toEqual({ type: "land" });
   });
 });
 

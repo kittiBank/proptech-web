@@ -1,0 +1,52 @@
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import type { ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
+import { api } from "./endpoints";
+
+const MINUTE = 60_000;
+
+/**
+ * Query keys and options in one place, so every component (and any future
+ * server prefetch) shares the same cache identity for the same request.
+ */
+export const queryKeys = {
+  properties: {
+    all: ["properties"] as const,
+    list: (query: ListPropertiesQuery) => ["properties", "list", query] as const,
+  },
+  projects: (query: ListProjectsQuery) => ["projects", query] as const,
+  stations: ["stations"] as const,
+  categories: ["categories"] as const,
+};
+
+export const propertyQueries = {
+  list: (query: ListPropertiesQuery) =>
+    queryOptions({
+      queryKey: queryKeys.properties.list(query),
+      queryFn: ({ signal }) => api.listProperties(query, signal),
+      staleTime: MINUTE,
+      // Keep the current page on screen while the next page or filter loads.
+      placeholderData: keepPreviousData,
+    }),
+};
+
+export const projectQueries = {
+  list: (query: ListProjectsQuery) =>
+    queryOptions({
+      queryKey: queryKeys.projects(query),
+      queryFn: ({ signal }) => api.listProjects(query, signal),
+      staleTime: 5 * MINUTE,
+    }),
+};
+
+/** Reference data that rarely changes. */
+export const stationsQuery = queryOptions({
+  queryKey: queryKeys.stations,
+  queryFn: ({ signal }) => api.listStations(signal),
+  staleTime: 30 * MINUTE,
+});
+
+export const categoriesQuery = queryOptions({
+  queryKey: queryKeys.categories,
+  queryFn: ({ signal }) => api.listCategories(signal),
+  staleTime: 10 * MINUTE,
+});

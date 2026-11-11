@@ -1,6 +1,7 @@
 import { priceRanges, propertyTypeLabels } from "@/data/catalog";
 import { transitLines } from "@/data/locations";
-import type { Property, SearchFilters } from "@/types/property";
+import type { ListPropertiesQuery } from "@/types/api";
+import type { PropertyType, SearchFilters } from "@/types/property";
 
 export const defaultFilters: SearchFilters = {
   mode: "buy",
@@ -10,37 +11,30 @@ export const defaultFilters: SearchFilters = {
   priceRange: "any",
 };
 
-function matchesKeyword(property: Property, keyword: string): boolean {
-  const q = keyword.trim().toLowerCase();
-  if (!q) return true;
-  const haystack = [
-    property.title,
-    property.projectName,
-    property.district,
-    property.station?.name,
-    property.station?.code,
-    property.highlight,
-    propertyTypeLabels[property.type],
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return q.split(/\s+/).every((term) => haystack.includes(term));
+/**
+ * Turns the hero search (plus the listing type tabs) into a `GET /properties`
+ * query. The server does the filtering; see `src/mocks/db.ts` for the mock.
+ * A type tab other than "all" takes precedence over the hero's type select.
+ */
+export function toPropertyQuery(
+  filters: SearchFilters | null,
+  options: { type?: PropertyType | "all" } = {},
+): ListPropertiesQuery {
+  const query: ListPropertiesQuery = {};
+  if (filters) {
+    query.mode = filters.mode;
+    if (filters.keyword.trim()) query.q = filters.keyword.trim();
+    if (filters.type !== "all") query.type = filters.type;
+    if (filters.station !== "any") query.station = filters.station;
+    const range = priceRanges[filters.mode].find((r) => r.value === filters.priceRange);
+    if (range?.min !== undefined) query.minPrice = range.min;
+    if (range?.max !== undefined) query.maxPrice = range.max;
+  }
+  if (options.type && options.type !== "all") query.type = options.type;
+  return query;
 }
 
-export function filterProperties(list: Property[], filters: SearchFilters): Property[] {
-  const range = priceRanges[filters.mode].find((r) => r.value === filters.priceRange);
-  return list.filter((p) => {
-    if (p.mode !== filters.mode) return false;
-    if (filters.type !== "all" && p.type !== filters.type) return false;
-    if (filters.station !== "any" && p.station?.code !== filters.station) return false;
-    if (range?.min !== undefined && p.price < range.min) return false;
-    if (range?.max !== undefined && p.price > range.max) return false;
-    return matchesKeyword(p, filters.keyword);
-  });
-}
-
-/** Query string for the future /search page and the NestJS `GET /properties` endpoint. */
+/** Shareable URL query for the future /search page (the API query is `toPropertyQuery`). */
 export function toSearchParams(filters: SearchFilters): URLSearchParams {
   const params = new URLSearchParams({ mode: filters.mode });
   if (filters.keyword.trim()) params.set("q", filters.keyword.trim());

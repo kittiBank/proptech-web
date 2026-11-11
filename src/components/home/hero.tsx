@@ -1,13 +1,7 @@
-import type { ListingMode, TransitLine } from "@/types/property";
 import { HeroBackground } from "./hero-background";
 import { HeroSearch } from "./hero-search";
 
-interface HeroProps {
-  listingTotals: Record<ListingMode, number>;
-  lines: TransitLine[];
-}
-
-export function Hero({ listingTotals, lines }: HeroProps) {
+export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="relative isolate overflow-hidden">
       <HeroBackground />
@@ -25,7 +19,7 @@ export function Hero({ listingTotals, lines }: HeroProps) {
         </p>
 
         <div className="mt-10 w-full max-w-[1160px] text-left">
-          <HeroSearch listingTotals={listingTotals} lines={lines} />
+          <HeroSearch />
         </div>
       </div>
     </section>
