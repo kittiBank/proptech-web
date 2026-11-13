@@ -22,6 +22,7 @@ import { AmenityList } from "./amenity-list";
 import { ListingGallery } from "./listing-gallery";
 import { KeyFacts, SpecSheet } from "./listing-facts";
 import { LocationMap } from "./location-map";
+import { MortgageCalculator } from "./mortgage-calculator";
 import { NearbyListings } from "./nearby-listings";
 import { PropertyDetailSkeleton } from "./property-detail-skeleton";
 import { MobileContactBar, PosterCard } from "./poster-card";
@@ -248,6 +249,12 @@ export function PropertyDetailView() {
                     label={property.projectName ? "ส่วนกลางโครงการ" : "ส่วนกลาง"}
                   />
                 </div>
+              </Section>
+            )}
+
+            {property.mode === "buy" && (
+              <Section id="mortgage-title" title="คำนวณค่าผ่อนต่อเดือน">
+                <MortgageCalculator price={property.price} />
               </Section>
             )}
 
