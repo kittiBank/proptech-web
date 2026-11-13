@@ -1,5 +1,5 @@
 /**
- * Site routes. `/` is the only implemented page; the rest are reserved paths
+ * Site routes. `/` and `/property/[slug]` are implemented; the rest are reserved paths
  * for upcoming pages and land on the branded not-found page until then.
  */
 export const routes = {
@@ -11,6 +11,13 @@ export const routes = {
   login: "/login",
   postProperty: "/post",
   property: (slug: string) => `/property/${slug}`,
+  /** Search results (issue #3). Params: mode, type, station, line, q, price. */
+  search: (params: Record<string, string | undefined>) => {
+    const query = new URLSearchParams(
+      Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ).toString();
+    return query ? `/search?${query}` : "/search";
+  },
   project: (slug: string) => `/projects/${slug}`,
   location: (id: string) => `/buy?location=${id}`,
   category: (type: string) => `/buy?type=${type}`,

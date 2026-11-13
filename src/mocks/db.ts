@@ -5,12 +5,17 @@ import { photosByType } from "@/data/images";
 import { transitLines } from "@/data/locations";
 import { newProjects } from "@/data/projects";
 import { pinnedPropertyIds, properties } from "@/data/properties";
+import { buildPropertyDetail, listingPoint } from "@/data/property-details";
+import { distanceBetween } from "@/lib/geo";
 import {
   PROPERTIES_DEFAULT_LIMIT,
   type ListAdsQuery,
   type ListProjectsQuery,
   type ListPropertiesQuery,
   type ListPropertiesResponse,
+  type ListNearbyPropertiesQuery,
+  type ListNearbyPropertiesResponse,
+  type PropertyDetailDto,
   type PropertyDto,
   type PropertySort,
 } from "@/types/api";
@@ -121,4 +126,36 @@ export function queryCategories() {
 
 export function queryAds(query: ListAdsQuery) {
   return { data: advertisements[query.placement] };
+}
+
+/** `GET /properties/:slug`. `undefined` = 404. */
+export function getPropertyDetail(slug: string): PropertyDetailDto | undefined {
+  const property = allListings.find((p) => p.slug === slug);
+  return property ? buildPropertyDetail(property) : undefined;
+}
+
+export const NEARBY_DEFAULT_LIMIT = 6;
+/** Listings further than this are not "nearby". */
+const NEARBY_RADIUS_M = 5_000;
+
+/**
+ * `GET /properties/:slug/nearby`: closest listings to this one, same deal
+ * type (sale or rent) first. `undefined` = the listing itself does not exist.
+ */
+export function queryNearbyProperties(
+  slug: string,
+  query: ListNearbyPropertiesQuery = {},
+): ListNearbyPropertiesResponse | undefined {
+  const origin = allListings.find((p) => p.slug === slug);
+  if (!origin) return undefined;
+  const from = listingPoint(origin);
+  const limit = query.limit ?? NEARBY_DEFAULT_LIMIT;
+
+  const ranked = allListings
+    .filter((p) => p.id !== origin.id)
+    .map((p) => ({ ...p, distance: distanceBetween(from, listingPoint(p)) }))
+    .filter((p) => p.distance <= NEARBY_RADIUS_M)
+    .sort((a, b) => Number(b.mode === origin.mode) - Number(a.mode === origin.mode) || a.distance - b.distance);
+
+  return { data: ranked.slice(0, limit) };
 }

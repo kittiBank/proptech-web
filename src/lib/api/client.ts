@@ -22,7 +22,7 @@ export class ApiError extends Error {
 
   constructor(status: number, body: ApiErrorBody | null, path: string) {
     const detail = Array.isArray(body?.message) ? body.message.join(", ") : body?.message;
-    super(`GET ${path} failed with ${status}${detail ? `: ${detail}` : ""}`);
+    super(`${path} failed with ${status}${detail ? `: ${detail}` : ""}`);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
@@ -68,7 +68,22 @@ export async function apiGet<T>(path: string, query?: QueryParams, init?: Reques
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(res.status, body, path);
+    throw new ApiError(res.status, body, `GET ${path}`);
   }
   return (await res.json()) as T;
+}
+
+export async function apiPost<TResponse, TBody>(path: string, body: TBody, init?: RequestInit): Promise<TResponse> {
+  await waitForMockApi();
+  const res = await fetch(buildApiUrl(path), {
+    ...init,
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json", ...init?.headers },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
+    throw new ApiError(res.status, errorBody, `POST ${path}`);
+  }
+  return (await res.json()) as TResponse;
 }

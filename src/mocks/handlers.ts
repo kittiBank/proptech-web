@@ -1,9 +1,25 @@
 import { http, HttpResponse, type HttpResponseResolver } from "msw/http";
 import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
-import { PROPERTIES_MAX_LIMIT, type ApiErrorBody, type ListPropertiesQuery, type PropertySort } from "@/types/api";
+import {
+  NEARBY_MAX_LIMIT,
+  PROPERTIES_MAX_LIMIT,
+  type ApiErrorBody,
+  type CreateEnquiryRequest,
+  type CreateEnquiryResponse,
+  type ListPropertiesQuery,
+  type PropertySort,
+} from "@/types/api";
 import type { ListingMode, PropertyType } from "@/types/property";
-import { queryAds, queryCategories, queryProjects, queryProperties, queryStations } from "./db";
+import {
+  getPropertyDetail,
+  queryAds,
+  queryCategories,
+  queryNearbyProperties,
+  queryProjects,
+  queryProperties,
+  queryStations,
+} from "./db";
 import { getMockScenario } from "./scenario";
 
 /** Matches the mock base path on any origin (browser page, jsdom, Node). */
@@ -15,6 +31,7 @@ const propertySorts: PropertySort[] = ["-postedAt", "postedAt", "-price", "price
 
 const statusText: Record<number, string> = {
   400: "Bad Request",
+  404: "Not Found",
   500: "Internal Server Error",
   503: "Service Unavailable",
 };
@@ -26,6 +43,8 @@ export function errorResponse(statusCode: number, message: string | string[]) {
     { status: statusCode },
   );
 }
+
+class NotFoundError extends Error {}
 
 class ValidationError extends Error {
   constructor(readonly messages: string[]) {
@@ -75,8 +94,10 @@ export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQue
  * Wraps a resolver with simulated latency and the active failure scenario,
  * so every endpoint behaves consistently under `?mock=slow|error|flaky|empty`.
  */
-function withScenario(resolve: (request: Request) => unknown): HttpResponseResolver {
-  return async ({ request }) => {
+function withScenario(
+  resolve: (request: Request, params: Record<string, string | readonly string[] | undefined>) => unknown,
+): HttpResponseResolver {
+  return async ({ request, params }) => {
     const scenario = getMockScenario();
     await delay(scenario === "slow" ? 3000 : undefined);
 
@@ -84,8 +105,8 @@ function withScenario(resolve: (request: Request) => unknown): HttpResponseResol
     if (scenario === "flaky" && Math.random() < 0.5) return errorResponse(503, "Mock service temporarily unavailable");
 
     try {
-      const body = resolve(request) as { data: unknown[]; meta?: { limit: number; page: number } };
-      if (scenario === "empty") {
+      const body = resolve(request, params) as { data: unknown[]; meta?: { limit: number; page: number } };
+      if (scenario === "empty" && Array.isArray(body.data)) {
         return HttpResponse.json(
           body.meta ? { data: [], meta: { ...body.meta, total: 0, totalPages: 1 } } : { data: [] },
         );
@@ -93,6 +114,7 @@ function withScenario(resolve: (request: Request) => unknown): HttpResponseResol
       return HttpResponse.json(body);
     } catch (error) {
       if (error instanceof ValidationError) return errorResponse(400, error.messages);
+      if (error instanceof NotFoundError) return errorResponse(404, error.message);
       throw error;
     }
   };
@@ -102,6 +124,46 @@ export const handlers = [
   http.get(
     endpoint("/properties"),
     withScenario((request) => queryProperties(parsePropertiesQuery(new URL(request.url).searchParams))),
+  ),
+  http.get(
+    endpoint("/properties/:slug"),
+    withScenario((_request, params) => {
+      const detail = getPropertyDetail(String(params.slug));
+      if (!detail) throw new NotFoundError(`Property "${String(params.slug)}" not found`);
+      return { data: detail };
+    }),
+  ),
+  http.get(
+    endpoint("/properties/:slug/nearby"),
+    withScenario((request, params) => {
+      const raw = new URL(request.url).searchParams.get("limit");
+      const limit = raw ? Number(raw) : undefined;
+      if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > NEARBY_MAX_LIMIT)) {
+        throw new ValidationError([`limit must be an integer between 1 and ${NEARBY_MAX_LIMIT}`]);
+      }
+      const result = queryNearbyProperties(String(params.slug), { limit });
+      if (!result) throw new NotFoundError(`Property "${String(params.slug)}" not found`);
+      return result;
+    }),
+  ),
+  http.post<{ slug: string }, CreateEnquiryRequest, CreateEnquiryResponse | ApiErrorBody>(
+    endpoint("/properties/:slug/enquiries"),
+    async ({ request, params }) => {
+      await delay();
+      if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+      if (!getPropertyDetail(params.slug)) return errorResponse(404, "Property not found");
+      const body = (await request.json().catch(() => null)) as Partial<CreateEnquiryRequest> | null;
+      const errors: string[] = [];
+      if (!body?.name?.trim()) errors.push("name should not be empty");
+      if (!body?.phone || !/^0\d{8,9}$/.test(body.phone.replace(/\D/g, "")))
+        errors.push("phone must be a Thai phone number");
+      if (!body?.message?.trim()) errors.push("message should not be empty");
+      if (errors.length) return errorResponse(400, errors);
+      return HttpResponse.json<CreateEnquiryResponse>(
+        { data: { id: `enq-${Date.now().toString(36)}`, createdAt: new Date().toISOString() } },
+        { status: 201 },
+      );
+    },
   ),
   http.get(
     endpoint("/projects"),

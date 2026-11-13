@@ -100,3 +100,50 @@ describe("error cases", () => {
     expect(res.meta.total).toBe(0);
   });
 });
+
+describe("GET /properties/:slug", () => {
+  it("returns the listing with location, amenities and poster", async () => {
+    const { data } = await api.getProperty("penthouse-thonglor-river-skyline");
+    expect(data.code).toBe("PH-1001");
+    expect(data.location.stations[0]?.station.code).toBe("E6");
+    expect(data.location.point.lat).toBeGreaterThan(13);
+    expect(data.poster.name).toBe(data.agent.name);
+  });
+
+  it("is a 404 for an unknown slug", async () => {
+    await expect(api.getProperty("no-such-listing")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("GET /properties/:slug/nearby", () => {
+  it("returns other listings, closest first within the same deal type", async () => {
+    const { data } = await api.listNearbyProperties("penthouse-thonglor-river-skyline", { limit: 6 });
+    expect(data.length).toBeGreaterThan(0);
+    expect(data.some((p) => p.slug === "penthouse-thonglor-river-skyline")).toBe(false);
+    const sameMode = data.filter((p) => p.mode === "buy").map((p) => p.distance);
+    expect(sameMode).toEqual([...sameMode].sort((a, b) => a - b));
+  });
+
+  it("rejects a limit above the maximum", async () => {
+    await expect(api.listNearbyProperties("penthouse-thonglor-river-skyline", { limit: 99 })).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+});
+
+describe("POST /properties/:slug/enquiries", () => {
+  it("accepts a valid enquiry", async () => {
+    const res = await api.createEnquiry("penthouse-thonglor-river-skyline", {
+      name: "สมหญิง",
+      phone: "0812345678",
+      message: "สนใจครับ",
+    });
+    expect(res.data.id).toMatch(/^enq-/);
+  });
+
+  it("rejects a bad phone number", async () => {
+    await expect(
+      api.createEnquiry("penthouse-thonglor-river-skyline", { name: "a", phone: "123", message: "x" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+});

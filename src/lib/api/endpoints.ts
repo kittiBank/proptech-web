@@ -1,4 +1,9 @@
 import type {
+  CreateEnquiryRequest,
+  CreateEnquiryResponse,
+  GetPropertyResponse,
+  ListNearbyPropertiesQuery,
+  ListNearbyPropertiesResponse,
   ListAdsQuery,
   ListAdsResponse,
   ListCategoriesResponse,
@@ -8,13 +13,25 @@ import type {
   ListPropertiesResponse,
   ListStationsResponse,
 } from "@/types/api";
-import { apiGet } from "./client";
+import { apiGet, apiPost } from "./client";
 
 /** One function per REST endpoint. Components use these through `queries.ts`, never directly. */
 export const api = {
   /** GET /properties — paginated, filterable listings. */
   listProperties: (query: ListPropertiesQuery = {}, signal?: AbortSignal) =>
     apiGet<ListPropertiesResponse>("/properties", { ...query }, { signal }),
+
+  /** GET /properties/:slug — one listing with everything the listing page shows. */
+  getProperty: (slug: string, signal?: AbortSignal) =>
+    apiGet<GetPropertyResponse>(`/properties/${encodeURIComponent(slug)}`, undefined, { signal }),
+
+  /** GET /properties/:slug/nearby — closest other listings. */
+  listNearbyProperties: (slug: string, query: ListNearbyPropertiesQuery = {}, signal?: AbortSignal) =>
+    apiGet<ListNearbyPropertiesResponse>(`/properties/${encodeURIComponent(slug)}/nearby`, { ...query }, { signal }),
+
+  /** POST /properties/:slug/enquiries — message to the poster. */
+  createEnquiry: (slug: string, body: CreateEnquiryRequest) =>
+    apiPost<CreateEnquiryResponse, CreateEnquiryRequest>(`/properties/${encodeURIComponent(slug)}/enquiries`, body),
 
   /** GET /projects — developer projects. */
   listProjects: (query: ListProjectsQuery = {}, signal?: AbortSignal) =>
