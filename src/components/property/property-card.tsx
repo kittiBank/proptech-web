@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BadgeCheck, Bath, BedDouble, Eye, Maximize2, Pin, Trees } from "lucide-react";
+import { BadgeCheck, Bath, BedDouble, Eye, Maximize2, Navigation, Pin, Trees } from "lucide-react";
+import { formatDistance } from "@/lib/geo";
 import { routes } from "@/data/navigation";
 import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
 import { cardImageZoom, cardLink, cardTitle, interactiveCard } from "@/components/ui/card";
@@ -14,6 +15,8 @@ interface PropertyCardProps {
   property: Property;
   sizes?: string;
   priority?: boolean;
+  /** Metres from the listing the visitor is viewing; shown on "nearby" cards. */
+  distanceFromHere?: number;
   className?: string;
 }
 
@@ -48,7 +51,7 @@ export function PropertySpecs({ property, className }: { property: Property; cla
   );
 }
 
-export function PropertyCard({ property, sizes, priority, className }: PropertyCardProps) {
+export function PropertyCard({ property, sizes, priority, distanceFromHere, className }: PropertyCardProps) {
   const href = routes.property(property.slug);
   const gallery = property.gallery?.length ? property.gallery : [property.image];
 
@@ -96,6 +99,12 @@ export function PropertyCard({ property, sizes, priority, className }: PropertyC
           {formatListingPrice(property.price, property.mode)}
         </p>
         <p className="text-sm text-slate">{[property.projectName, property.district].filter(Boolean).join(", ")}</p>
+        {distanceFromHere !== undefined && (
+          <p className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-strong">
+            <Navigation className="size-3.5" aria-hidden="true" />
+            ห่างจากประกาศนี้ {formatDistance(distanceFromHere)}
+          </p>
+        )}
         <PropertySpecs property={property} />
         {property.station && (
           <TransitBadge station={property.station} distance={property.stationDistance} className="mt-0.5" />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { mainNav, routes } from "@/data/navigation";
 import { FavoritesLink } from "./favorites-link";
@@ -37,7 +38,10 @@ export function SiteHeader() {
           <MobileNav />
         </div>
       </div>
-      <HeaderSearch />
+      {/* Reads the pathname, which is request-time data on dynamic routes such as /property/[slug]. */}
+      <Suspense fallback={null}>
+        <HeaderSearch />
+      </Suspense>
     </header>
   );
 }

@@ -12,6 +12,8 @@ export const queryKeys = {
   properties: {
     all: ["properties"] as const,
     list: (query: ListPropertiesQuery) => ["properties", "list", query] as const,
+    detail: (slug: string) => ["properties", "detail", slug] as const,
+    nearby: (slug: string, limit: number) => ["properties", "nearby", slug, limit] as const,
   },
   projects: (query: ListProjectsQuery) => ["projects", query] as const,
   stations: ["stations"] as const,
@@ -27,6 +29,18 @@ export const propertyQueries = {
       staleTime: MINUTE,
       // Keep the current page on screen while the next page or filter loads.
       placeholderData: keepPreviousData,
+    }),
+  detail: (slug: string) =>
+    queryOptions({
+      queryKey: queryKeys.properties.detail(slug),
+      queryFn: ({ signal }) => api.getProperty(slug, signal),
+      staleTime: MINUTE,
+    }),
+  nearby: (slug: string, limit: number) =>
+    queryOptions({
+      queryKey: queryKeys.properties.nearby(slug, limit),
+      queryFn: ({ signal }) => api.listNearbyProperties(slug, { limit }, signal),
+      staleTime: 5 * MINUTE,
     }),
 };
 

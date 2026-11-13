@@ -76,6 +76,8 @@ export interface LocationArea {
   /** Median asking price for condos, THB per square metre. */
   medianPricePerSqm: number;
   description: string;
+  /** Station location, for maps and distance calculations. */
+  point?: GeoPoint;
 }
 
 export type ProjectStatus = "ready" | "under-construction" | "pre-sale";
@@ -131,3 +133,85 @@ export interface PriceRangeOption {
   min?: number;
   max?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Listing page
+// ---------------------------------------------------------------------------
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
+
+export type Furnishing = "fully" | "partly" | "unfurnished";
+
+export interface NearbyStation {
+  station: TransitStation;
+  /** Walking distance in metres. */
+  distance: number;
+}
+
+export type PlaceCategory = "shopping" | "hospital" | "education" | "park" | "office";
+
+export interface NearbyPlace {
+  name: string;
+  category: PlaceCategory;
+  /** Distance in metres. */
+  distance: number;
+}
+
+/** The owner or agent who posted a listing. */
+export interface Poster {
+  id: string;
+  name: string;
+  kind: "owner" | "agent";
+  /** Agency or company, for agents. */
+  company?: string;
+  phone: string;
+  lineId?: string;
+  /** ISO date the account was created. */
+  memberSince: string;
+  activeListings: number;
+  /** Typical reply time in minutes. */
+  responseMinutes: number;
+  phoneVerified: boolean;
+  idVerified: boolean;
+  languages: string[];
+}
+
+/** Everything the listing page shows. `GET /properties/:slug` */
+export interface PropertyDetail extends Property {
+  /** Human-facing listing reference, e.g. "PH-1001". */
+  code: string;
+  description: string;
+  updatedAt: string;
+  totalFloors?: number;
+  parking: number;
+  furnishing?: Furnishing;
+  /** Direction the main windows or the front of the house face. */
+  facing?: string;
+  yearBuilt?: number;
+  /** Monthly common-area fee in THB. */
+  commonFee?: number;
+  /** Rentals: deposit and advance, in months of rent. */
+  depositMonths?: number;
+  advanceMonths?: number;
+  /** Rentals: minimum contract length in months. */
+  minContractMonths?: number;
+  /** Amenity ids inside the unit (see `data/amenities.ts`). */
+  features: string[];
+  /** Amenity ids shared by the project or building. */
+  facilities: string[];
+  /** Short selling points the poster picked, e.g. "เลี้ยงสัตว์ได้". */
+  highlights: string[];
+  location: {
+    address: string;
+    point: GeoPoint;
+    stations: NearbyStation[];
+    places: NearbyPlace[];
+  };
+  poster: Poster;
+}
+
+/** A listing near another one, with the straight-line distance between them. */
+export type NearbyProperty = Property & { distance: number };

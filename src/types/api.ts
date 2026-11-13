@@ -8,6 +8,8 @@
  */
 import type {
   Advertisement,
+  NearbyProperty,
+  PropertyDetail,
   ListingMode,
   NewProject,
   Property,
@@ -50,6 +52,8 @@ export interface ApiErrorBody {
 // ---------------------------------------------------------------------------
 
 export type PropertyDto = Property;
+export type PropertyDetailDto = PropertyDetail;
+export type NearbyPropertyDto = NearbyProperty;
 export type ProjectDto = NewProject;
 export type CategoryDto = PropertyCategory;
 /** A transit line with its stations, as returned by `GET /stations`. */
@@ -107,6 +111,34 @@ export interface ListAdsQuery {
 
 /** `GET /ads` */
 export type ListAdsResponse = ListResponse<AdDto>;
+
+/** `GET /properties/:slug` — 404 when the listing does not exist or was taken down. */
+export interface GetPropertyResponse {
+  data: PropertyDetailDto;
+}
+
+/** `GET /properties/:slug/nearby` query string. */
+export interface ListNearbyPropertiesQuery {
+  /** Default 6, max 24. */
+  limit?: number;
+}
+
+/** `GET /properties/:slug/nearby` — closest listings first, same deal type preferred. */
+export type ListNearbyPropertiesResponse = ListResponse<NearbyPropertyDto>;
+
+/** `POST /properties/:slug/enquiries` body. */
+export interface CreateEnquiryRequest {
+  name: string;
+  phone: string;
+  message: string;
+}
+
+/** `POST /properties/:slug/enquiries` — 201. */
+export interface CreateEnquiryResponse {
+  data: { id: string; createdAt: string };
+}
+
+export const NEARBY_MAX_LIMIT = 24;
 
 export const PROPERTIES_DEFAULT_LIMIT = 20;
 export const PROPERTIES_MAX_LIMIT = 100;
