@@ -1,18 +1,17 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { defaultFilters } from "@/lib/search";
+import { useRouter } from "next/navigation";
+import { defaultFilters, toSearchParams } from "@/lib/search";
 import type { ListingMode, SearchFilters } from "@/types/property";
 
 interface HomeSearchContextValue {
   /** Filters being edited in the hero form. */
   draft: SearchFilters;
   setDraft: (update: Partial<SearchFilters>) => void;
-  /** Filters last submitted; `null` until the visitor searches. */
-  applied: SearchFilters | null;
-  submit: (override?: Partial<SearchFilters>) => void;
-  reset: () => void;
-  /** Clear every filter but keep Buy/Rent, and drop any applied search. */
+  /** Open /search with the draft filters. */
+  submit: () => void;
+  /** Clear every filter but keep Buy/Rent. */
   clearFilters: () => void;
   /** Switch Buy/Rent from anywhere (header nav) and bring the form into view. */
   focusMode: (mode: ListingMode) => void;
@@ -25,8 +24,8 @@ function scrollToId(id: string) {
 }
 
 export function HomeSearchProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [draft, setDraftState] = useState<SearchFilters>(defaultFilters);
-  const [applied, setApplied] = useState<SearchFilters | null>(null);
 
   const setDraft = useCallback((update: Partial<SearchFilters>) => {
     setDraftState((prev) => {
@@ -37,23 +36,9 @@ export function HomeSearchProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const submit = useCallback(
-    (override?: Partial<SearchFilters>) => {
-      const next = { ...draft, ...override };
-      if (override) setDraftState(next);
-      setApplied(next);
-      requestAnimationFrame(() => scrollToId("listings"));
-    },
-    [draft],
-  );
-
-  const reset = useCallback(() => {
-    setApplied(null);
-    setDraftState(defaultFilters);
-  }, []);
+  const submit = useCallback(() => router.push(`/search?${toSearchParams(draft).toString()}`), [draft, router]);
 
   const clearFilters = useCallback(() => {
-    setApplied(null);
     setDraftState((prev) => ({ ...defaultFilters, mode: prev.mode }));
   }, []);
 
@@ -67,8 +52,8 @@ export function HomeSearchProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ draft, setDraft, applied, submit, reset, clearFilters, focusMode }),
-    [draft, setDraft, applied, submit, reset, clearFilters, focusMode],
+    () => ({ draft, setDraft, submit, clearFilters, focusMode }),
+    [draft, setDraft, submit, clearFilters, focusMode],
   );
 
   return <HomeSearchContext value={value}>{children}</HomeSearchContext>;

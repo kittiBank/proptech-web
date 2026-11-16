@@ -40,6 +40,8 @@ export interface Property {
   station?: TransitStation;
   /** Walking distance to the station in metres. */
   stationDistance?: number;
+  /** Map position. Sent on list responses so results can be plotted. */
+  point?: GeoPoint;
   /** Cover photo, used wherever a single image is shown. */
   image: PropertyImage;
   /** Photos for the card slideshow, cover first. Falls back to `image` when absent. */

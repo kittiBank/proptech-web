@@ -44,7 +44,7 @@ function withGallery(property: PropertyDto): PropertyDto {
   const extra = Array.from({ length: count }, (_, i) => others[(start + i) % others.length]);
   // Stand-in for analytics: paid placements get more traffic.
   const viewCount = (property.isPinned ? 1_500 : 40) + (seed % (property.isPinned ? 6_000 : 2_400));
-  return { ...property, gallery: [property.image, ...extra], viewCount };
+  return { ...property, gallery: [property.image, ...extra], viewCount, point: listingPoint(property) };
 }
 
 const allListings: PropertyDto[] = [...properties, ...generatedListings].map((p) =>
@@ -79,6 +79,9 @@ const comparators: Record<PropertySort, (a: PropertyDto, b: PropertyDto) => numb
   postedAt: (a, b) => a.postedAt.localeCompare(b.postedAt),
   "-price": (a, b) => b.price - a.price,
   price: (a, b) => a.price - b.price,
+  stationDistance: (a, b) =>
+    (a.stationDistance ?? Number.MAX_SAFE_INTEGER) - (b.stationDistance ?? Number.MAX_SAFE_INTEGER) ||
+    b.postedAt.localeCompare(a.postedAt),
 };
 
 export function queryProperties(query: ListPropertiesQuery): ListPropertiesResponse {
@@ -89,12 +92,22 @@ export function queryProperties(query: ListPropertiesQuery): ListPropertiesRespo
         ? allListings.filter((p) => !p.isPinned)
         : allListings;
 
+  const stations = new Set(
+    query.station
+      ?.split(",")
+      .map((code) => code.trim())
+      .filter(Boolean),
+  );
+
   const filtered = source.filter((p) => {
     if (query.mode && p.mode !== query.mode) return false;
     if (query.type && p.type !== query.type) return false;
-    if (query.station && p.station?.code !== query.station) return false;
+    if (stations.size > 0 && !(p.station && stations.has(p.station.code))) return false;
     if (query.minPrice !== undefined && p.price < query.minPrice) return false;
     if (query.maxPrice !== undefined && p.price > query.maxPrice) return false;
+    if (query.minBedrooms && p.bedrooms < query.minBedrooms) return false;
+    if (query.minArea !== undefined && p.area < query.minArea) return false;
+    if (query.maxArea !== undefined && p.area > query.maxArea) return false;
     return matchesKeyword(p, query.q ?? "");
   });
 

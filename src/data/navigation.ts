@@ -1,5 +1,5 @@
 /**
- * Site routes. `/` and `/property/[slug]` are implemented; the rest are reserved paths
+ * Site routes. `/`, `/search` and `/property/[slug]` are implemented; the rest are reserved paths
  * for upcoming pages and land on the branded not-found page until then.
  */
 export const routes = {
@@ -11,7 +11,7 @@ export const routes = {
   login: "/login",
   postProperty: "/post",
   property: (slug: string) => `/property/${slug}`,
-  /** Search results (issue #3). Params: mode, type, station, line, q, price. */
+  /** Search results. Params: see `lib/search-params.ts` (mode, q, type, station, price, beds, area, sort, page, view). */
   search: (params: Record<string, string | undefined>) => {
     const query = new URLSearchParams(
       Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
@@ -31,8 +31,8 @@ export interface NavItem {
 }
 
 export const mainNav: NavItem[] = [
-  { label: "ซื้อ", href: "/#search", action: "search-buy" },
-  { label: "เช่า", href: "/#search", action: "search-rent" },
+  { label: "ซื้อ", href: "/search?mode=buy", action: "search-buy" },
+  { label: "เช่า", href: "/search?mode=rent", action: "search-rent" },
   { label: "โครงการใหม่", href: "/#projects" },
   { label: "บทความ & คู่มือ", href: routes.guides },
 ];

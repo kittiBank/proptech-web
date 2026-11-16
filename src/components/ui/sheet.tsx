@@ -11,7 +11,12 @@ const SheetClose = SheetPrimitive.Close;
 const SheetTitle = SheetPrimitive.Title;
 const SheetDescription = SheetPrimitive.Description;
 
-function SheetContent({ className, children, ...props }: React.ComponentProps<typeof SheetPrimitive.Content>) {
+function SheetContent({
+  className,
+  children,
+  closeLabel = "ปิดเมนู",
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Content> & { closeLabel?: string }) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-fade-in" />
@@ -25,7 +30,7 @@ function SheetContent({ className, children, ...props }: React.ComponentProps<ty
         {children}
         <SheetPrimitive.Close
           className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-mist"
-          aria-label="ปิดเมนู"
+          aria-label={closeLabel}
         >
           <X className="size-5" aria-hidden="true" />
         </SheetPrimitive.Close>

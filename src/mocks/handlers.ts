@@ -27,7 +27,7 @@ const endpoint = (path: string) => `*${MOCK_API_BASE_PATH}${path}`;
 
 const listingModes: ListingMode[] = ["buy", "rent"];
 const propertyTypes: PropertyType[] = ["condo", "house", "townhouse", "land", "commercial"];
-const propertySorts: PropertySort[] = ["-postedAt", "postedAt", "-price", "price"];
+const propertySorts: PropertySort[] = ["-postedAt", "postedAt", "-price", "price", "stationDistance"];
 
 const statusText: Record<number, string> = {
   400: "Bad Request",
@@ -83,6 +83,9 @@ export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQue
   query.station = params.get("station")?.trim() || undefined;
   query.minPrice = int("minPrice", { min: 0 });
   query.maxPrice = int("maxPrice", { min: 0 });
+  query.minBedrooms = int("minBedrooms", { min: 0 });
+  query.minArea = int("minArea", { min: 0 });
+  query.maxArea = int("maxArea", { min: 0 });
   query.page = int("page", { min: 1 });
   query.limit = int("limit", { min: 1, max: PROPERTIES_MAX_LIMIT });
 

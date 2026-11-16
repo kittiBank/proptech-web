@@ -39,6 +39,29 @@ describe("GET /properties", () => {
     expect(data.every((p) => p.station?.code === "E6")).toBe(true);
   });
 
+  it("matches any of several comma-separated stations", async () => {
+    const { data } = await api.listProperties({ station: "E4,N5", limit: 100 });
+    const codes = new Set(data.map((p) => p.station?.code));
+    expect(codes).toEqual(new Set(["E4", "N5"]));
+  });
+
+  it("filters by minimum bedrooms and usable area", async () => {
+    const { data } = await api.listProperties({ minBedrooms: 2, minArea: 60, maxArea: 100, limit: 100 });
+    expect(data.length).toBeGreaterThan(0);
+    expect(data.every((p) => p.bedrooms >= 2 && p.area >= 60 && p.area <= 100)).toBe(true);
+  });
+
+  it("sorts by walking distance to the station, listings without one last", async () => {
+    const { data } = await api.listProperties({ sort: "stationDistance", limit: 100 });
+    const distances = data.map((p) => p.stationDistance ?? Number.MAX_SAFE_INTEGER);
+    expect(distances).toEqual([...distances].sort((a, b) => a - b));
+  });
+
+  it("gives every listing a map position", async () => {
+    const { data } = await api.listProperties({ limit: 100 });
+    expect(data.every((p) => p.point && p.point.lat > 13 && p.point.lng > 100)).toBe(true);
+  });
+
   it("returns an empty page when nothing matches", async () => {
     const res = await api.listProperties({ q: "no-such-place-xyz" });
     expect(res.data).toEqual([]);

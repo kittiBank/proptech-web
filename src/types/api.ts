@@ -64,7 +64,8 @@ export type AdDto = Advertisement;
 // Endpoints
 // ---------------------------------------------------------------------------
 
-export type PropertySort = "-postedAt" | "postedAt" | "-price" | "price";
+/** `stationDistance` = closest walk to a station first; listings with no station come last. */
+export type PropertySort = "-postedAt" | "postedAt" | "-price" | "price" | "stationDistance";
 
 /** `GET /properties` query string. Every field is optional. */
 export interface ListPropertiesQuery {
@@ -74,10 +75,15 @@ export interface ListPropertiesQuery {
   type?: PropertyType;
   /** Free-text search over title, project, district and station. */
   q?: string;
-  /** Station code, e.g. "E4". */
+  /** Station codes, comma-separated: "E4" or "E4,N5" matches listings near any of them. */
   station?: string;
   minPrice?: number;
   maxPrice?: number;
+  /** At least this many bedrooms. 0 = any, including studios. */
+  minBedrooms?: number;
+  /** Usable area bounds in square metres. */
+  minArea?: number;
+  maxArea?: number;
   sort?: PropertySort;
   /** 1-based. Default 1. */
   page?: number;

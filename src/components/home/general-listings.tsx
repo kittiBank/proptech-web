@@ -10,9 +10,8 @@ import { CardGridSkeleton, QueryError } from "@/components/ui/query-state";
 import { propertyTypeLabels } from "@/data/catalog";
 import { propertyQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
-import { describeFilters, toPropertyQuery } from "@/lib/search";
+import { toPropertyQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
-import { useRequiredHomeSearch } from "@/providers/home-search-provider";
 import type { PropertyType } from "@/types/property";
 import { AdCarousel } from "./ad-carousel";
 import { Container, SectionHeader } from "./section-header";
@@ -27,18 +26,17 @@ const AD_AFTER = PAGE_SIZE / 2;
 const typeFilters: ("all" | PropertyType)[] = ["all", "condo", "house", "townhouse", "land", "commercial"];
 
 export function GeneralListings() {
-  const { applied, reset } = useRequiredHomeSearch();
   const [typeFilter, setTypeFilter] = useState<"all" | PropertyType>("all");
   const [pageState, setPageState] = useState({ page: 1, key: "" });
 
-  // Any change to the search or type filter starts again from page 1.
-  const resultKey = `${JSON.stringify(applied)}|${typeFilter}`;
+  // A new type filter starts again from page 1.
+  const resultKey = typeFilter;
   const page = pageState.key === resultKey ? pageState.page : 1;
 
   // Filtering, sorting and paging happen on the server; pinned placements have their own section.
   const { data, isPending, isError, isFetching, isPlaceholderData, refetch } = useQuery(
     propertyQueries.list({
-      ...toPropertyQuery(applied, { type: typeFilter }),
+      ...toPropertyQuery(null, { type: typeFilter }),
       pinned: false,
       sort: "-postedAt",
       page,
@@ -57,39 +55,15 @@ export function GeneralListings() {
     document.getElementById("listings")?.scrollIntoView({ block: "start" });
   };
 
-  const clearAll = () => {
-    reset();
-    setTypeFilter("all");
-  };
-
   return (
     <section id="listings" aria-labelledby="listings-title" className="border-t border-line py-16 sm:py-20 lg:py-24">
       <Container>
         <SectionHeader
           id="listings-title"
-          title={applied ? "ผลการค้นหา" : "ประกาศล่าสุดที่คุณอาจสนใจ"}
-          description={
-            applied ? (
-              <>
-                {describeFilters(applied)}
-                {data && (
-                  <>
-                    {" "}
-                    พบ <span className="font-medium text-ink tabular-nums">{formatNumber(total)}</span> รายการ
-                  </>
-                )}
-              </>
-            ) : (
-              "ประกาศล่าสุดจากเจ้าของและนายหน้าทั่วกรุงเทพฯ เรียงจากใหม่ไปเก่า"
-            )
-          }
-        >
-          {applied && (
-            <Button variant="outline" onClick={clearAll} className="self-start md:self-auto">
-              ล้างการค้นหา
-            </Button>
-          )}
-        </SectionHeader>
+          title="ประกาศล่าสุดที่คุณอาจสนใจ"
+          description="ประกาศล่าสุดจากเจ้าของและนายหน้าทั่วกรุงเทพฯ เรียงจากใหม่ไปเก่า"
+          action={{ label: "ค้นหาแบบละเอียด", href: "/search" }}
+        />
 
         <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -155,7 +129,7 @@ export function GeneralListings() {
               <p className="text-lg font-semibold text-ink">ไม่พบประกาศที่ตรงกับเงื่อนไข</p>
               <p className="mt-1 text-[15px] text-slate">ลองขยายช่วงราคา เปลี่ยนประเภท หรือเลือกสถานีใกล้เคียง</p>
             </div>
-            <Button variant="outline" onClick={clearAll}>
+            <Button variant="outline" onClick={() => setTypeFilter("all")}>
               ดูประกาศทั้งหมด
             </Button>
           </div>
