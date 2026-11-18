@@ -24,6 +24,15 @@ export const queryKeys = {
   },
   session: ["auth", "session"] as const,
   favorites: ["me", "favorites"] as const,
+  drafts: {
+    all: ["me", "drafts"] as const,
+    detail: (id: string) => ["me", "drafts", id] as const,
+    submission: (id: string) => ["me", "drafts", id, "submission"] as const,
+  },
+  listingQuota: ["me", "listing-quota"] as const,
+  promotions: ["promotions"] as const,
+  projectPlaces: (q: string) => ["places", "projects", q] as const,
+  nearbyStations: (lat: number, lng: number) => ["stations", "nearby", lat, lng] as const,
   compare: (ids: string[]) => ["compare", ids] as const,
   stations: ["stations"] as const,
   categories: ["categories"] as const,
@@ -127,3 +136,55 @@ export const sessionQuery = queryOptions({
   },
   staleTime: 5 * MINUTE,
 });
+
+export const draftQueries = {
+  list: queryOptions({
+    queryKey: queryKeys.drafts.all,
+    queryFn: ({ signal }) => api.listDrafts(signal),
+  }),
+  detail: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.drafts.detail(id),
+      queryFn: ({ signal }) => api.getDraft(id, signal),
+      // The wizard owns the live copy; refetching would overwrite unsaved edits.
+      staleTime: Infinity,
+      refetchOnMount: false,
+    }),
+  submission: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.drafts.submission(id),
+      queryFn: ({ signal }) => api.getSubmission(id, signal),
+    }),
+};
+
+export const listingQuotaQuery = queryOptions({
+  queryKey: queryKeys.listingQuota,
+  queryFn: ({ signal }) => api.getListingQuota(signal),
+});
+
+export const promotionsQuery = queryOptions({
+  queryKey: queryKeys.promotions,
+  queryFn: ({ signal }) => api.listPromotions(signal),
+  staleTime: 5 * MINUTE,
+});
+
+export const projectPlacesQuery = (q: string) =>
+  queryOptions({
+    queryKey: queryKeys.projectPlaces(q),
+    queryFn: ({ signal }) => api.searchProjectPlaces(q, signal),
+    enabled: q.trim().length >= 2,
+    staleTime: 5 * MINUTE,
+    placeholderData: keepPreviousData,
+  });
+
+/** Rounded to ~10 m so tiny pin drags reuse the cache. */
+export const nearbyStationsQuery = (point: { lat: number; lng: number }) => {
+  const lat = Math.round(point.lat * 10_000) / 10_000;
+  const lng = Math.round(point.lng * 10_000) / 10_000;
+  return queryOptions({
+    queryKey: queryKeys.nearbyStations(lat, lng),
+    queryFn: ({ signal }) => api.listNearbyStations({ lat, lng }, signal),
+    staleTime: 30 * MINUTE,
+    placeholderData: keepPreviousData,
+  });
+};

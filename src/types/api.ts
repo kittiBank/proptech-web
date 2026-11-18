@@ -10,6 +10,7 @@ import type {
   Advertisement,
   NearbyProject,
   NearbyProperty,
+  NearbyStation,
   PropertyDetail,
   ListingMode,
   NewProject,
@@ -316,4 +317,174 @@ export interface ResetPasswordRequest {
 export interface OnboardingRequest {
   role?: UserRole;
   preferences?: UserPreferences;
+}
+
+// ---------------------------------------------------------------------------
+// Post a listing: drafts, photos, promotions, publishing
+// ---------------------------------------------------------------------------
+
+export type PostStep = "type" | "location" | "details" | "photos" | "publish";
+export type PosterKind = "owner" | "agent" | "developer";
+export type DealType = "sale" | "rent" | "both";
+export type PromotionId = "none" | "auto_bump" | "featured" | "homepage_pin";
+
+export interface DraftPhoto {
+  id: string;
+  /** Hosted image URL (the mock keeps a small preview). */
+  url: string;
+  name: string;
+  status: "ready" | "rejected";
+  /** Why a photo was rejected, shown on the tile. */
+  reason?: string;
+  isFloorPlan?: boolean;
+}
+
+/** Everything the wizard collects. Every field is optional until its step is validated. */
+export interface DraftValues {
+  posterKind: PosterKind;
+  deal: DealType;
+  propertyType?: PropertyType;
+
+  projectName?: string;
+  houseNo?: string;
+  soi?: string;
+  road?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  point?: { lat: number; lng: number };
+  exactLocation: boolean;
+  /** Station codes to show on the listing, max 3. */
+  stations: string[];
+
+  bedrooms?: number;
+  bathrooms?: number;
+  /** Usable area in m²; land size in ตร.ว. for land. */
+  area?: number;
+  floor?: number;
+  totalFloors?: number;
+  facing?: string;
+  /** Buddhist-era year, as entered (e.g. 2563). */
+  yearBuilt?: number;
+  parking?: number;
+  furnishing?: "fully" | "partly" | "unfurnished";
+  features: string[];
+  petFriendly: boolean;
+  title?: string;
+  description?: string;
+
+  /** Cover first. */
+  photos: DraftPhoto[];
+  videoUrl?: string;
+
+  price?: number;
+  rentPrice?: number;
+  commonFee?: number;
+  negotiable: boolean;
+  transferFee: "split" | "buyer" | "seller";
+  promotion: PromotionId;
+  confirmed: boolean;
+}
+
+export interface DraftDto {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Steps whose data passed validation, in order. */
+  completedSteps: PostStep[];
+  values: DraftValues;
+}
+
+/** `GET /me/drafts` — unfinished drafts, newest first. */
+export type ListDraftsResponse = ListResponse<DraftDto>;
+
+export interface DraftResponse {
+  data: DraftDto;
+}
+
+/** `PATCH /me/drafts/:id` — merges `values`; `completedSteps` replaces the list when given. */
+export interface UpdateDraftRequest {
+  values?: Partial<DraftValues>;
+  completedSteps?: PostStep[];
+}
+
+/** `POST /me/drafts/:id/photos` — the photo's metadata; the mock checks it like the media service would. */
+export interface UploadPhotoRequest {
+  name: string;
+  /** Bytes. */
+  size: number;
+  mimeType: string;
+  width: number;
+  height: number;
+  /** Small data-URL preview the mock keeps as the hosted image. */
+  preview: string;
+}
+
+export interface UploadPhotoResponse {
+  data: DraftPhoto;
+}
+
+export interface PromotionOption {
+  id: PromotionId;
+  title: string;
+  description: string;
+  /** THB, VAT included. 0 = free. */
+  price: number;
+  days?: number;
+  badge?: string;
+  /** Slots left today, for capped placements. */
+  slotsLeft?: number;
+}
+
+/** `GET /promotions` */
+export type ListPromotionsResponse = ListResponse<PromotionOption>;
+
+/** `GET /me/listing-quota` — free listings for owners. */
+export interface ListingQuotaResponse {
+  data: { used: number; limit: number };
+}
+
+/** `GET /places/projects?q=` — projects to fill the address from. */
+export interface ProjectPlace {
+  name: string;
+  subdistrict: string;
+  district: string;
+  province: string;
+  road?: string;
+  point: { lat: number; lng: number };
+  totalFloors?: number;
+  listingCount: number;
+}
+
+export type SearchProjectPlacesResponse = ListResponse<ProjectPlace>;
+
+/** `GET /stations/nearby?lat=&lng=` — stations within 1.5 km walking, nearest first. */
+export type NearbyStationsResponse = ListResponse<NearbyStation>;
+
+/**
+ * `POST /me/drafts/:id/publish` — 422 with the failing steps when data is
+ * missing, 403 `kyc_required` for unverified agents, 409 when the free quota
+ * is used up. A paid promotion returns an order to pay; it starts after review.
+ */
+/** A listing sent for review. `GET /me/drafts/:id/submission` returns it once the draft is published. */
+export interface SubmittedListingDto {
+  id: string;
+  code: string;
+  slug: string;
+  status: "pending_review";
+  draftId: string;
+  submittedAt: string;
+  /** What was submitted, for the success page preview. */
+  values: DraftValues;
+}
+
+export interface SubmissionResponse {
+  data: SubmittedListingDto;
+}
+
+export interface PublishDraftResponse {
+  data: {
+    listing: { id: string; code: string; slug: string; status: "pending_review"; submittedAt: string };
+    order?: { id: string; amount: number; promotion: PromotionId };
+  };
 }

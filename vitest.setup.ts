@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
 import { resetMockSession } from "@/mocks/session";
@@ -22,6 +23,9 @@ window.matchMedia ??= (query: string) =>
     dispatchEvent: () => false,
   }) as MediaQueryList;
 
+// jsdom has no layout; scrolling is a no-op.
+Element.prototype.scrollIntoView ??= () => {};
+
 // Every test talks to the same mock API as the browser; fail loudly on unmocked requests.
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 
@@ -31,6 +35,7 @@ afterEach(() => {
   setMockScenario("default");
   resetMockFavorites();
   resetMockSession();
+  resetMockDrafts();
   window.sessionStorage.clear();
   resetNavigation();
 });

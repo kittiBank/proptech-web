@@ -345,3 +345,93 @@ describe("auth", () => {
     expect(data).toMatchObject({ lastName: "Google", onboarded: false });
   });
 });
+
+describe("/me/drafts", () => {
+  beforeEach(() => resetMockSession({ signedIn: true }));
+
+  const complete = {
+    posterKind: "owner" as const,
+    deal: "sale" as const,
+    propertyType: "condo" as const,
+    projectName: "แอสเตอร์ สาทร",
+    district: "สาทร",
+    province: "กรุงเทพมหานคร",
+    point: { lat: 13.72, lng: 100.53 },
+    bedrooms: 1,
+    bathrooms: 1,
+    area: 35,
+    floor: 10,
+    title: "1 ห้องนอน ชั้น 10 ใกล้ BTS",
+    description: "ก".repeat(120),
+    photos: [1, 2, 3, 4, 5].map((i) => ({ id: `p${i}`, url: "data:,", name: `${i}.jpg`, status: "ready" as const })),
+    price: 6_900_000,
+    confirmed: true,
+  };
+
+  it("creates, auto-saves and lists a draft", async () => {
+    await expect(api.listDrafts()).resolves.toEqual({ data: [] });
+    const { data } = await api.createDraft();
+    expect(data.values).toMatchObject({ posterKind: "owner", deal: "sale", photos: [] });
+    const saved = await api.updateDraft(data.id, { values: { propertyType: "condo" }, completedSteps: ["type"] });
+    expect(saved.data).toMatchObject({ completedSteps: ["type"], values: { propertyType: "condo", deal: "sale" } });
+    expect((await api.listDrafts()).data.map((d) => d.id)).toEqual([data.id]);
+  });
+
+  it("checks photos like the media service", async () => {
+    const { data } = await api.createDraft();
+    const base = { size: 2_000_000, mimeType: "image/jpeg", width: 1600, height: 1200, preview: "data:," };
+    expect((await api.uploadPhoto(data.id, { ...base, name: "living.jpg" })).data.status).toBe("ready");
+    expect((await api.uploadPhoto(data.id, { ...base, name: "tel-number.jpg" })).data.reason).toMatch(/เบอร์โทร/);
+    expect((await api.uploadPhoto(data.id, { ...base, name: "small.jpg", width: 800 })).data.reason).toMatch(
+      /เล็กเกินไป/,
+    );
+    expect((await api.uploadPhoto(data.id, { ...base, name: "a.gif", mimeType: "image/gif" })).data.status).toBe(
+      "rejected",
+    );
+  });
+
+  it("refuses to publish an incomplete draft, then publishes a complete one", async () => {
+    const { data } = await api.createDraft();
+    await expect(api.publishDraft(data.id)).rejects.toMatchObject({ status: 422 });
+    await api.updateDraft(data.id, { values: complete });
+    const published = await api.publishDraft(data.id);
+    expect(published.data.listing).toMatchObject({ status: "pending_review", code: expect.stringMatching(/^PH-/) });
+    expect(published.data.order).toBeUndefined();
+    expect((await api.getSubmission(data.id)).data.values.title).toBe(complete.title);
+    expect((await api.getListingQuota()).data).toEqual({ used: 1, limit: 2 });
+    await expect(api.getDraft(data.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("returns an order for a paid promotion and blocks unverified agents", async () => {
+    const paid = await api.createDraft();
+    await api.updateDraft(paid.data.id, { values: { ...complete, promotion: "featured" } });
+    expect((await api.publishDraft(paid.data.id)).data.order).toMatchObject({ amount: 590, promotion: "featured" });
+
+    const agent = await api.createDraft();
+    await api.updateDraft(agent.data.id, { values: { ...complete, posterKind: "agent" } });
+    await expect(api.publishDraft(agent.data.id)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("stops owners at the free quota", async () => {
+    for (let i = 0; i < 2; i++) {
+      const d = await api.createDraft();
+      await api.updateDraft(d.data.id, { values: complete });
+      await api.publishDraft(d.data.id);
+    }
+    const third = await api.createDraft();
+    await api.updateDraft(third.data.id, { values: complete });
+    await expect(api.publishDraft(third.data.id)).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe("posting helpers", () => {
+  it("finds projects and nearby stations", async () => {
+    const places = await api.searchProjectPlaces("แอสเตอร์");
+    expect(places.data[0]).toMatchObject({ name: "แอสเตอร์ สาทร", district: "สาทร", province: "กรุงเทพมหานคร" });
+    const stations = await api.listNearbyStations(places.data[0].point);
+    expect(stations.data[0].station.code).toBe("S3");
+    expect(stations.data.every((s) => s.distance <= 1500)).toBe(true);
+    const promos = await api.listPromotions();
+    expect(promos.data.find((p) => p.id === "homepage_pin")?.slotsLeft).toBe(5);
+  });
+});

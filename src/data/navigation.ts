@@ -21,6 +21,9 @@ export const routes = {
   verifyEmail: "/verify-email",
   onboarding: "/onboarding",
   postProperty: "/post",
+  postStep: (draftId: string, step: string) => `/post/${encodeURIComponent(draftId)}/${step}`,
+  postDone: (draftId: string) => `/post/${encodeURIComponent(draftId)}/done`,
+  checkout: (orderId: string) => `/checkout/${encodeURIComponent(orderId)}`,
   property: (slug: string) => `/property/${slug}`,
   /** Search results. Params: see `lib/search-params.ts` (mode, q, type, station, price, beds, area, sort, page, view). */
   search: (params: Record<string, string | undefined>) => {

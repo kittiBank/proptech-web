@@ -7,6 +7,7 @@ import { useId, useState, type ReactNode } from "react";
 import { BellRing, Briefcase, House, Search } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
+import { ChoiceChip } from "@/components/ui/choice";
 import { FormAlert } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { routes } from "@/data/navigation";
@@ -45,33 +46,6 @@ const budgets = [
 ];
 
 const toggle = <T,>(list: T[], value: T) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-
-/** Pill that behaves as a checkbox (or radio). Selected = ink fill, the design's `FilterChip on`. */
-function Chip({
-  type = "checkbox",
-  name,
-  checked,
-  onChange,
-  children,
-}: {
-  type?: "checkbox" | "radio";
-  name: string;
-  checked: boolean;
-  onChange: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <label
-      className={cn(
-        "inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand",
-        checked ? "border-ink bg-ink text-white" : "border-line-strong bg-white text-ink hover:border-ink",
-      )}
-    >
-      <input type={type} name={name} checked={checked} onChange={onChange} className="sr-only" />
-      {children}
-    </label>
-  );
-}
 
 function PrefRow({ label, children }: { label: string; children: ReactNode }) {
   const id = useId();
@@ -198,7 +172,7 @@ export function OnboardingView() {
                 <div className="mt-5 flex flex-col gap-5">
                   <PrefRow label="ต้องการ">
                     {intents.map((o) => (
-                      <Chip
+                      <ChoiceChip
                         key={o.value}
                         type="radio"
                         name="intent"
@@ -206,24 +180,24 @@ export function OnboardingView() {
                         onChange={() => setPrefs((p) => ({ ...p, intent: o.value }))}
                       >
                         {o.label}
-                      </Chip>
+                      </ChoiceChip>
                     ))}
                   </PrefRow>
                   <PrefRow label="ประเภท">
                     {types.map((o) => (
-                      <Chip
+                      <ChoiceChip
                         key={o.value}
                         name="types"
                         checked={prefs.types.includes(o.value)}
                         onChange={() => setPrefs((p) => ({ ...p, types: toggle(p.types, o.value) }))}
                       >
                         {o.label}
-                      </Chip>
+                      </ChoiceChip>
                     ))}
                   </PrefRow>
                   <PrefRow label="ใกล้รถไฟฟ้าสาย">
                     {lines.map((o) => (
-                      <Chip
+                      <ChoiceChip
                         key={o.value}
                         name="lines"
                         checked={prefs.lines.includes(o.value)}
@@ -231,12 +205,12 @@ export function OnboardingView() {
                       >
                         <i aria-hidden="true" className={cn("h-1 w-3.5 rounded-full", o.dot)} />
                         {o.label}
-                      </Chip>
+                      </ChoiceChip>
                     ))}
                   </PrefRow>
                   <PrefRow label="งบประมาณ">
                     {budgets.map((o) => (
-                      <Chip
+                      <ChoiceChip
                         key={o.value}
                         type="radio"
                         name="budget"
@@ -244,7 +218,7 @@ export function OnboardingView() {
                         onChange={() => setPrefs((p) => ({ ...p, budget: o.value }))}
                       >
                         {o.label}
-                      </Chip>
+                      </ChoiceChip>
                     ))}
                   </PrefRow>
                 </div>

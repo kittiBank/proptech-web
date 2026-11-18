@@ -14,6 +14,8 @@ import {
   COMPARE_MAX,
   FAVORITE_NOTE_MAX,
   type SaveFavoriteResponse,
+  type UpdateDraftRequest,
+  type UploadPhotoRequest,
   type ForgotPasswordRequest,
   type LoginRequest,
   type OnboardingRequest,
@@ -30,6 +32,8 @@ import {
 import type { ListingMode, ProjectStatus, ProjectType, PropertyType, TransitLineId } from "@/types/property";
 import {
   compareListings,
+  queryNearbyStations,
+  searchProjectPlaces,
   getProjectDetail,
   getPropertyDetail,
   queryNearbyProjects,
@@ -40,6 +44,18 @@ import {
   queryProperties,
   queryStations,
 } from "./db";
+import {
+  checkPhoto,
+  createDraft,
+  deleteDraft,
+  getDraft,
+  getSubmissionForDraft,
+  listDrafts,
+  promotionOptions,
+  publishDraft,
+  quota,
+  updateDraft,
+} from "./drafts";
 import { listFavorites, removeFavorite, saveFavorite, updateFavoriteNote } from "./favorites";
 import { getMockScenario } from "./scenario";
 import {
@@ -69,7 +85,9 @@ const statusText: Record<number, string> = {
   400: "Bad Request",
   401: "Unauthorized",
   404: "Not Found",
+  403: "Forbidden",
   409: "Conflict",
+  422: "Unprocessable Entity",
   500: "Internal Server Error",
   503: "Service Unavailable",
 };
@@ -381,6 +399,95 @@ export const handlers = [
     const user = completeOnboarding(await readBody<OnboardingRequest>(request));
     return user ? HttpResponse.json<SessionResponse>({ data: user }) : unauthorized();
   }),
+  // --- Post a listing ----------------------------------------------------
+  http.get(
+    endpoint("/me/drafts"),
+    withScenario(() => ({ data: listDrafts(requireUser().id) })),
+  ),
+  http.post(endpoint("/me/drafts"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return HttpResponse.json(
+      { data: createDraft(user.id, user.role === "agent" ? "agent" : "owner") },
+      { status: 201 },
+    );
+  }),
+  http.get(
+    endpoint("/me/drafts/:id"),
+    withScenario((_request, params) => {
+      const draft = getDraft(requireUser().id, String(params.id));
+      if (!draft) throw new NotFoundError("Draft not found");
+      return { data: draft };
+    }),
+  ),
+  http.patch(endpoint("/me/drafts/:id"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const draft = updateDraft(user.id, String(params.id), await readBody<UpdateDraftRequest>(request));
+    return draft ? HttpResponse.json({ data: draft }) : errorResponse(404, "Draft not found");
+  }),
+  http.delete(endpoint("/me/drafts/:id"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    deleteDraft(user.id, String(params.id));
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(endpoint("/me/drafts/:id/photos"), async ({ request, params }) => {
+    // Uploads take a moment; the UI shows progress meanwhile.
+    await delay(600);
+    if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+    const user = currentUser();
+    if (!user) return unauthorized();
+    if (!getDraft(user.id, String(params.id))) return errorResponse(404, "Draft not found");
+    const body = await readBody<UploadPhotoRequest>(request);
+    if (!body.name || !body.mimeType || !body.preview)
+      return errorResponse(400, ["name, mimeType and preview are required"]);
+    return HttpResponse.json({ data: checkPhoto(body as UploadPhotoRequest) }, { status: 201 });
+  }),
+  http.post(endpoint("/me/drafts/:id/publish"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = publishDraft(user.id, String(params.id));
+    return result.ok ? HttpResponse.json(result.body, { status: 201 }) : errorResponse(result.status, result.message);
+  }),
+  http.get(
+    endpoint("/me/drafts/:id/submission"),
+    withScenario((_request, params) => {
+      const submission = getSubmissionForDraft(requireUser().id, String(params.id));
+      if (!submission) throw new NotFoundError("Not published");
+      return { data: submission };
+    }),
+  ),
+  http.get(
+    endpoint("/me/listing-quota"),
+    withScenario(() => ({ data: quota(requireUser().id) })),
+  ),
+  http.get(
+    endpoint("/promotions"),
+    withScenario(() => ({ data: promotionOptions() })),
+  ),
+  http.get(
+    endpoint("/places/projects"),
+    withScenario((request) => searchProjectPlaces(new URL(request.url).searchParams.get("q") ?? "")),
+  ),
+  http.get(
+    endpoint("/stations/nearby"),
+    withScenario((request) => {
+      const params = new URL(request.url).searchParams;
+      const lat = Number(params.get("lat"));
+      const lng = Number(params.get("lng"));
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !params.get("lat") || !params.get("lng")) {
+        throw new ValidationError(["lat and lng must be numbers"]);
+      }
+      return queryNearbyStations({ lat, lng });
+    }),
+  ),
   // --- Favorites ---------------------------------------------------------
   http.get(
     endpoint("/me/favorites"),

@@ -4,6 +4,7 @@ import { generatedListings } from "@/data/generated-listings";
 import { photosByType } from "@/data/images";
 import { transitLines } from "@/data/locations";
 import { buildProjectDetail, buildProjectListings, projectPoint } from "@/data/project-details";
+import { stationsNear } from "@/data/property-details";
 import { newProjects } from "@/data/projects";
 import { pinnedPropertyIds, properties } from "@/data/properties";
 import { buildPropertyDetail, listingPoint } from "@/data/property-details";
@@ -12,6 +13,8 @@ import {
   PROJECTS_DEFAULT_LIMIT,
   PROPERTIES_DEFAULT_LIMIT,
   type CompareListingsResponse,
+  type NearbyStationsResponse,
+  type SearchProjectPlacesResponse,
   type ListAdsQuery,
   type ListNearbyProjectsResponse,
   type ListProjectsQuery,
@@ -251,4 +254,34 @@ export function compareListings(ids: string[]): CompareListingsResponse {
       .filter((p): p is PropertyDto => Boolean(p))
       .map((p) => ({ ...buildPropertyDetail(p), status: closedListingIds.has(p.id) ? "closed" : "active" })),
   };
+}
+
+/** `GET /places/projects?q=`: projects whose name matches, to fill in the address while posting. */
+export function searchProjectPlaces(q: string): SearchProjectPlacesResponse {
+  const term = q.trim().toLowerCase();
+  if (!term) return { data: [] };
+  return {
+    data: newProjects
+      .filter((p) => p.name.toLowerCase().includes(term))
+      .slice(0, 5)
+      .map((p) => {
+        const detail = buildProjectDetail(p, 0);
+        const [district, province = "กรุงเทพฯ"] = p.district.split(",").map((x) => x.trim());
+        return {
+          name: p.name,
+          subdistrict: "",
+          district,
+          province: province === "กรุงเทพฯ" ? "กรุงเทพมหานคร" : province,
+          road: undefined,
+          point: projectPoint(p),
+          totalFloors: p.type === "condo" ? detail.floors : undefined,
+          listingCount: allListings.filter((l) => l.projectName === p.name).length,
+        };
+      }),
+  };
+}
+
+/** `GET /stations/nearby`: stations within 1.5 km walking of a point. */
+export function queryNearbyStations(point: { lat: number; lng: number }): NearbyStationsResponse {
+  return { data: stationsNear(point).filter((s) => s.distance <= 1500) };
 }

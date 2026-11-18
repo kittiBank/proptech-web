@@ -9,6 +9,11 @@ export const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh:
 
 let searchParams = new URLSearchParams();
 let pathname = "/";
+let params: Record<string, string> = {};
+
+export function setParams(next: Record<string, string>) {
+  params = next;
+}
 
 export function setSearchParams(query: string) {
   searchParams = new URLSearchParams(query);
@@ -22,11 +27,12 @@ export function resetNavigation() {
   Object.values(router).forEach((fn) => fn.mockReset());
   searchParams = new URLSearchParams();
   pathname = "/";
+  params = {};
 }
 
 export const useRouter = () => router;
 export const useSearchParams = () => searchParams;
 export const usePathname = () => pathname;
-export const useParams = () => ({});
+export const useParams = () => params;
 export const redirect = vi.fn();
 export const notFound = vi.fn();

@@ -1,4 +1,15 @@
 import type {
+  DraftResponse,
+  ListDraftsResponse,
+  ListingQuotaResponse,
+  ListPromotionsResponse,
+  NearbyStationsResponse,
+  PublishDraftResponse,
+  SearchProjectPlacesResponse,
+  SubmissionResponse,
+  UpdateDraftRequest,
+  UploadPhotoRequest,
+  UploadPhotoResponse,
   ForgotPasswordRequest,
   LoginRequest,
   OAuthProvider,
@@ -122,4 +133,46 @@ export const api = {
 
   /** PATCH /me/onboarding */
   completeOnboarding: (body: OnboardingRequest) => apiSend<SessionResponse>("PATCH", "/me/onboarding", body),
+
+  /** GET /me/drafts — unfinished listing drafts, newest first. */
+  listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),
+
+  /** POST /me/drafts — start a new listing. */
+  createDraft: () => apiSend<DraftResponse>("POST", "/me/drafts"),
+
+  /** GET /me/drafts/:id */
+  getDraft: (id: string, signal?: AbortSignal) =>
+    apiGet<DraftResponse>(`/me/drafts/${encodeURIComponent(id)}`, undefined, { signal }),
+
+  /** PATCH /me/drafts/:id — auto-save. */
+  updateDraft: (id: string, body: UpdateDraftRequest) =>
+    apiSend<DraftResponse>("PATCH", `/me/drafts/${encodeURIComponent(id)}`, body),
+
+  /** DELETE /me/drafts/:id */
+  deleteDraft: (id: string) => apiSend<void>("DELETE", `/me/drafts/${encodeURIComponent(id)}`),
+
+  /** POST /me/drafts/:id/photos — returns the stored photo, possibly rejected with a reason. */
+  uploadPhoto: (id: string, body: UploadPhotoRequest) =>
+    apiSend<UploadPhotoResponse>("POST", `/me/drafts/${encodeURIComponent(id)}/photos`, body),
+
+  /** POST /me/drafts/:id/publish — sends the listing for review. */
+  publishDraft: (id: string) => apiSend<PublishDraftResponse>("POST", `/me/drafts/${encodeURIComponent(id)}/publish`),
+
+  /** GET /me/drafts/:id/submission — the listing a published draft became. */
+  getSubmission: (id: string, signal?: AbortSignal) =>
+    apiGet<SubmissionResponse>(`/me/drafts/${encodeURIComponent(id)}/submission`, undefined, { signal }),
+
+  /** GET /me/listing-quota */
+  getListingQuota: (signal?: AbortSignal) => apiGet<ListingQuotaResponse>("/me/listing-quota", undefined, { signal }),
+
+  /** GET /promotions — boost options with today's capped slots. */
+  listPromotions: (signal?: AbortSignal) => apiGet<ListPromotionsResponse>("/promotions", undefined, { signal }),
+
+  /** GET /places/projects?q= — project name autocomplete for the address step. */
+  searchProjectPlaces: (q: string, signal?: AbortSignal) =>
+    apiGet<SearchProjectPlacesResponse>("/places/projects", { q }, { signal }),
+
+  /** GET /stations/nearby?lat=&lng= */
+  listNearbyStations: (point: { lat: number; lng: number }, signal?: AbortSignal) =>
+    apiGet<NearbyStationsResponse>("/stations/nearby", point, { signal }),
 };
