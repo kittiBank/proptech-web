@@ -141,7 +141,7 @@ function ListingHeader({ property: p }: { property: PropertyDetail }) {
           </a>
         </div>
         <div className="flex shrink-0 gap-2">
-          <FavoriteButton propertyId={p.id} propertyTitle={p.title} className={listingIconButton} />
+          <FavoriteButton property={p} className={listingIconButton} />
           <ShareMenu title={p.title} />
         </div>
       </div>
@@ -253,7 +253,7 @@ export function PropertyDetailView() {
 
             <Section id="location-title" title="ทำเลที่ตั้งและสถานที่ใกล้เคียง">
               <div id="location" className="scroll-mt-28">
-                <LocationMap property={property} />
+                <LocationMap location={property.location} title={property.title} />
               </div>
             </Section>
           </article>

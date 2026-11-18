@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Heart } from "lucide-react";
+import { routes } from "@/data/navigation";
 import { cn } from "@/lib/utils";
 import { useFavorites } from "@/providers/favorites-store";
 
@@ -9,7 +10,7 @@ export function FavoritesLink({ className }: { className?: string }) {
   const { count } = useFavorites();
   return (
     <Link
-      href="/favorites"
+      href={routes.favorites}
       className={cn(
         "relative inline-flex size-11 items-center justify-center rounded-md text-ink transition-colors hover:bg-mist",
         className,

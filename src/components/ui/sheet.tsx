@@ -11,21 +11,31 @@ const SheetClose = SheetPrimitive.Close;
 const SheetTitle = SheetPrimitive.Title;
 const SheetDescription = SheetPrimitive.Description;
 
-function SheetContent({ className, children, ...props }: React.ComponentProps<typeof SheetPrimitive.Content>) {
+const sides = {
+  right: "inset-y-0 right-0 w-[88%] max-w-sm data-[state=open]:animate-sheet-in",
+  /** Mobile bottom sheet: 16px top corners, grows to 90% of the screen, then scrolls. */
+  bottom:
+    "inset-x-0 bottom-0 max-h-[90dvh] w-full rounded-t-2xl pb-[env(safe-area-inset-bottom)] data-[state=open]:animate-sheet-up",
+};
+
+function SheetContent({
+  className,
+  children,
+  closeLabel = "ปิดเมนู",
+  side = "right",
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Content> & { closeLabel?: string; side?: keyof typeof sides }) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-fade-in" />
       <SheetPrimitive.Content
-        className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[88%] max-w-sm flex-col bg-white outline-none data-[state=open]:animate-sheet-in",
-          className,
-        )}
+        className={cn("fixed z-50 flex flex-col bg-white outline-none", sides[side], className)}
         {...props}
       >
         {children}
         <SheetPrimitive.Close
           className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-mist"
-          aria-label="ปิดเมนู"
+          aria-label={closeLabel}
         >
           <X className="size-5" aria-hidden="true" />
         </SheetPrimitive.Close>

@@ -1,5 +1,5 @@
 /**
- * Site routes. `/` and `/property/[slug]` are implemented; the rest are reserved paths
+ * Site routes. `/`, `/search`, `/property/[slug]` and `/projects(/[slug])` are implemented; the rest are reserved paths
  * for upcoming pages and land on the branded not-found page until then.
  */
 export const routes = {
@@ -8,10 +8,24 @@ export const routes = {
   rent: "/rent",
   newProjects: "/projects",
   guides: "/guides",
-  login: "/login",
+  /** `next` = where to go after signing in; `intent` = gated action that opened it (modal copy). */
+  login: (params: { next?: string; intent?: string } = {}) => {
+    const query = new URLSearchParams(
+      Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ).toString();
+    return query ? `/login?${query}` : "/login";
+  },
+  register: (next?: string) => (next ? `/register?next=${encodeURIComponent(next)}` : "/register"),
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
+  verifyEmail: "/verify-email",
+  onboarding: "/onboarding",
   postProperty: "/post",
+  postStep: (draftId: string, step: string) => `/post/${encodeURIComponent(draftId)}/${step}`,
+  postDone: (draftId: string) => `/post/${encodeURIComponent(draftId)}/done`,
+  checkout: (orderId: string) => `/checkout/${encodeURIComponent(orderId)}`,
   property: (slug: string) => `/property/${slug}`,
-  /** Search results (issue #3). Params: mode, type, station, line, q, price. */
+  /** Search results. Params: see `lib/search-params.ts` (mode, q, type, station, price, beds, area, sort, page, view). */
   search: (params: Record<string, string | undefined>) => {
     const query = new URLSearchParams(
       Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
@@ -19,6 +33,9 @@ export const routes = {
     return query ? `/search?${query}` : "/search";
   },
   project: (slug: string) => `/projects/${slug}`,
+  favorites: "/account/favorites",
+  /** Side-by-side table for up to 3 listing ids. */
+  compare: (ids: string[]) => `/compare?ids=${ids.map(encodeURIComponent).join(",")}`,
   location: (id: string) => `/buy?location=${id}`,
   category: (type: string) => `/buy?type=${type}`,
 } as const;
@@ -31,9 +48,9 @@ export interface NavItem {
 }
 
 export const mainNav: NavItem[] = [
-  { label: "ซื้อ", href: "/#search", action: "search-buy" },
-  { label: "เช่า", href: "/#search", action: "search-rent" },
-  { label: "โครงการใหม่", href: "/#projects" },
+  { label: "ซื้อ", href: "/search?mode=buy", action: "search-buy" },
+  { label: "เช่า", href: "/search?mode=rent", action: "search-rent" },
+  { label: "โครงการใหม่", href: routes.newProjects },
   { label: "บทความ & คู่มือ", href: routes.guides },
 ];
 

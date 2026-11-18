@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 interface ShareMenuProps {
   title: string;
   className?: string;
+  /** Accessible name of the trigger. */
+  label?: string;
 }
 
 const iconButton =
@@ -40,7 +42,7 @@ const networks = [
   },
 ];
 
-export function ShareMenu({ title, className }: ShareMenuProps) {
+export function ShareMenu({ title, className, label = "แชร์ประกาศนี้" }: ShareMenuProps) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -56,7 +58,7 @@ export function ShareMenu({ title, className }: ShareMenuProps) {
   return (
     <Popover onOpenChange={(open) => !open && setCopied(false)}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label="แชร์ประกาศนี้" className={cn(iconButton, className)}>
+        <button type="button" aria-label={label} className={cn(iconButton, className)}>
           <Share2 className="size-[18px]" aria-hidden="true" />
         </button>
       </PopoverTrigger>

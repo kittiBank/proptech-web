@@ -44,7 +44,7 @@ export function toPropertyQuery(
   return query;
 }
 
-/** Shareable URL query for the future /search page (the API query is `toPropertyQuery`). */
+/** /search query string for the homepage search; the search page parses it with `parseSearchParams`. */
 export function toSearchParams(filters: SearchFilters): URLSearchParams {
   const params = new URLSearchParams({ mode: filters.mode });
   if (filters.keyword.trim()) params.set("q", filters.keyword.trim());

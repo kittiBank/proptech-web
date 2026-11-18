@@ -2,10 +2,11 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { BadgeCheck, CircleCheck, Flag, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/client";
+import { useAuthGate, useResumeAction } from "@/lib/auth-gate";
 import { formatNumber } from "@/lib/format";
 import { formatResponseTime, toBuddhistYear } from "@/lib/listing";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,11 @@ function EnquiryForm({ property, onDone }: { property: PropertyDetail; onDone?: 
     mutationFn: (body: { name: string; phone: string; message: string }) => api.createEnquiry(property.slug, body),
   });
 
+  const formRef = useRef<HTMLFormElement>(null);
+  const requireAuth = useAuthGate();
+  // Signed in from the login modal: send the message the visitor already wrote.
+  useResumeAction("message", property.id, () => formRef.current?.requestSubmit());
+
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -65,7 +71,15 @@ function EnquiryForm({ property, onDone }: { property: PropertyDetail; onDone?: 
     if (!/^0\d{8,9}$/.test(body.phone)) next.phone = "กรอกเบอร์โทร 9–10 หลัก เช่น 0812345678";
     if (!body.message) next.message = "เขียนข้อความถึงผู้ลงประกาศ";
     setErrors(next);
-    if (Object.keys(next).length === 0) mutation.mutate(body, { onSuccess: () => onDone?.() });
+    if (Object.keys(next).length > 0) return;
+    requireAuth(
+      {
+        intent: "message",
+        key: property.id,
+        preview: { title: property.title, subtitle: `ถึง ${property.poster.name}`, image: property.image },
+      },
+      () => mutation.mutate(body, { onSuccess: () => onDone?.() }),
+    );
   };
 
   if (mutation.isSuccess) {
@@ -84,7 +98,13 @@ function EnquiryForm({ property, onDone }: { property: PropertyDetail; onDone?: 
     "w-full rounded-md border border-line-strong bg-white px-3 text-[15px] text-ink outline-none placeholder:text-slate/70 focus:border-brand focus:ring-2 focus:ring-violet-100 aria-[invalid=true]:border-rose-600";
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3" aria-label="ส่งข้อความถึงผู้ลงประกาศ">
+    <form
+      ref={formRef}
+      onSubmit={onSubmit}
+      noValidate
+      className="flex flex-col gap-3"
+      aria-label="ส่งข้อความถึงผู้ลงประกาศ"
+    >
       {[
         { name: "name", label: "ชื่อ", type: "text", autoComplete: "name" },
         { name: "phone", label: "เบอร์โทร", type: "tel", autoComplete: "tel" },

@@ -3,14 +3,25 @@ import { propertyCategories, propertyTypeLabels } from "@/data/catalog";
 import { generatedListings } from "@/data/generated-listings";
 import { photosByType } from "@/data/images";
 import { transitLines } from "@/data/locations";
+import { buildProjectDetail, buildProjectListings, projectPoint } from "@/data/project-details";
+import { stationsNear } from "@/data/property-details";
 import { newProjects } from "@/data/projects";
 import { pinnedPropertyIds, properties } from "@/data/properties";
 import { buildPropertyDetail, listingPoint } from "@/data/property-details";
 import { distanceBetween } from "@/lib/geo";
 import {
+  PROJECTS_DEFAULT_LIMIT,
   PROPERTIES_DEFAULT_LIMIT,
+  type CompareListingsResponse,
+  type NearbyStationsResponse,
+  type SearchProjectPlacesResponse,
   type ListAdsQuery,
+  type ListNearbyProjectsResponse,
   type ListProjectsQuery,
+  type ListProjectsResponse,
+  type ProjectDetailDto,
+  type ProjectDto,
+  type ProjectSort,
   type ListPropertiesQuery,
   type ListPropertiesResponse,
   type ListNearbyPropertiesQuery,
@@ -44,12 +55,22 @@ function withGallery(property: PropertyDto): PropertyDto {
   const extra = Array.from({ length: count }, (_, i) => others[(start + i) % others.length]);
   // Stand-in for analytics: paid placements get more traffic.
   const viewCount = (property.isPinned ? 1_500 : 40) + (seed % (property.isPinned ? 6_000 : 2_400));
-  return { ...property, gallery: [property.image, ...extra], viewCount };
+  return { ...property, gallery: [property.image, ...extra], viewCount, point: listingPoint(property) };
 }
 
-const allListings: PropertyDto[] = [...properties, ...generatedListings].map((p) =>
-  withGallery(pinnedIds.has(p.id) ? { ...p, isPinned: true } : p),
+const allListings: PropertyDto[] = [...properties, ...generatedListings, ...buildProjectListings(newProjects)].map(
+  (p) => withGallery(pinnedIds.has(p.id) ? { ...p, isPinned: true } : p),
 );
+
+/**
+ * Listings that were taken down, sold or rented. They drop out of search but
+ * stay readable by id so saved copies in favorites can show the closed state.
+ */
+export const closedListingIds = new Set(["g-2010", "g-2031"]);
+
+export function findListingById(id: string): PropertyDto | undefined {
+  return allListings.find((p) => p.id === id);
+}
 
 /** Paid placements, in the order they were booked. */
 const pinnedListings: PropertyDto[] = pinnedPropertyIds
@@ -79,22 +100,35 @@ const comparators: Record<PropertySort, (a: PropertyDto, b: PropertyDto) => numb
   postedAt: (a, b) => a.postedAt.localeCompare(b.postedAt),
   "-price": (a, b) => b.price - a.price,
   price: (a, b) => a.price - b.price,
+  stationDistance: (a, b) =>
+    (a.stationDistance ?? Number.MAX_SAFE_INTEGER) - (b.stationDistance ?? Number.MAX_SAFE_INTEGER) ||
+    b.postedAt.localeCompare(a.postedAt),
 };
 
 export function queryProperties(query: ListPropertiesQuery): ListPropertiesResponse {
+  const open = allListings.filter((p) => !closedListingIds.has(p.id));
   const source =
-    query.pinned === true
-      ? pinnedListings
-      : query.pinned === false
-        ? allListings.filter((p) => !p.isPinned)
-        : allListings;
+    query.pinned === true ? pinnedListings : query.pinned === false ? open.filter((p) => !p.isPinned) : open;
+
+  const stations = new Set(
+    query.station
+      ?.split(",")
+      .map((code) => code.trim())
+      .filter(Boolean),
+  );
+
+  const projectName = query.project ? (newProjects.find((p) => p.slug === query.project)?.name ?? "\0") : undefined;
 
   const filtered = source.filter((p) => {
+    if (projectName !== undefined && p.projectName !== projectName) return false;
     if (query.mode && p.mode !== query.mode) return false;
     if (query.type && p.type !== query.type) return false;
-    if (query.station && p.station?.code !== query.station) return false;
+    if (stations.size > 0 && !(p.station && stations.has(p.station.code))) return false;
     if (query.minPrice !== undefined && p.price < query.minPrice) return false;
     if (query.maxPrice !== undefined && p.price > query.maxPrice) return false;
+    if (query.minBedrooms && p.bedrooms < query.minBedrooms) return false;
+    if (query.minArea !== undefined && p.area < query.minArea) return false;
+    if (query.maxArea !== undefined && p.area > query.maxArea) return false;
     return matchesKeyword(p, query.q ?? "");
   });
 
@@ -110,10 +144,62 @@ export function queryProperties(query: ListPropertiesQuery): ListPropertiesRespo
   };
 }
 
-export function queryProjects(query: ListProjectsQuery) {
-  // Every mock project is a new launch; `status` is accepted for contract parity.
-  void query;
-  return { data: newProjects };
+const projectComparators: Record<ProjectSort, (a: ProjectDto, b: ProjectDto) => number> = {
+  "-launchedAt": (a, b) => b.launchedAt.localeCompare(a.launchedAt),
+  startingPrice: (a, b) => a.startingPrice - b.startingPrice,
+  "-startingPrice": (a, b) => b.startingPrice - a.startingPrice,
+  completionYear: (a, b) => a.completionYear - b.completionYear || a.launchedAt.localeCompare(b.launchedAt),
+};
+
+export function queryProjects(query: ListProjectsQuery): ListProjectsResponse {
+  // Every filter except status, so the status tabs can show what each would return.
+  const base = newProjects.filter((p) => {
+    if (query.featured !== undefined && Boolean(p.isFeatured) !== query.featured) return false;
+    if (query.type && p.type !== query.type) return false;
+    if (query.line && p.station?.line !== query.line) return false;
+    if (query.minPrice !== undefined && p.startingPrice < query.minPrice) return false;
+    if (query.maxPrice !== undefined && p.startingPrice > query.maxPrice) return false;
+    return true;
+  });
+  const counts = {
+    all: base.length,
+    "pre-sale": base.filter((p) => p.status === "pre-sale").length,
+    "under-construction": base.filter((p) => p.status === "under-construction").length,
+    ready: base.filter((p) => p.status === "ready").length,
+  };
+  const filtered = query.status ? base.filter((p) => p.status === query.status) : base;
+  const sorted = [...filtered].sort(projectComparators[query.sort ?? "-launchedAt"]);
+
+  const limit = query.limit ?? PROJECTS_DEFAULT_LIMIT;
+  const page = query.page ?? 1;
+  return {
+    data: sorted.slice((page - 1) * limit, page * limit),
+    meta: { page, limit, total: sorted.length, totalPages: Math.max(1, Math.ceil(sorted.length / limit)) },
+    counts,
+  };
+}
+
+/** `GET /projects/:slug`. `undefined` = 404. */
+export function getProjectDetail(slug: string): ProjectDetailDto | undefined {
+  const project = newProjects.find((p) => p.slug === slug);
+  if (!project) return undefined;
+  const listingCount = allListings.filter((l) => l.projectName === project.name).length;
+  return buildProjectDetail(project, listingCount);
+}
+
+const NEARBY_PROJECTS_RADIUS_M = 5_000;
+
+/** `GET /projects/:slug/nearby`: other projects within 5 km, closest first. `undefined` = 404. */
+export function queryNearbyProjects(slug: string, limit = 3): ListNearbyProjectsResponse | undefined {
+  const origin = newProjects.find((p) => p.slug === slug);
+  if (!origin) return undefined;
+  const from = projectPoint(origin);
+  const ranked = newProjects
+    .filter((p) => p.id !== origin.id)
+    .map((p) => ({ ...p, distance: distanceBetween(from, projectPoint(p)) }))
+    .filter((p) => p.distance <= NEARBY_PROJECTS_RADIUS_M)
+    .sort((a, b) => a.distance - b.distance);
+  return { data: ranked.slice(0, limit) };
 }
 
 export function queryStations() {
@@ -152,10 +238,50 @@ export function queryNearbyProperties(
   const limit = query.limit ?? NEARBY_DEFAULT_LIMIT;
 
   const ranked = allListings
-    .filter((p) => p.id !== origin.id)
+    .filter((p) => p.id !== origin.id && !closedListingIds.has(p.id))
     .map((p) => ({ ...p, distance: distanceBetween(from, listingPoint(p)) }))
     .filter((p) => p.distance <= NEARBY_RADIUS_M)
     .sort((a, b) => Number(b.mode === origin.mode) - Number(a.mode === origin.mode) || a.distance - b.distance);
 
   return { data: ranked.slice(0, limit) };
+}
+
+/** `GET /compare?ids=`: listing details in the order asked, unknown ids skipped. */
+export function compareListings(ids: string[]): CompareListingsResponse {
+  return {
+    data: ids
+      .map((id) => findListingById(id))
+      .filter((p): p is PropertyDto => Boolean(p))
+      .map((p) => ({ ...buildPropertyDetail(p), status: closedListingIds.has(p.id) ? "closed" : "active" })),
+  };
+}
+
+/** `GET /places/projects?q=`: projects whose name matches, to fill in the address while posting. */
+export function searchProjectPlaces(q: string): SearchProjectPlacesResponse {
+  const term = q.trim().toLowerCase();
+  if (!term) return { data: [] };
+  return {
+    data: newProjects
+      .filter((p) => p.name.toLowerCase().includes(term))
+      .slice(0, 5)
+      .map((p) => {
+        const detail = buildProjectDetail(p, 0);
+        const [district, province = "กรุงเทพฯ"] = p.district.split(",").map((x) => x.trim());
+        return {
+          name: p.name,
+          subdistrict: "",
+          district,
+          province: province === "กรุงเทพฯ" ? "กรุงเทพมหานคร" : province,
+          road: undefined,
+          point: projectPoint(p),
+          totalFloors: p.type === "condo" ? detail.floors : undefined,
+          listingCount: allListings.filter((l) => l.projectName === p.name).length,
+        };
+      }),
+  };
+}
+
+/** `GET /stations/nearby`: stations within 1.5 km walking of a point. */
+export function queryNearbyStations(point: { lat: number; lng: number }): NearbyStationsResponse {
+  return { data: stationsNear(point).filter((s) => s.distance <= 1500) };
 }

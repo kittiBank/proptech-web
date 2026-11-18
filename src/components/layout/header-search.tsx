@@ -44,8 +44,8 @@ export function HeaderSearch() {
   }, [onHomepage]);
 
   if (!search || !onHomepage) return null;
-  const { draft, setDraft, submit, applied, clearFilters } = search;
-  const canClear = hasActiveFilters(draft) || applied !== null;
+  const { draft, setDraft, submit, clearFilters } = search;
+  const canClear = hasActiveFilters(draft);
 
   return (
     <div

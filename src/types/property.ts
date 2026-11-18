@@ -40,6 +40,8 @@ export interface Property {
   station?: TransitStation;
   /** Walking distance to the station in metres. */
   stationDistance?: number;
+  /** Map position. Sent on list responses so results can be plotted. */
+  point?: GeoPoint;
   /** Cover photo, used wherever a single image is shown. */
   image: PropertyImage;
   /** Photos for the card slideshow, cover first. Falls back to `image` when absent. */
@@ -82,12 +84,14 @@ export interface LocationArea {
 
 export type ProjectStatus = "ready" | "under-construction" | "pre-sale";
 
+export type ProjectType = Extract<PropertyType, "condo" | "house" | "townhouse">;
+
 export interface NewProject {
   id: string;
   slug: string;
   name: string;
   developer: string;
-  type: Extract<PropertyType, "condo" | "house" | "townhouse">;
+  type: ProjectType;
   district: string;
   startingPrice: number;
   status: ProjectStatus;
@@ -97,7 +101,72 @@ export interface NewProject {
   units: number;
   image: PropertyImage;
   summary: string;
+  /** Closest station and the walking distance to it in metres. */
+  station?: TransitStation;
+  stationDistance?: number;
+  /** Unit size range: square metres for condos, square wah of land for houses. */
+  sizeRange: { min: number; max: number; unit: "sqm" | "sqwah" };
+  /** Units still for sale. */
+  unitsLeft: number;
+  /** ISO date the project opened for sale. */
+  launchedAt: string;
+  /** Promoted at the top of the projects page. */
+  isFeatured?: boolean;
 }
+
+/** One floor plan with its price. */
+export interface ProjectUnitType {
+  id: string;
+  name: string;
+  bedrooms: number;
+  /** Usable area in square metres. */
+  area: number;
+  /** Starting price in THB. */
+  price: number;
+  unitsLeft: number;
+}
+
+export interface ProjectMilestone {
+  title: string;
+  detail: string;
+  /** Display date, e.g. "มี.ค. 2568" or "ไตรมาส 2 2570". */
+  date: string;
+  state: "done" | "current" | "upcoming";
+}
+
+/** Everything the project page shows. `GET /projects/:slug` */
+export interface ProjectDetail extends NewProject {
+  gallery: PropertyImage[];
+  description: string;
+  address: string;
+  developerProjects: number;
+  buildings: number;
+  floors: number;
+  /** Project land in square wah. */
+  landSize: number;
+  /** Parking spaces as a share of units, 0–100. */
+  parkingRatio: number;
+  /** Booking deposit in THB. */
+  reservationFee: number;
+  promotion?: { title: string; detail: string };
+  unitTypes: ProjectUnitType[];
+  milestones: ProjectMilestone[];
+  /** ISO date the developer last updated construction progress. */
+  progressUpdatedAt: string;
+  facilities: string[];
+  salesPhone: string;
+  location: {
+    address: string;
+    point: GeoPoint;
+    stations: NearbyStation[];
+    places: NearbyPlace[];
+  };
+  /** Resale and rental listings posted inside this project. */
+  listingCount: number;
+}
+
+/** A project near another one, with the straight-line distance between them. */
+export type NearbyProject = NewProject & { distance: number };
 
 export interface PropertyCategory {
   type: PropertyType;

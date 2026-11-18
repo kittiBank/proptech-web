@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { renderWithClient } from "@/test/render";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { properties } from "@/data/properties";
@@ -18,7 +19,7 @@ const property = {
 
 describe("PropertyCard", () => {
   it("shows type and deal tags, then the bold title as the card link", () => {
-    render(<PropertyCard property={property} />);
+    renderWithClient(<PropertyCard property={property} />);
     const tags = within(screen.getByRole("list", { name: "ประเภทประกาศ" })).getAllByRole("listitem");
     expect(tags.map((t) => t.textContent)).toEqual(["คอนโด", "เช่า"]);
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent(property.title);
@@ -26,7 +27,7 @@ describe("PropertyCard", () => {
 
   it("moves through the gallery with dots and arrows, wrapping around", async () => {
     const user = userEvent.setup();
-    render(<PropertyCard property={property} />);
+    renderWithClient(<PropertyCard property={property} />);
     const dot = (n: number) => screen.getByRole("button", { name: new RegExp(`^รูปที่ ${n} จาก 3`) });
 
     expect(dot(1)).toHaveAttribute("aria-current", "true");
@@ -39,12 +40,12 @@ describe("PropertyCard", () => {
   });
 
   it("shows the view count under the card", () => {
-    render(<PropertyCard property={{ ...property, viewCount: 1234 }} />);
+    renderWithClient(<PropertyCard property={{ ...property, viewCount: 1234 }} />);
     expect(screen.getByText(/1,234/)).toHaveTextContent("เข้าชม1,234ครั้ง");
   });
 
   it("has no gallery controls for a single photo", () => {
-    render(<PropertyCard property={{ ...property, gallery: undefined }} />);
+    renderWithClient(<PropertyCard property={{ ...property, gallery: undefined }} />);
     expect(screen.queryByRole("button", { name: "รูปถัดไป" })).not.toBeInTheDocument();
   });
 });

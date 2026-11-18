@@ -46,3 +46,22 @@ export const popularSearches: {
   { label: "เช่าใกล้ MRT พระราม 9", mode: "rent", station: "BL20" },
   { label: "บ้านเดี่ยวขาย", mode: "buy", type: "house" },
 ];
+
+/** Usable-area brackets in square metres, for the search page. */
+export const areaRanges: { value: string; label: string; min?: number; max?: number }[] = [
+  { value: "any", label: "ทุกขนาด" },
+  { value: "0-35", label: "ไม่เกิน 35 ตร.ม.", max: 35 },
+  { value: "35-60", label: "35 – 60 ตร.ม.", min: 35, max: 60 },
+  { value: "60-100", label: "60 – 100 ตร.ม.", min: 60, max: 100 },
+  { value: "100-200", label: "100 – 200 ตร.ม.", min: 100, max: 200 },
+  { value: "200+", label: "มากกว่า 200 ตร.ม.", min: 200 },
+];
+
+/** Minimum bedrooms; "any" also includes studios and listings without rooms (land). */
+export const bedroomOptions: { value: string; label: string; min?: number }[] = [
+  { value: "any", label: "ทั้งหมด" },
+  { value: "1", label: "1+", min: 1 },
+  { value: "2", label: "2+", min: 2 },
+  { value: "3", label: "3+", min: 3 },
+  { value: "4", label: "4+", min: 4 },
+];

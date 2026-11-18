@@ -1,18 +1,24 @@
 "use client";
 
 import { Heart } from "lucide-react";
+import { useAuthGate, useResumeAction } from "@/lib/auth-gate";
+import { formatListingPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useFavorites } from "@/providers/favorites-store";
+import type { Property } from "@/types/property";
 
 interface FavoriteButtonProps {
-  propertyId: string;
-  propertyTitle: string;
+  property: Property;
   className?: string;
 }
 
-export function FavoriteButton({ propertyId, propertyTitle, className }: FavoriteButtonProps) {
-  const { isFavorite, toggle } = useFavorites();
-  const active = isFavorite(propertyId);
+export function FavoriteButton({ property, className }: FavoriteButtonProps) {
+  const { isFavorite, toggle, save } = useFavorites();
+  const requireAuth = useAuthGate();
+  const active = isFavorite(property.id);
+  // Signed in from the login modal: save the listing the visitor tapped.
+  useResumeAction("favorite", property.id, () => save(property));
+  const propertyTitle = property.title;
 
   return (
     <button
@@ -20,7 +26,23 @@ export function FavoriteButton({ propertyId, propertyTitle, className }: Favorit
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggle(propertyId);
+        requireAuth(
+          {
+            intent: "favorite",
+            key: property.id,
+            preview: {
+              title: property.title,
+              subtitle: [
+                formatListingPrice(property.price, property.mode),
+                property.station && `${property.station.name}`,
+              ]
+                .filter(Boolean)
+                .join("  "),
+              image: property.image,
+            },
+          },
+          () => toggle(property),
+        );
       }}
       aria-pressed={active}
       aria-label={active ? `นำ ${propertyTitle} ออกจากรายการโปรด` : `บันทึก ${propertyTitle} ในรายการโปรด`}

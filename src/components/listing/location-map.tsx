@@ -84,7 +84,7 @@ function SchematicMap({ point, nearest }: { point: GeoPoint; nearest?: NearbySta
       preserveAspectRatio="xMidYMid slice"
       className="h-full w-full"
       role="img"
-      aria-label="แผนผังตำแหน่งประกาศและสถานีที่ใกล้ที่สุด"
+      aria-label="แผนผังตำแหน่งที่ตั้งและสถานีที่ใกล้ที่สุด"
     >
       <defs>
         <pattern id="map-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -174,9 +174,9 @@ function PlaceList({ places }: { places: NearbyPlace[] }) {
   );
 }
 
-export function LocationMap({ property }: { property: PropertyDetail }) {
+export function LocationMap({ location, title }: { location: PropertyDetail["location"]; title: string }) {
   const [open, setOpen] = useState(false);
-  const { point, address, stations, places } = property.location;
+  const { point, address, stations, places } = location;
 
   return (
     <div className="flex flex-col gap-6">
@@ -219,7 +219,7 @@ export function LocationMap({ property }: { property: PropertyDetail }) {
           </div>
           {open && (
             <iframe
-              title={`แผนที่ ${property.title}`}
+              title={`แผนที่ ${title}`}
               src={googleMaps.embed(point)}
               className="h-[60dvh] w-full border-0 bg-mist"
               loading="lazy"

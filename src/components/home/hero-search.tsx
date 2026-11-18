@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { popularSearches } from "@/data/catalog";
 import { categoriesQuery } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
-import { hasActiveFilters } from "@/lib/search";
+import { hasActiveFilters, toSearchParams } from "@/lib/search";
 import { useRequiredHomeSearch } from "@/providers/home-search-provider";
 import type { ListingMode, PropertyCategory, PropertyType } from "@/types/property";
 
@@ -28,8 +28,8 @@ function toListingTotals(categories: PropertyCategory[]): Record<ListingMode, nu
 }
 
 export function HeroSearch() {
-  const { draft, setDraft, submit, applied, clearFilters } = useRequiredHomeSearch();
-  const canClear = hasActiveFilters(draft) || applied !== null;
+  const { draft, setDraft, submit, clearFilters } = useRequiredHomeSearch();
+  const canClear = hasActiveFilters(draft);
   // The listing count is hidden until categories arrive; the form works without it.
   const { data: listingTotals } = useQuery({ ...categoriesQuery, select: (res) => toListingTotals(res.data) });
 
@@ -149,17 +149,13 @@ export function HeroSearch() {
         {popularSearches.map((s) => (
           <Link
             key={s.label}
-            href="/#listings"
-            onClick={(e) => {
-              e.preventDefault();
-              submit({
-                mode: s.mode,
-                keyword: s.keyword ?? "",
-                station: s.station ?? "any",
-                type: s.type ?? "all",
-                priceRange: "any",
-              });
-            }}
+            href={`/search?${toSearchParams({
+              mode: s.mode,
+              keyword: s.keyword ?? "",
+              station: s.station ?? "any",
+              type: s.type ?? "all",
+              priceRange: "any",
+            }).toString()}`}
             className="text-white underline decoration-white/40 underline-offset-4 hover:decoration-white"
           >
             {s.label}
