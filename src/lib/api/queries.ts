@@ -15,7 +15,12 @@ export const queryKeys = {
     detail: (slug: string) => ["properties", "detail", slug] as const,
     nearby: (slug: string, limit: number) => ["properties", "nearby", slug, limit] as const,
   },
-  projects: (query: ListProjectsQuery) => ["projects", query] as const,
+  projects: {
+    all: ["projects"] as const,
+    list: (query: ListProjectsQuery) => ["projects", "list", query] as const,
+    detail: (slug: string) => ["projects", "detail", slug] as const,
+    nearby: (slug: string, limit: number) => ["projects", "nearby", slug, limit] as const,
+  },
   stations: ["stations"] as const,
   categories: ["categories"] as const,
   ads: (placement: AdPlacement) => ["ads", placement] as const,
@@ -47,8 +52,21 @@ export const propertyQueries = {
 export const projectQueries = {
   list: (query: ListProjectsQuery) =>
     queryOptions({
-      queryKey: queryKeys.projects(query),
+      queryKey: queryKeys.projects.list(query),
       queryFn: ({ signal }) => api.listProjects(query, signal),
+      staleTime: 5 * MINUTE,
+      placeholderData: keepPreviousData,
+    }),
+  detail: (slug: string) =>
+    queryOptions({
+      queryKey: queryKeys.projects.detail(slug),
+      queryFn: ({ signal }) => api.getProject(slug, signal),
+      staleTime: 5 * MINUTE,
+    }),
+  nearby: (slug: string, limit: number) =>
+    queryOptions({
+      queryKey: queryKeys.projects.nearby(slug, limit),
+      queryFn: ({ signal }) => api.listNearbyProjects(slug, limit, signal),
       staleTime: 5 * MINUTE,
     }),
 };

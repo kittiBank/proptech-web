@@ -1,5 +1,5 @@
 /**
- * Site routes. `/`, `/search` and `/property/[slug]` are implemented; the rest are reserved paths
+ * Site routes. `/`, `/search`, `/property/[slug]` and `/projects(/[slug])` are implemented; the rest are reserved paths
  * for upcoming pages and land on the branded not-found page until then.
  */
 export const routes = {
@@ -33,7 +33,7 @@ export interface NavItem {
 export const mainNav: NavItem[] = [
   { label: "ซื้อ", href: "/search?mode=buy", action: "search-buy" },
   { label: "เช่า", href: "/search?mode=rent", action: "search-rent" },
-  { label: "โครงการใหม่", href: "/#projects" },
+  { label: "โครงการใหม่", href: routes.newProjects },
   { label: "บทความ & คู่มือ", href: routes.guides },
 ];
 

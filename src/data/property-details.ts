@@ -50,7 +50,11 @@ export function listingPoint(property: Property): GeoPoint {
   return offsetPoint(anchor, metres, seed % 360);
 }
 
-function nearbyStations(point: GeoPoint, property: Property): NearbyStation[] {
+/**
+ * Up to three stations within walking range of `point`, nearest first. A
+ * stated station (the poster's or developer's own figure) always comes first.
+ */
+export function stationsNear(point: GeoPoint, stated?: NearbyStation): NearbyStation[] {
   const ranked = stationsWithLine
     .filter((s) => s.area.point)
     .map(({ line, area }) => ({
@@ -60,13 +64,27 @@ function nearbyStations(point: GeoPoint, property: Property): NearbyStation[] {
     }))
     .sort((a, b) => a.distance - b.distance);
 
-  // The poster's stated station and distance always come first.
-  if (property.station && property.stationDistance !== undefined) {
-    const stated = { station: property.station, distance: property.stationDistance };
-    const rest = ranked.filter((s) => s.station.code !== property.station!.code);
-    return [stated, ...rest].filter((s) => s.distance <= 2500).slice(0, 3);
-  }
-  return ranked.filter((s) => s.distance <= 2500).slice(0, 3);
+  const list = stated ? [stated, ...ranked.filter((s) => s.station.code !== stated.station.code)] : ranked;
+  return list.filter((s) => s.distance <= 2500).slice(0, 3);
+}
+
+/** Area id (`LocationArea.id`) of a station code, for looking up nearby places. */
+export function locationIdForStation(code: string | undefined): string | undefined {
+  return stationsWithLine.find((s) => s.area.stationCode === code)?.area.id;
+}
+
+/** Map position of a station code. */
+export function stationPoint(code: string | undefined): GeoPoint | undefined {
+  return stationsWithLine.find((s) => s.area.stationCode === code)?.area.point;
+}
+
+function nearbyStations(point: GeoPoint, property: Property): NearbyStation[] {
+  return stationsNear(
+    point,
+    property.station && property.stationDistance !== undefined
+      ? { station: property.station, distance: property.stationDistance }
+      : undefined,
+  );
 }
 
 const facings = ["ทิศเหนือ", "ทิศใต้", "ทิศตะวันออก", "ทิศตะวันตก", "ทิศตะวันออกเฉียงเหนือ"];

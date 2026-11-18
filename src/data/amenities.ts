@@ -25,6 +25,10 @@ export const amenityLabels: Record<string, string> = {
   shuttle: "รถรับส่งไปรถไฟฟ้า",
   park: "สวนส่วนกลาง",
   pet: "เลี้ยงสัตว์ได้",
+  sauna: "ห้องซาวน่า",
+  "sky-garden": "สวนลอยฟ้า",
+  clubhouse: "คลับเฮาส์",
+  playground: "สนามเด็กเล่น",
 };
 
 export const furnishingLabels: Record<Furnishing, string> = {
@@ -56,4 +60,11 @@ export const facilityPoolByType: Record<PropertyType, string[]> = {
   townhouse: ["security", "cctv", "park"],
   land: [],
   commercial: ["security", "cctv", "parking"],
+};
+
+/** Shared facilities a developer project can offer, used to generate mock project detail. */
+export const projectFacilityPool: Record<"condo" | "house" | "townhouse", string[]> = {
+  condo: ["pool", "gym", "sky-garden", "coworking", "sauna", "ev", "keycard", "security", "shuttle", "pet"],
+  house: ["clubhouse", "pool", "gym", "park", "playground", "security", "cctv", "ev"],
+  townhouse: ["clubhouse", "park", "playground", "security", "cctv"],
 };

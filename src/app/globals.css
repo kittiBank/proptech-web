@@ -43,12 +43,34 @@
   --color-bts-silom: #005a44;
   --color-mrt-blue: #1f4e9c;
 
+  /* Deal tags and status tones (design handoff §1) */
+  --color-tag-sale: #e11d48;
+  --color-tag-rent: #0369a1;
+  --color-success: #0b6b3a;
+  --color-success-soft: #dcfce7;
+  --color-warning: #92400e;
+  --color-warning-soft: #fef3c7;
+  --color-warning-line: #f59e0b;
+  --color-danger: #be123c;
+  --color-danger-soft: #ffe4e6;
+  --color-danger-line: #fda4af;
+
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
 
   --animate-sheet-in: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-sheet-up: sheet-up 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-fade-in: fade-in 180ms ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes sheet-in {

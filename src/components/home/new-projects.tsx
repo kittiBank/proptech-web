@@ -45,7 +45,7 @@ function ProjectStatusBar({ project }: { project: NewProject }) {
 }
 
 export function NewProjects() {
-  const { data, isPending, isError, refetch, isFetching } = useQuery(projectQueries.list({ status: "new" }));
+  const { data, isPending, isError, refetch, isFetching } = useQuery(projectQueries.list({ limit: 4 }));
   const projects = data?.data ?? [];
 
   return (

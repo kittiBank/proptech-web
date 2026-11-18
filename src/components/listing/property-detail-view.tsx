@@ -253,7 +253,7 @@ export function PropertyDetailView() {
 
             <Section id="location-title" title="ทำเลที่ตั้งและสถานที่ใกล้เคียง">
               <div id="location" className="scroll-mt-28">
-                <LocationMap property={property} />
+                <LocationMap location={property.location} title={property.title} />
               </div>
             </Section>
           </article>

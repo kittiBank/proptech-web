@@ -8,10 +8,14 @@
  */
 import type {
   Advertisement,
+  NearbyProject,
   NearbyProperty,
   PropertyDetail,
   ListingMode,
   NewProject,
+  ProjectDetail,
+  ProjectStatus,
+  ProjectType,
   Property,
   PropertyCategory,
   PropertyType,
@@ -55,6 +59,8 @@ export type PropertyDto = Property;
 export type PropertyDetailDto = PropertyDetail;
 export type NearbyPropertyDto = NearbyProperty;
 export type ProjectDto = NewProject;
+export type ProjectDetailDto = ProjectDetail;
+export type NearbyProjectDto = NearbyProject;
 export type CategoryDto = PropertyCategory;
 /** A transit line with its stations, as returned by `GET /stations`. */
 export type TransitLineDto = TransitLine;
@@ -84,6 +90,8 @@ export interface ListPropertiesQuery {
   /** Usable area bounds in square metres. */
   minArea?: number;
   maxArea?: number;
+  /** Project slug: only listings posted inside that project. */
+  project?: string;
   sort?: PropertySort;
   /** 1-based. Default 1. */
   page?: number;
@@ -94,13 +102,60 @@ export interface ListPropertiesQuery {
 /** `GET /properties` */
 export type ListPropertiesResponse = PaginatedResponse<PropertyDto>;
 
-/** `GET /projects` query string. */
+/** `-launchedAt` = newest launch first; `completionYear` = finishing soonest first. */
+export type ProjectSort = "-launchedAt" | "startingPrice" | "-startingPrice" | "completionYear";
+
+/** `GET /projects` query string. Every field is optional. */
 export interface ListProjectsQuery {
-  status?: "new";
+  status?: ProjectStatus;
+  type?: ProjectType;
+  /** Transit line id: projects whose closest station is on that line. */
+  line?: TransitLine["id"];
+  /** Bounds on the starting price, THB. */
+  minPrice?: number;
+  maxPrice?: number;
+  /** `true` = only the promoted project(s). */
+  featured?: boolean;
+  sort?: ProjectSort;
+  /** 1-based. Default 1. */
+  page?: number;
+  /** Default 9, max 50. */
+  limit?: number;
 }
 
-/** `GET /projects` */
-export type ListProjectsResponse = ListResponse<ProjectDto>;
+/**
+ * `GET /projects`. `counts` holds the number of projects per status for the
+ * other active filters (status itself ignored), for the status tabs.
+ */
+export type ListProjectsResponse = PaginatedResponse<ProjectDto> & {
+  counts: Record<ProjectStatus | "all", number>;
+};
+
+/** `GET /projects/:slug` — 404 when the project does not exist. */
+export interface GetProjectResponse {
+  data: ProjectDetailDto;
+}
+
+/** `GET /projects/:slug/nearby` — closest other projects first, within 5 km. */
+export type ListNearbyProjectsResponse = ListResponse<NearbyProjectDto>;
+
+/** `POST /projects/:slug/viewings` body: ask the developer's sales team for a show-unit visit. */
+export interface CreateProjectViewingRequest {
+  name: string;
+  phone: string;
+  /** ISO date, today or later. */
+  date: string;
+  /** `ProjectUnitType.id`, when the visitor picked one. */
+  unitTypeId?: string;
+}
+
+/** `POST /projects/:slug/viewings` — 201. */
+export interface CreateProjectViewingResponse {
+  data: { id: string; createdAt: string };
+}
+
+export const PROJECTS_DEFAULT_LIMIT = 9;
+export const PROJECTS_MAX_LIMIT = 50;
 
 /** `GET /stations` */
 export type ListStationsResponse = ListResponse<TransitLineDto>;

@@ -98,7 +98,7 @@ describe("reference data", () => {
   it("lists stations grouped by line, projects and categories", async () => {
     const [stations, projects, categories] = await Promise.all([
       api.listStations(),
-      api.listProjects({ status: "new" }),
+      api.listProjects(),
       api.listCategories(),
     ]);
     expect(stations.data.map((l) => l.id)).toEqual(["bts-sukhumvit", "bts-silom", "mrt-blue"]);
@@ -167,6 +167,68 @@ describe("POST /properties/:slug/enquiries", () => {
   it("rejects a bad phone number", async () => {
     await expect(
       api.createEnquiry("penthouse-thonglor-river-skyline", { name: "a", phone: "123", message: "x" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("GET /projects", () => {
+  it("filters, paginates and counts per status", async () => {
+    const all = await api.listProjects({ limit: 5 });
+    expect(all.data).toHaveLength(5);
+    expect(all.meta.total).toBe(all.counts.all);
+    expect(all.counts.all).toBe(all.counts["pre-sale"] + all.counts["under-construction"] + all.counts.ready);
+
+    const ready = await api.listProjects({ status: "ready", type: "condo" });
+    expect(ready.data.length).toBeGreaterThan(0);
+    expect(ready.data.every((p) => p.status === "ready" && p.type === "condo")).toBe(true);
+    // Counts ignore the status filter so every tab can show its number.
+    expect(ready.counts.all).toBeGreaterThan(ready.meta.total);
+  });
+
+  it("sorts by starting price and filters by line and price", async () => {
+    const { data } = await api.listProjects({ sort: "startingPrice", line: "bts-sukhumvit", maxPrice: 10_000_000 });
+    expect(data.every((p) => p.station?.line === "bts-sukhumvit" && p.startingPrice <= 10_000_000)).toBe(true);
+    expect(data.map((p) => p.startingPrice)).toEqual([...data.map((p) => p.startingPrice)].sort((a, b) => a - b));
+  });
+
+  it("returns the featured project and rejects bad queries", async () => {
+    const { data } = await api.listProjects({ featured: true });
+    expect(data.map((p) => p.slug)).toEqual(["aster-sathorn"]);
+    // @ts-expect-error unknown status on purpose
+    await expect(api.listProjects({ status: "sold" })).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("GET /projects/:slug", () => {
+  it("returns units, milestones, location and listing count", async () => {
+    const { data } = await api.getProject("aster-sathorn");
+    expect(data.unitTypes[0].price).toBe(data.startingPrice);
+    expect(data.milestones.filter((m) => m.state === "current")).toHaveLength(1);
+    expect(data.location.stations[0].station.code).toBe("S3");
+    expect(data.listingCount).toBeGreaterThan(0);
+
+    const listings = await api.listProperties({ project: "aster-sathorn" });
+    expect(listings.meta.total).toBe(data.listingCount);
+    expect(listings.data.every((p) => p.projectName === data.name)).toBe(true);
+  });
+
+  it("404s for unknown projects and lists nearby ones", async () => {
+    await expect(api.getProject("nope")).rejects.toMatchObject({ status: 404 });
+    const nearby = await api.listNearbyProjects("aster-sathorn", 3);
+    expect(nearby.data.length).toBeGreaterThan(0);
+    expect(nearby.data.map((p) => p.distance)).toEqual([...nearby.data.map((p) => p.distance)].sort((a, b) => a - b));
+    expect(nearby.data.some((p) => p.slug === "aster-sathorn")).toBe(false);
+  });
+
+  it("accepts a valid viewing request and rejects a bad phone", async () => {
+    const ok = await api.createProjectViewing("aster-sathorn", {
+      name: "สมหญิง",
+      phone: "081-234-5678",
+      date: "2026-12-01",
+    });
+    expect(ok.data.id).toMatch(/^pv-/);
+    await expect(
+      api.createProjectViewing("aster-sathorn", { name: "สมหญิง", phone: "123", date: "2026-12-01" }),
     ).rejects.toMatchObject({ status: 400 });
   });
 });

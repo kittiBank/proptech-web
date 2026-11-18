@@ -3,16 +3,23 @@ import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
 import {
   NEARBY_MAX_LIMIT,
+  PROJECTS_MAX_LIMIT,
   PROPERTIES_MAX_LIMIT,
   type ApiErrorBody,
   type CreateEnquiryRequest,
   type CreateEnquiryResponse,
+  type CreateProjectViewingRequest,
+  type CreateProjectViewingResponse,
+  type ListProjectsQuery,
   type ListPropertiesQuery,
+  type ProjectSort,
   type PropertySort,
 } from "@/types/api";
-import type { ListingMode, PropertyType } from "@/types/property";
+import type { ListingMode, ProjectStatus, ProjectType, PropertyType, TransitLineId } from "@/types/property";
 import {
+  getProjectDetail,
   getPropertyDetail,
+  queryNearbyProjects,
   queryAds,
   queryCategories,
   queryNearbyProperties,
@@ -28,6 +35,10 @@ const endpoint = (path: string) => `*${MOCK_API_BASE_PATH}${path}`;
 const listingModes: ListingMode[] = ["buy", "rent"];
 const propertyTypes: PropertyType[] = ["condo", "house", "townhouse", "land", "commercial"];
 const propertySorts: PropertySort[] = ["-postedAt", "postedAt", "-price", "price", "stationDistance"];
+const projectStatuses: ProjectStatus[] = ["pre-sale", "under-construction", "ready"];
+const projectTypes: ProjectType[] = ["condo", "house", "townhouse"];
+const projectSorts: ProjectSort[] = ["-launchedAt", "startingPrice", "-startingPrice", "completionYear"];
+const transitLineIds: TransitLineId[] = ["bts-sukhumvit", "bts-silom", "mrt-blue"];
 
 const statusText: Record<number, string> = {
   400: "Bad Request",
@@ -52,11 +63,9 @@ class ValidationError extends Error {
   }
 }
 
-/** Parses and validates the `GET /properties` query like NestJS's ValidationPipe would. */
-export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQuery {
+/** Query-string readers that collect validation errors like NestJS's ValidationPipe. */
+function queryReader(params: URLSearchParams) {
   const errors: string[] = [];
-  const query: ListPropertiesQuery = {};
-
   const oneOf = <T extends string>(key: string, allowed: readonly T[]): T | undefined => {
     const value = params.get(key);
     if (value === null || value === "") return undefined;
@@ -73,14 +82,27 @@ export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQue
     }
     return n;
   };
+  const bool = (key: string): boolean | undefined => {
+    const value = oneOf(key, ["true", "false"]);
+    return value === undefined ? undefined : value === "true";
+  };
+  const done = () => {
+    if (errors.length) throw new ValidationError(errors);
+  };
+  return { oneOf, int, bool, done };
+}
 
-  const pinned = oneOf("pinned", ["true", "false"]);
-  if (pinned) query.pinned = pinned === "true";
+/** Parses and validates the `GET /properties` query like NestJS's ValidationPipe would. */
+export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQuery {
+  const { oneOf, int, bool, done } = queryReader(params);
+  const query: ListPropertiesQuery = {};
+  query.pinned = bool("pinned");
   query.mode = oneOf("mode", listingModes);
   query.type = oneOf("type", propertyTypes);
   query.sort = oneOf("sort", propertySorts);
   query.q = params.get("q")?.trim() || undefined;
   query.station = params.get("station")?.trim() || undefined;
+  query.project = params.get("project")?.trim() || undefined;
   query.minPrice = int("minPrice", { min: 0 });
   query.maxPrice = int("maxPrice", { min: 0 });
   query.minBedrooms = int("minBedrooms", { min: 0 });
@@ -88,8 +110,25 @@ export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQue
   query.maxArea = int("maxArea", { min: 0 });
   query.page = int("page", { min: 1 });
   query.limit = int("limit", { min: 1, max: PROPERTIES_MAX_LIMIT });
+  done();
+  return query;
+}
 
-  if (errors.length) throw new ValidationError(errors);
+/** Parses and validates the `GET /projects` query. */
+export function parseProjectsQuery(params: URLSearchParams): ListProjectsQuery {
+  const { oneOf, int, bool, done } = queryReader(params);
+  const query: ListProjectsQuery = {
+    status: oneOf("status", projectStatuses),
+    type: oneOf("type", projectTypes),
+    line: oneOf("line", transitLineIds),
+    minPrice: int("minPrice", { min: 0 }),
+    maxPrice: int("maxPrice", { min: 0 }),
+    featured: bool("featured"),
+    sort: oneOf("sort", projectSorts),
+    page: int("page", { min: 1 }),
+    limit: int("limit", { min: 1, max: PROJECTS_MAX_LIMIT }),
+  };
+  done();
   return query;
 }
 
@@ -170,10 +209,45 @@ export const handlers = [
   ),
   http.get(
     endpoint("/projects"),
-    withScenario((request) => {
-      const status = new URL(request.url).searchParams.get("status");
-      return queryProjects(status === "new" ? { status } : {});
+    withScenario((request) => queryProjects(parseProjectsQuery(new URL(request.url).searchParams))),
+  ),
+  http.get(
+    endpoint("/projects/:slug"),
+    withScenario((_request, params) => {
+      const detail = getProjectDetail(String(params.slug));
+      if (!detail) throw new NotFoundError(`Project "${String(params.slug)}" not found`);
+      return { data: detail };
     }),
+  ),
+  http.get(
+    endpoint("/projects/:slug/nearby"),
+    withScenario((request, params) => {
+      const { int, done } = queryReader(new URL(request.url).searchParams);
+      const limit = int("limit", { min: 1, max: 12 });
+      done();
+      const result = queryNearbyProjects(String(params.slug), limit);
+      if (!result) throw new NotFoundError(`Project "${String(params.slug)}" not found`);
+      return result;
+    }),
+  ),
+  http.post<{ slug: string }, CreateProjectViewingRequest, CreateProjectViewingResponse | ApiErrorBody>(
+    endpoint("/projects/:slug/viewings"),
+    async ({ request, params }) => {
+      await delay();
+      if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+      if (!getProjectDetail(params.slug)) return errorResponse(404, "Project not found");
+      const body = (await request.json().catch(() => null)) as Partial<CreateProjectViewingRequest> | null;
+      const errors: string[] = [];
+      if (!body?.name?.trim()) errors.push("name should not be empty");
+      if (!body?.phone || !/^0\d{8,9}$/.test(body.phone.replace(/\D/g, "")))
+        errors.push("phone must be a Thai phone number");
+      if (!body?.date || Number.isNaN(Date.parse(body.date))) errors.push("date must be an ISO date");
+      if (errors.length) return errorResponse(400, errors);
+      return HttpResponse.json<CreateProjectViewingResponse>(
+        { data: { id: `pv-${Date.now().toString(36)}`, createdAt: new Date().toISOString() } },
+        { status: 201 },
+      );
+    },
   ),
   http.get(endpoint("/stations"), withScenario(queryStations)),
   http.get(endpoint("/categories"), withScenario(queryCategories)),

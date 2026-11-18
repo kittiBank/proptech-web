@@ -3,14 +3,21 @@ import { propertyCategories, propertyTypeLabels } from "@/data/catalog";
 import { generatedListings } from "@/data/generated-listings";
 import { photosByType } from "@/data/images";
 import { transitLines } from "@/data/locations";
+import { buildProjectDetail, buildProjectListings, projectPoint } from "@/data/project-details";
 import { newProjects } from "@/data/projects";
 import { pinnedPropertyIds, properties } from "@/data/properties";
 import { buildPropertyDetail, listingPoint } from "@/data/property-details";
 import { distanceBetween } from "@/lib/geo";
 import {
+  PROJECTS_DEFAULT_LIMIT,
   PROPERTIES_DEFAULT_LIMIT,
   type ListAdsQuery,
+  type ListNearbyProjectsResponse,
   type ListProjectsQuery,
+  type ListProjectsResponse,
+  type ProjectDetailDto,
+  type ProjectDto,
+  type ProjectSort,
   type ListPropertiesQuery,
   type ListPropertiesResponse,
   type ListNearbyPropertiesQuery,
@@ -47,8 +54,8 @@ function withGallery(property: PropertyDto): PropertyDto {
   return { ...property, gallery: [property.image, ...extra], viewCount, point: listingPoint(property) };
 }
 
-const allListings: PropertyDto[] = [...properties, ...generatedListings].map((p) =>
-  withGallery(pinnedIds.has(p.id) ? { ...p, isPinned: true } : p),
+const allListings: PropertyDto[] = [...properties, ...generatedListings, ...buildProjectListings(newProjects)].map(
+  (p) => withGallery(pinnedIds.has(p.id) ? { ...p, isPinned: true } : p),
 );
 
 /** Paid placements, in the order they were booked. */
@@ -99,7 +106,10 @@ export function queryProperties(query: ListPropertiesQuery): ListPropertiesRespo
       .filter(Boolean),
   );
 
+  const projectName = query.project ? (newProjects.find((p) => p.slug === query.project)?.name ?? "\0") : undefined;
+
   const filtered = source.filter((p) => {
+    if (projectName !== undefined && p.projectName !== projectName) return false;
     if (query.mode && p.mode !== query.mode) return false;
     if (query.type && p.type !== query.type) return false;
     if (stations.size > 0 && !(p.station && stations.has(p.station.code))) return false;
@@ -123,10 +133,62 @@ export function queryProperties(query: ListPropertiesQuery): ListPropertiesRespo
   };
 }
 
-export function queryProjects(query: ListProjectsQuery) {
-  // Every mock project is a new launch; `status` is accepted for contract parity.
-  void query;
-  return { data: newProjects };
+const projectComparators: Record<ProjectSort, (a: ProjectDto, b: ProjectDto) => number> = {
+  "-launchedAt": (a, b) => b.launchedAt.localeCompare(a.launchedAt),
+  startingPrice: (a, b) => a.startingPrice - b.startingPrice,
+  "-startingPrice": (a, b) => b.startingPrice - a.startingPrice,
+  completionYear: (a, b) => a.completionYear - b.completionYear || a.launchedAt.localeCompare(b.launchedAt),
+};
+
+export function queryProjects(query: ListProjectsQuery): ListProjectsResponse {
+  // Every filter except status, so the status tabs can show what each would return.
+  const base = newProjects.filter((p) => {
+    if (query.featured !== undefined && Boolean(p.isFeatured) !== query.featured) return false;
+    if (query.type && p.type !== query.type) return false;
+    if (query.line && p.station?.line !== query.line) return false;
+    if (query.minPrice !== undefined && p.startingPrice < query.minPrice) return false;
+    if (query.maxPrice !== undefined && p.startingPrice > query.maxPrice) return false;
+    return true;
+  });
+  const counts = {
+    all: base.length,
+    "pre-sale": base.filter((p) => p.status === "pre-sale").length,
+    "under-construction": base.filter((p) => p.status === "under-construction").length,
+    ready: base.filter((p) => p.status === "ready").length,
+  };
+  const filtered = query.status ? base.filter((p) => p.status === query.status) : base;
+  const sorted = [...filtered].sort(projectComparators[query.sort ?? "-launchedAt"]);
+
+  const limit = query.limit ?? PROJECTS_DEFAULT_LIMIT;
+  const page = query.page ?? 1;
+  return {
+    data: sorted.slice((page - 1) * limit, page * limit),
+    meta: { page, limit, total: sorted.length, totalPages: Math.max(1, Math.ceil(sorted.length / limit)) },
+    counts,
+  };
+}
+
+/** `GET /projects/:slug`. `undefined` = 404. */
+export function getProjectDetail(slug: string): ProjectDetailDto | undefined {
+  const project = newProjects.find((p) => p.slug === slug);
+  if (!project) return undefined;
+  const listingCount = allListings.filter((l) => l.projectName === project.name).length;
+  return buildProjectDetail(project, listingCount);
+}
+
+const NEARBY_PROJECTS_RADIUS_M = 5_000;
+
+/** `GET /projects/:slug/nearby`: other projects within 5 km, closest first. `undefined` = 404. */
+export function queryNearbyProjects(slug: string, limit = 3): ListNearbyProjectsResponse | undefined {
+  const origin = newProjects.find((p) => p.slug === slug);
+  if (!origin) return undefined;
+  const from = projectPoint(origin);
+  const ranked = newProjects
+    .filter((p) => p.id !== origin.id)
+    .map((p) => ({ ...p, distance: distanceBetween(from, projectPoint(p)) }))
+    .filter((p) => p.distance <= NEARBY_PROJECTS_RADIUS_M)
+    .sort((a, b) => a.distance - b.distance);
+  return { data: ranked.slice(0, limit) };
 }
 
 export function queryStations() {

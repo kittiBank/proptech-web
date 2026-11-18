@@ -1,11 +1,14 @@
 import {
   AirVent,
+  Armchair,
+  Baby,
   Bath,
   Bus,
   Car,
   Cctv,
   CookingPot,
   Dumbbell,
+  Flame,
   KeyRound,
   Laptop,
   PawPrint,
@@ -14,6 +17,7 @@ import {
   Shirt,
   ShieldCheck,
   ShowerHead,
+  Sprout,
   Trees,
   Tv,
   WashingMachine,
@@ -45,6 +49,10 @@ const amenityIcons: Record<string, LucideIcon> = {
   shuttle: Bus,
   park: Trees,
   pet: PawPrint,
+  sauna: Flame,
+  "sky-garden": Sprout,
+  clubhouse: Armchair,
+  playground: Baby,
 };
 
 export function AmenityList({ ids, label }: { ids: string[]; label: string }) {
