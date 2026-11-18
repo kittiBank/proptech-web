@@ -244,3 +244,76 @@ export type CompareListingsResponse = ListResponse<PropertyDetailDto & { status:
 
 export const COMPARE_MAX = 3;
 export const FAVORITE_NOTE_MAX = 200;
+
+// ---------------------------------------------------------------------------
+// Auth (cookie session; the mock keeps it in browser storage)
+// ---------------------------------------------------------------------------
+
+export type UserRole = "seeker" | "owner" | "agent";
+
+export interface UserPreferences {
+  intent: "buy" | "rent" | "both";
+  types: Array<"condo" | "house" | "townhouse">;
+  lines: TransitLine["id"][];
+  /** A budget bracket id, e.g. "3-5m". */
+  budget?: string;
+  alerts: { email: boolean; line: boolean };
+}
+
+export interface UserDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  emailVerified: boolean;
+  /** Finished or skipped the onboarding questions. */
+  onboarded: boolean;
+  role?: UserRole;
+  preferences?: UserPreferences;
+}
+
+export interface SessionResponse {
+  data: UserDto;
+}
+
+/** `POST /auth/login` — 401 on a wrong email or password. */
+export interface LoginRequest {
+  email: string;
+  password: string;
+  /** Keep the session after the browser closes. */
+  remember: boolean;
+}
+
+/** `POST /auth/register` — 201 and signed in; 409 when the email is taken. */
+export interface RegisterRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  acceptTerms: true;
+  marketing: boolean;
+}
+
+export type OAuthProvider = "google" | "line";
+
+/** `POST /auth/verify-email` — 400 when the token is invalid or expired. */
+export interface VerifyEmailRequest {
+  token: string;
+}
+
+/** `POST /auth/forgot-password` — always 202, so the response never reveals whether an account exists. */
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+/** `POST /auth/reset-password` — 400 when the token is invalid or expired. */
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+/** `PATCH /me/onboarding` */
+export interface OnboardingRequest {
+  role?: UserRole;
+  preferences?: UserPreferences;
+}

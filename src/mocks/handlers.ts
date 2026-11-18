@@ -1,3 +1,4 @@
+import type { DefaultBodyType, PathParams } from "msw";
 import { http, HttpResponse, type HttpResponseResolver } from "msw/http";
 import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
@@ -13,6 +14,13 @@ import {
   COMPARE_MAX,
   FAVORITE_NOTE_MAX,
   type SaveFavoriteResponse,
+  type ForgotPasswordRequest,
+  type LoginRequest,
+  type OnboardingRequest,
+  type RegisterRequest,
+  type ResetPasswordRequest,
+  type SessionResponse,
+  type VerifyEmailRequest,
   type UpdateFavoriteRequest,
   type ListProjectsQuery,
   type ListPropertiesQuery,
@@ -34,6 +42,17 @@ import {
 } from "./db";
 import { listFavorites, removeFavorite, saveFavorite, updateFavoriteNote } from "./favorites";
 import { getMockScenario } from "./scenario";
+import {
+  completeOnboarding,
+  currentUser,
+  login,
+  logout,
+  oauthLogin,
+  register,
+  requestPasswordReset,
+  resetPassword,
+  verifyEmail,
+} from "./session";
 
 /** Matches the mock base path on any origin (browser page, jsdom, Node). */
 const endpoint = (path: string) => `*${MOCK_API_BASE_PATH}${path}`;
@@ -48,7 +67,9 @@ const transitLineIds: TransitLineId[] = ["bts-sukhumvit", "bts-silom", "mrt-blue
 
 const statusText: Record<number, string> = {
   400: "Bad Request",
+  401: "Unauthorized",
   404: "Not Found",
+  409: "Conflict",
   500: "Internal Server Error",
   503: "Service Unavailable",
 };
@@ -62,6 +83,31 @@ export function errorResponse(statusCode: number, message: string | string[]) {
 }
 
 class NotFoundError extends Error {}
+
+class UnauthorizedError extends Error {}
+
+type SessionBody = SessionResponse | ApiErrorBody;
+
+const unauthorized = () => errorResponse(401, "Sign in required");
+
+function requireUser() {
+  const user = currentUser();
+  if (!user) throw new UnauthorizedError();
+  return user;
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Reads a JSON body; `{}` when it is missing or malformed so field checks report it. */
+async function readBody<T>(request: Request): Promise<Partial<T>> {
+  return ((await request.json().catch(() => null)) ?? {}) as Partial<T>;
+}
+
+/** Simulated latency plus the `error` scenario, for write endpoints. */
+async function writeScenario() {
+  await delay(200);
+  return getMockScenario() === "error" ? errorResponse(500, "Mock server error") : undefined;
+}
 
 class ValidationError extends Error {
   constructor(readonly messages: string[]) {
@@ -163,6 +209,7 @@ function withScenario(
     } catch (error) {
       if (error instanceof ValidationError) return errorResponse(400, error.messages);
       if (error instanceof NotFoundError) return errorResponse(404, error.message);
+      if (error instanceof UnauthorizedError) return unauthorized();
       throw error;
     }
   };
@@ -255,15 +302,99 @@ export const handlers = [
       );
     },
   ),
+  // --- Auth -------------------------------------------------------------
+  http.get<PathParams, DefaultBodyType, SessionBody>(endpoint("/auth/me"), async () => {
+    await delay(80);
+    const user = currentUser();
+    return user ? HttpResponse.json<SessionResponse>({ data: user }) : unauthorized();
+  }),
+  http.post<PathParams, DefaultBodyType, SessionBody>(endpoint("/auth/login"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const body = await readBody<LoginRequest>(request);
+    if (!body.email || !body.password) return errorResponse(400, ["email and password are required"]);
+    const user = login(body.email, body.password, body.remember ?? true);
+    return user ? HttpResponse.json<SessionResponse>({ data: user }) : errorResponse(401, "Invalid email or password");
+  }),
+  http.post<PathParams, DefaultBodyType, SessionBody>(endpoint("/auth/register"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const body = await readBody<RegisterRequest>(request);
+    const errors: string[] = [];
+    if (!body.firstName?.trim()) errors.push("firstName should not be empty");
+    if (!body.lastName?.trim()) errors.push("lastName should not be empty");
+    if (!body.email || !EMAIL.test(body.email)) errors.push("email must be an email");
+    if (!body.password || body.password.length < 8 || !/\d/.test(body.password))
+      errors.push("password must be at least 8 characters and contain a number");
+    if (body.acceptTerms !== true) errors.push("acceptTerms must be true");
+    if (errors.length) return errorResponse(400, errors);
+    const user = register(body as RegisterRequest);
+    return user
+      ? HttpResponse.json<SessionResponse>({ data: user }, { status: 201 })
+      : errorResponse(409, "Email already registered");
+  }),
+  http.post<{ provider: string }>(endpoint("/auth/oauth/:provider"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    if (params.provider !== "google" && params.provider !== "line") return errorResponse(404, "Unknown provider");
+    return HttpResponse.json<SessionResponse>({ data: oauthLogin(params.provider) });
+  }),
+  http.post(endpoint("/auth/logout"), async () => {
+    await delay(80);
+    logout();
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post<PathParams, DefaultBodyType, SessionBody>(endpoint("/auth/verify-email"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const { token } = await readBody<VerifyEmailRequest>(request);
+    if (!currentUser()) return unauthorized();
+    const user = verifyEmail(token ?? "");
+    return user ? HttpResponse.json<SessionResponse>({ data: user }) : errorResponse(400, "Invalid or expired token");
+  }),
+  http.post(endpoint("/auth/resend-verification"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    return currentUser() ? new HttpResponse(null, { status: 202 }) : unauthorized();
+  }),
+  http.post(endpoint("/auth/forgot-password"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const { email } = await readBody<ForgotPasswordRequest>(request);
+    if (!email || !EMAIL.test(email)) return errorResponse(400, ["email must be an email"]);
+    requestPasswordReset(email);
+    return new HttpResponse(null, { status: 202 });
+  }),
+  http.post(endpoint("/auth/reset-password"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const { token, password } = await readBody<ResetPasswordRequest>(request);
+    if (!password || password.length < 8 || !/\d/.test(password))
+      return errorResponse(400, ["password must be at least 8 characters and contain a number"]);
+    return resetPassword(token ?? "", password)
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(400, "Invalid or expired token");
+  }),
+  http.patch<PathParams, DefaultBodyType, SessionBody>(endpoint("/me/onboarding"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = completeOnboarding(await readBody<OnboardingRequest>(request));
+    return user ? HttpResponse.json<SessionResponse>({ data: user }) : unauthorized();
+  }),
+  // --- Favorites ---------------------------------------------------------
   http.get(
     endpoint("/me/favorites"),
-    withScenario(() => ({ data: listFavorites() })),
+    withScenario(() => {
+      requireUser();
+      return { data: listFavorites() };
+    }),
   ),
   http.put<{ propertyId: string }, never, SaveFavoriteResponse | ApiErrorBody>(
     endpoint("/me/favorites/:propertyId"),
     async ({ params }) => {
       await delay(120);
       if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+      if (!currentUser()) return unauthorized();
       const result = saveFavorite(params.propertyId);
       if (!result) return errorResponse(404, "Property not found");
       return HttpResponse.json<SaveFavoriteResponse>({ data: result.favorite }, { status: result.created ? 201 : 200 });
@@ -274,6 +405,7 @@ export const handlers = [
     async ({ request, params }) => {
       await delay(120);
       if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+      if (!currentUser()) return unauthorized();
       const body = (await request.json().catch(() => null)) as Partial<UpdateFavoriteRequest> | null;
       if (typeof body?.note !== "string" || body.note.length > FAVORITE_NOTE_MAX) {
         return errorResponse(400, [`note must be a string of at most ${FAVORITE_NOTE_MAX} characters`]);
@@ -286,6 +418,7 @@ export const handlers = [
   http.delete<{ propertyId: string }>(endpoint("/me/favorites/:propertyId"), async ({ params }) => {
     await delay(120);
     if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+    if (!currentUser()) return unauthorized();
     removeFavorite(params.propertyId);
     return new HttpResponse(null, { status: 204 });
   }),

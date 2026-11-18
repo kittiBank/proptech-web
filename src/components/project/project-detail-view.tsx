@@ -528,7 +528,12 @@ export function ProjectDetailView() {
               <div id="book" className="scroll-mt-24 rounded-xl border border-line p-6">
                 <PriceSummary project={project} />
                 <h2 className="mt-6 mb-4 text-lg font-semibold text-ink">นัดชมห้องตัวอย่าง</h2>
-                <ViewingForm project={project} unitTypeId={unitTypeId} onUnitTypeChange={setUnitTypeId} />
+                <ViewingForm
+                  project={project}
+                  instance="aside"
+                  unitTypeId={unitTypeId}
+                  onUnitTypeChange={setUnitTypeId}
+                />
               </div>
               <Button asChild variant="outline" size="lg">
                 <a href={tel}>
@@ -563,7 +568,7 @@ export function ProjectDetailView() {
             </SheetDescription>
           </div>
           <div className="overflow-y-auto px-5 py-5">
-            <ViewingForm project={project} unitTypeId={unitTypeId} onUnitTypeChange={setUnitTypeId} />
+            <ViewingForm project={project} instance="sheet" unitTypeId={unitTypeId} onUnitTypeChange={setUnitTypeId} />
           </div>
         </SheetContent>
       </Sheet>

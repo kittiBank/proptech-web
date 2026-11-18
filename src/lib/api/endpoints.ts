@@ -1,4 +1,11 @@
 import type {
+  ForgotPasswordRequest,
+  LoginRequest,
+  OAuthProvider,
+  OnboardingRequest,
+  RegisterRequest,
+  ResetPasswordRequest,
+  SessionResponse,
   CompareListingsResponse,
   ListFavoritesResponse,
   SaveFavoriteResponse,
@@ -85,4 +92,34 @@ export const api = {
   /** GET /compare?ids= — details of up to 3 listings side by side. */
   compareListings: (ids: string[], signal?: AbortSignal) =>
     apiGet<CompareListingsResponse>("/compare", { ids: ids.join(",") }, { signal }),
+
+  /** GET /auth/me — the signed-in user; 401 when signed out. */
+  getSession: (signal?: AbortSignal) => apiGet<SessionResponse>("/auth/me", undefined, { signal }),
+
+  /** POST /auth/login */
+  login: (body: LoginRequest) => apiSend<SessionResponse>("POST", "/auth/login", body),
+
+  /** POST /auth/register — signs the new account in. */
+  register: (body: RegisterRequest) => apiSend<SessionResponse>("POST", "/auth/register", body),
+
+  /** POST /auth/oauth/:provider — mock stand-in for the Google/LINE redirect round trip. */
+  oauthLogin: (provider: OAuthProvider) => apiSend<SessionResponse>("POST", `/auth/oauth/${provider}`),
+
+  /** POST /auth/logout */
+  logout: () => apiSend<void>("POST", "/auth/logout"),
+
+  /** POST /auth/verify-email */
+  verifyEmail: (token: string) => apiSend<SessionResponse>("POST", "/auth/verify-email", { token }),
+
+  /** POST /auth/resend-verification — 202. */
+  resendVerification: () => apiSend<void>("POST", "/auth/resend-verification"),
+
+  /** POST /auth/forgot-password — 202 whether or not the account exists. */
+  forgotPassword: (body: ForgotPasswordRequest) => apiSend<void>("POST", "/auth/forgot-password", body),
+
+  /** POST /auth/reset-password — 204; signs out every device. */
+  resetPassword: (body: ResetPasswordRequest) => apiSend<void>("POST", "/auth/reset-password", body),
+
+  /** PATCH /me/onboarding */
+  completeOnboarding: (body: OnboardingRequest) => apiSend<SessionResponse>("PATCH", "/me/onboarding", body),
 };

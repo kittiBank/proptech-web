@@ -1,5 +1,6 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import type { AdPlacement, ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
+import { ApiError } from "./client";
 import { api } from "./endpoints";
 
 const MINUTE = 60_000;
@@ -21,6 +22,7 @@ export const queryKeys = {
     detail: (slug: string) => ["projects", "detail", slug] as const,
     nearby: (slug: string, limit: number) => ["projects", "nearby", slug, limit] as const,
   },
+  session: ["auth", "session"] as const,
   favorites: ["me", "favorites"] as const,
   compare: (ids: string[]) => ["compare", ids] as const,
   stations: ["stations"] as const,
@@ -111,3 +113,17 @@ export const compareQuery = (ids: string[]) =>
     staleTime: MINUTE,
     enabled: ids.length > 0,
   });
+
+/** The signed-in user, or `null` when signed out (a 401 is an answer, not an error). */
+export const sessionQuery = queryOptions({
+  queryKey: queryKeys.session,
+  queryFn: async ({ signal }) => {
+    try {
+      return (await api.getSession(signal)).data;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) return null;
+      throw error;
+    }
+  },
+  staleTime: 5 * MINUTE,
+});

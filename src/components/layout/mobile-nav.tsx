@@ -6,12 +6,16 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { contact, mainNav, routes } from "@/data/navigation";
+import { displayName, initial, useSession, useSignOut } from "@/providers/session";
+import { Avatar } from "./account-menu";
 import { LogoMark } from "./logo";
 import { NavLink } from "./nav-link";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
+  const { user } = useSession();
+  const signOut = useSignOut();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -60,11 +64,24 @@ export function MobileNav() {
               ลงประกาศฟรี
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href={routes.login} onClick={close}>
-              เข้าสู่ระบบ
-            </Link>
-          </Button>
+          {user ? (
+            <div className="flex items-center gap-3 rounded-md bg-mist p-3">
+              <Avatar name={initial(user)} className="size-10 text-base" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-ink">{displayName(user)}</p>
+                <p className="truncate text-sm text-slate">{user.email}</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => signOut.mutate(undefined, { onSuccess: close })}>
+                ออกจากระบบ
+              </Button>
+            </div>
+          ) : (
+            <Button asChild variant="outline" size="lg">
+              <Link href={routes.login()} onClick={close}>
+                เข้าสู่ระบบ
+              </Link>
+            </Button>
+          )}
           <p className="pt-2 text-sm text-slate">
             สอบถาม {contact.phone} ({contact.hours})
           </p>

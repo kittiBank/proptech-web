@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { api } from "@/lib/api/endpoints";
 import { favoritesQuery, queryKeys } from "@/lib/api/queries";
 import type { FavoriteDto, ListFavoritesResponse } from "@/types/api";
+import { useSession } from "./session";
 import type { Property } from "@/types/property";
 
 /**
@@ -39,7 +40,9 @@ async function mutate(client: QueryClient, change: Change) {
 
 export function useFavorites() {
   const client = useQueryClient();
-  const { data, isPending, isError, refetch, isFetching } = useQuery(favoritesQuery);
+  const { user } = useSession();
+  // Favorites belong to an account; signed-out visitors have none.
+  const { data, isPending, isError, refetch, isFetching } = useQuery({ ...favoritesQuery, enabled: Boolean(user) });
   const favorites = useMemo(() => data?.data ?? [], [data]);
   const ids = useMemo(() => favorites.map((f) => f.property.id), [favorites]);
 

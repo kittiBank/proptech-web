@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { mainNav, routes } from "@/data/navigation";
+import { AccountMenu } from "./account-menu";
 import { FavoritesLink } from "./favorites-link";
 import { HeaderSearch } from "./header-search";
 import { Logo } from "./logo";
@@ -29,9 +30,7 @@ export function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <FavoritesLink />
-          <Button asChild variant="ghost" className="hidden lg:inline-flex">
-            <Link href={routes.login}>เข้าสู่ระบบ</Link>
-          </Button>
+          <AccountMenu />
           <Button asChild className="hidden sm:inline-flex">
             <Link href={routes.postProperty}>ลงประกาศฟรี</Link>
           </Button>

@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { queryProperties } from "@/mocks/db";
 import { seedDemoFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
+import { resetMockSession } from "@/mocks/session";
+import { DEMO_ACCOUNT, MOCK_RESET_TOKEN, MOCK_VERIFY_TOKEN } from "@/mocks/constants";
 import { failingHandler } from "@/mocks/handlers";
 import { setMockScenario } from "@/mocks/scenario";
 import { ApiError } from "./client";
@@ -236,6 +238,14 @@ describe("GET /projects/:slug", () => {
 });
 
 describe("/me/favorites", () => {
+  beforeEach(() => resetMockSession({ signedIn: true }));
+
+  it("requires a session", async () => {
+    resetMockSession();
+    await expect(api.listFavorites()).rejects.toMatchObject({ status: 401 });
+    await expect(api.saveFavorite("p-1001")).rejects.toMatchObject({ status: 401 });
+  });
+
   it("saves, notes and removes a favorite", async () => {
     expect((await api.listFavorites()).data).toEqual([]);
     const saved = await api.saveFavorite("p-1001");
@@ -281,5 +291,57 @@ describe("GET /compare", () => {
     const { data } = queryProperties({ limit: 1000 });
     expect(data.length).toBeGreaterThan(100);
     expect(data.some((p) => p.id === "g-2010")).toBe(false);
+  });
+});
+
+describe("auth", () => {
+  it("logs in, reads the session and logs out", async () => {
+    await expect(api.getSession()).rejects.toMatchObject({ status: 401 });
+    await expect(api.login({ email: DEMO_ACCOUNT.email, password: "wrong", remember: true })).rejects.toMatchObject({
+      status: 401,
+    });
+    const { data } = await api.login({ ...DEMO_ACCOUNT, remember: true });
+    expect(data).toMatchObject({ firstName: "สมหญิง", emailVerified: true });
+    expect(data).not.toHaveProperty("password");
+    expect((await api.getSession()).data.id).toBe(data.id);
+    await api.logout();
+    await expect(api.getSession()).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("registers, verifies the email and onboards", async () => {
+    const body = {
+      firstName: "ทดสอบ",
+      lastName: "ระบบ",
+      email: "new@example.com",
+      password: "abc12345",
+      acceptTerms: true as const,
+      marketing: false,
+    };
+    const { data } = await api.register(body);
+    expect(data).toMatchObject({ emailVerified: false, onboarded: false });
+    await expect(api.register(body)).rejects.toMatchObject({ status: 409 });
+
+    await expect(api.verifyEmail("nope")).rejects.toMatchObject({ status: 400 });
+    expect((await api.verifyEmail(MOCK_VERIFY_TOKEN)).data.emailVerified).toBe(true);
+
+    const done = await api.completeOnboarding({ role: "owner" });
+    expect(done.data).toMatchObject({ onboarded: true, role: "owner" });
+  });
+
+  it("resets a password and signs out", async () => {
+    await api.login({ ...DEMO_ACCOUNT, remember: true });
+    await api.forgotPassword({ email: DEMO_ACCOUNT.email });
+    await expect(api.resetPassword({ token: "bad", password: "newpass123" })).rejects.toMatchObject({ status: 400 });
+    await api.resetPassword({ token: MOCK_RESET_TOKEN, password: "newpass123" });
+    await expect(api.getSession()).rejects.toMatchObject({ status: 401 });
+    await expect(api.login({ ...DEMO_ACCOUNT, remember: true })).rejects.toMatchObject({ status: 401 });
+    expect((await api.login({ email: DEMO_ACCOUNT.email, password: "newpass123", remember: true })).data.email).toBe(
+      DEMO_ACCOUNT.email,
+    );
+  });
+
+  it("signs in with Google", async () => {
+    const { data } = await api.oauthLogin("google");
+    expect(data).toMatchObject({ lastName: "Google", onboarded: false });
   });
 });

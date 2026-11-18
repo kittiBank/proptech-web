@@ -95,7 +95,8 @@ export async function apiSend<TResponse>(
     const errorBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
     throw new ApiError(res.status, errorBody, `${method} ${path}`);
   }
-  return (res.status === 204 ? undefined : await res.json()) as TResponse;
+  const text = res.status === 204 ? "" : await res.text();
+  return (text ? JSON.parse(text) : undefined) as TResponse;
 }
 
 export function apiPost<TResponse, TBody>(path: string, body: TBody, init?: RequestInit): Promise<TResponse> {

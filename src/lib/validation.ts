@@ -38,3 +38,18 @@ export function validateField<S extends z.ZodObject>(
   if (result.success) return undefined;
   return result.error.issues.find((i) => i.path[0] === field)?.message;
 }
+
+/**
+ * Plain values of a form's named controls: checkboxes as booleans, the rest
+ * as strings. Feed the result to a Zod schema.
+ */
+export function formValues(form: HTMLFormElement): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  for (const el of Array.from(form.elements)) {
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement))
+      continue;
+    if (!el.name) continue;
+    out[el.name] = el instanceof HTMLInputElement && el.type === "checkbox" ? el.checked : el.value;
+  }
+  return out;
+}

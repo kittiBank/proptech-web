@@ -8,7 +8,18 @@ export const routes = {
   rent: "/rent",
   newProjects: "/projects",
   guides: "/guides",
-  login: "/login",
+  /** `next` = where to go after signing in; `intent` = gated action that opened it (modal copy). */
+  login: (params: { next?: string; intent?: string } = {}) => {
+    const query = new URLSearchParams(
+      Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ).toString();
+    return query ? `/login?${query}` : "/login";
+  },
+  register: (next?: string) => (next ? `/register?next=${encodeURIComponent(next)}` : "/register"),
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
+  verifyEmail: "/verify-email",
+  onboarding: "/onboarding",
   postProperty: "/post",
   property: (slug: string) => `/property/${slug}`,
   /** Search results. Params: see `lib/search-params.ts` (mode, q, type, station, price, beds, area, sort, page, view). */

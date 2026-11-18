@@ -6,7 +6,12 @@ import type { ReactNode } from "react";
 import { Container } from "@/components/home/section-header";
 import { routes } from "@/data/navigation";
 import { cn } from "@/lib/utils";
+import { LogIn } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/query-state";
 import { useFavorites } from "@/providers/favorites-store";
+import { useSession } from "@/providers/session";
 
 const items = [
   { label: "โปรไฟล์และการตั้งค่า", href: "/account/profile" },
@@ -24,6 +29,7 @@ const items = [
 export function AccountShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { count } = useFavorites();
+  const { user, isPending } = useSession();
 
   return (
     <div className="bg-mist">
@@ -53,7 +59,36 @@ export function AccountShell({ children }: { children: ReactNode }) {
             })}
           </ul>
         </nav>
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          {isPending ? (
+            <div role="status" aria-label="กำลังโหลดบัญชี" className="flex flex-col gap-4">
+              <Skeleton className="h-9 w-48" />
+              <Skeleton className="h-64 w-full rounded-lg" />
+            </div>
+          ) : user ? (
+            children
+          ) : (
+            <EmptyState
+              icon={LogIn}
+              title="เข้าสู่ระบบเพื่อดูบัญชีของคุณ"
+              body="รายการโปรด การค้นหาที่บันทึกไว้ และนัดดูทรัพย์ จะอยู่ในบัญชีของคุณ เปิดดูได้จากทุกอุปกรณ์"
+              action={
+                <Button asChild size="lg">
+                  <Link href={routes.login({ next: pathname })}>เข้าสู่ระบบ</Link>
+                </Button>
+              }
+              secondary={
+                <Link
+                  href={routes.register(pathname)}
+                  className="font-medium text-brand-strong underline-offset-4 hover:underline"
+                >
+                  สมัครสมาชิกฟรี
+                </Link>
+              }
+              className="rounded-lg bg-white"
+            />
+          )}
+        </div>
       </Container>
     </div>
   );

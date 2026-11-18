@@ -5,20 +5,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { failingHandler } from "@/mocks/handlers";
 import { server } from "@/mocks/node";
+import { router, setPathname, setSearchParams } from "@/test/next-navigation";
 import { makeQueryClient } from "@/providers/query-provider";
 import { SearchView } from "./search-view";
 
-const router = { push: vi.fn(), replace: vi.fn() };
-let searchParams = new URLSearchParams();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => router,
-  useSearchParams: () => searchParams,
-  usePathname: () => "/search",
-}));
-
 function renderAt(query: string, ui: ReactNode = <SearchView />) {
-  searchParams = new URLSearchParams(query);
+  setSearchParams(query);
   const client = makeQueryClient();
   client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, retry: false } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
@@ -28,8 +20,7 @@ function renderAt(query: string, ui: ReactNode = <SearchView />) {
 const lastUrl = (fn: ReturnType<typeof vi.fn>) => new URLSearchParams(String(fn.mock.lastCall?.[0]).split("?")[1]);
 
 beforeEach(() => {
-  router.push.mockReset();
-  router.replace.mockReset();
+  setPathname("/search");
   Element.prototype.scrollIntoView = vi.fn();
 });
 

@@ -1,35 +1,28 @@
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithClient } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { failingHandler } from "@/mocks/handlers";
 import { server } from "@/mocks/node";
+import { router, setPathname, setSearchParams } from "@/test/next-navigation";
 import { makeQueryClient } from "@/providers/query-provider";
 import type { ProjectDetail } from "@/types/property";
 import { getProjectDetail } from "@/mocks/db";
+import { resetMockSession } from "@/mocks/session";
 import { ProjectsView } from "./projects-view";
 import { ViewingForm } from "./viewing-form";
 
-const router = { push: vi.fn(), replace: vi.fn() };
-let searchParams = new URLSearchParams();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => router,
-  useSearchParams: () => searchParams,
-  usePathname: () => "/projects",
-}));
-
 function renderWith(ui: ReactNode, query = "") {
-  searchParams = new URLSearchParams(query);
+  setSearchParams(query);
   const client = makeQueryClient();
   client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, retry: false } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 beforeEach(() => {
-  router.push.mockReset();
-  router.replace.mockReset();
+  setPathname("/projects");
   Element.prototype.scrollIntoView = vi.fn();
 });
 
@@ -69,8 +62,9 @@ describe("ViewingForm", () => {
   const project = getProjectDetail("aster-sathorn") as ProjectDetail;
 
   it("shows field errors on submit, then sends the request", async () => {
+    resetMockSession({ signedIn: true });
     const user = userEvent.setup();
-    renderWith(<ViewingForm project={project} />);
+    renderWith(<ViewingForm project={project} instance="aside" />);
     await user.click(screen.getByRole("button", { name: "ส่งคำขอนัดชม" }));
     expect(screen.getByLabelText("ชื่อ")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText("กรอกชื่อของคุณ")).toBeInTheDocument();
@@ -85,6 +79,22 @@ describe("ViewingForm", () => {
     await user.type(screen.getByLabelText("เบอร์โทร"), "081-234-5678");
     await user.type(screen.getByLabelText("วันที่สะดวก"), "2099-01-15");
     await user.click(screen.getByRole("button", { name: "ส่งคำขอนัดชม" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("ส่งคำขอนัดชมแล้ว");
+  });
+
+  it("asks a signed-out visitor to log in, then sends the request after sign-in", async () => {
+    const user = userEvent.setup();
+    const { client } = renderWithClient(<ViewingForm project={project} instance="aside" />);
+    await user.type(screen.getByLabelText("ชื่อ"), "สมหญิง");
+    await user.type(screen.getByLabelText("เบอร์โทร"), "0812345678");
+    await user.type(screen.getByLabelText("วันที่สะดวก"), "2099-01-15");
+    await user.click(screen.getByRole("button", { name: "ส่งคำขอนัดชม" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalled());
+    expect(String(router.push.mock.lastCall?.[0])).toMatch(/^\/login\?intent=viewing&next=/);
+
+    // Signing in (in the modal) resumes the request.
+    resetMockSession({ signedIn: true });
+    await client.invalidateQueries({ queryKey: ["auth", "session"] });
     expect(await screen.findByRole("status")).toHaveTextContent("ส่งคำขอนัดชมแล้ว");
   });
 });

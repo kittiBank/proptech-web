@@ -2,11 +2,12 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
-import { useId, useState, type FocusEvent, type FormEvent } from "react";
+import { useId, useRef, useState, type FocusEvent, type FormEvent } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FormAlert, NativeSelect, TextField, fieldA11y } from "@/components/ui/field";
 import { api } from "@/lib/api/endpoints";
+import { useAuthGate, useResumeAction } from "@/lib/auth-gate";
 import { formatThaiDate } from "@/lib/listing";
 import { fieldErrors, requiredText, thaiPhone, validateField, type FieldErrors } from "@/lib/validation";
 import type { ProjectDetail } from "@/types/property";
@@ -31,14 +32,21 @@ type Values = z.input<typeof viewingSchema>;
 
 interface ViewingFormProps {
   project: ProjectDetail;
+  /** Tells the desktop and bottom-sheet copies apart when a sign-in resumes the request. */
+  instance: "aside" | "sheet";
   /** Unit type picked from the price table. */
   unitTypeId?: string;
   onUnitTypeChange?: (id: string) => void;
 }
 
 /** "นัดชมห้องตัวอย่าง": sends name, phone, date and unit type to the developer's sales team. */
-export function ViewingForm({ project, unitTypeId, onUnitTypeChange }: ViewingFormProps) {
+export function ViewingForm({ project, instance, unitTypeId, onUnitTypeChange }: ViewingFormProps) {
   const id = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const requireAuth = useAuthGate();
+  const gateKey = `${project.slug}:${instance}`;
+  // Signed in from the login modal: send the request the visitor filled in.
+  useResumeAction("viewing", gateKey, () => formRef.current?.requestSubmit());
   const [errors, setErrors] = useState<FieldErrors<Values>>({});
   const mutation = useMutation({
     mutationFn: (body: z.output<typeof viewingSchema>) => api.createProjectViewing(project.slug, body),
@@ -71,7 +79,19 @@ export function ViewingForm({ project, unitTypeId, onUnitTypeChange }: ViewingFo
       return;
     }
     setErrors({});
-    mutation.mutate(result.data);
+    const body = result.data;
+    requireAuth(
+      {
+        intent: "viewing",
+        key: gateKey,
+        preview: {
+          title: project.name,
+          subtitle: `นัดชมห้องตัวอย่าง ${formatThaiDate(body.date)}`,
+          image: project.image,
+        },
+      },
+      () => mutation.mutate(body),
+    );
   };
 
   if (mutation.isSuccess) {
@@ -91,6 +111,7 @@ export function ViewingForm({ project, unitTypeId, onUnitTypeChange }: ViewingFo
 
   return (
     <form
+      ref={formRef}
       onSubmit={onSubmit}
       onBlur={onBlur}
       noValidate

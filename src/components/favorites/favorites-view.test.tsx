@@ -1,19 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { listFavorites, seedDemoFavorites } from "@/mocks/favorites";
+import { resetMockSession } from "@/mocks/session";
+import { router, setPathname, setSearchParams } from "@/test/next-navigation";
 import { renderWithClient } from "@/test/render";
 import { CompareView } from "./compare-view";
 import { FavoritesView } from "./favorites-view";
-
-const router = { push: vi.fn(), replace: vi.fn() };
-let searchParams = new URLSearchParams();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => router,
-  useSearchParams: () => searchParams,
-  usePathname: () => "/account/favorites",
-}));
 
 /** Desktop width, so three listings can be compared and the card grid applies. */
 function setWide(wide: boolean) {
@@ -26,7 +19,8 @@ function setWide(wide: boolean) {
 }
 
 beforeEach(() => {
-  router.replace.mockReset();
+  setPathname("/account/favorites");
+  resetMockSession({ signedIn: true });
   setWide(true);
 });
 
@@ -99,7 +93,7 @@ describe("FavoritesView", () => {
 describe("CompareView", () => {
   it("tints the best values and hides identical rows by default", async () => {
     const user = userEvent.setup();
-    searchParams = new URLSearchParams("ids=p-1001,p-1003");
+    setSearchParams("ids=p-1001,p-1003");
     renderWithClient(<CompareView />);
     expect(await screen.findByRole("table")).toBeInTheDocument();
     expect(screen.getAllByText("ดีที่สุด").length).toBeGreaterThan(0);
@@ -113,7 +107,7 @@ describe("CompareView", () => {
 
   it("removes a column through the URL", async () => {
     const user = userEvent.setup();
-    searchParams = new URLSearchParams("ids=p-1001,p-1003");
+    setSearchParams("ids=p-1001,p-1003");
     renderWithClient(<CompareView />);
     const remove = await screen.findAllByRole("button", { name: /ออกจากการเปรียบเทียบ$/ });
     await user.click(remove[0]);
@@ -121,7 +115,7 @@ describe("CompareView", () => {
   });
 
   it("asks to pick listings when there are no ids", () => {
-    searchParams = new URLSearchParams();
+    setSearchParams("");
     renderWithClient(<CompareView />);
     expect(screen.getByRole("heading", { name: "ยังไม่ได้เลือกประกาศที่จะเปรียบเทียบ" })).toBeInTheDocument();
   });
