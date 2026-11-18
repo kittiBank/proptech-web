@@ -10,6 +10,10 @@ import {
   type CreateEnquiryResponse,
   type CreateProjectViewingRequest,
   type CreateProjectViewingResponse,
+  COMPARE_MAX,
+  FAVORITE_NOTE_MAX,
+  type SaveFavoriteResponse,
+  type UpdateFavoriteRequest,
   type ListProjectsQuery,
   type ListPropertiesQuery,
   type ProjectSort,
@@ -17,6 +21,7 @@ import {
 } from "@/types/api";
 import type { ListingMode, ProjectStatus, ProjectType, PropertyType, TransitLineId } from "@/types/property";
 import {
+  compareListings,
   getProjectDetail,
   getPropertyDetail,
   queryNearbyProjects,
@@ -27,6 +32,7 @@ import {
   queryProperties,
   queryStations,
 } from "./db";
+import { listFavorites, removeFavorite, saveFavorite, updateFavoriteNote } from "./favorites";
 import { getMockScenario } from "./scenario";
 
 /** Matches the mock base path on any origin (browser page, jsdom, Node). */
@@ -248,6 +254,53 @@ export const handlers = [
         { status: 201 },
       );
     },
+  ),
+  http.get(
+    endpoint("/me/favorites"),
+    withScenario(() => ({ data: listFavorites() })),
+  ),
+  http.put<{ propertyId: string }, never, SaveFavoriteResponse | ApiErrorBody>(
+    endpoint("/me/favorites/:propertyId"),
+    async ({ params }) => {
+      await delay(120);
+      if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+      const result = saveFavorite(params.propertyId);
+      if (!result) return errorResponse(404, "Property not found");
+      return HttpResponse.json<SaveFavoriteResponse>({ data: result.favorite }, { status: result.created ? 201 : 200 });
+    },
+  ),
+  http.patch<{ propertyId: string }, UpdateFavoriteRequest, SaveFavoriteResponse | ApiErrorBody>(
+    endpoint("/me/favorites/:propertyId"),
+    async ({ request, params }) => {
+      await delay(120);
+      if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+      const body = (await request.json().catch(() => null)) as Partial<UpdateFavoriteRequest> | null;
+      if (typeof body?.note !== "string" || body.note.length > FAVORITE_NOTE_MAX) {
+        return errorResponse(400, [`note must be a string of at most ${FAVORITE_NOTE_MAX} characters`]);
+      }
+      const favorite = updateFavoriteNote(params.propertyId, body.note.trim());
+      if (!favorite) return errorResponse(404, "Not in favorites");
+      return HttpResponse.json<SaveFavoriteResponse>({ data: favorite });
+    },
+  ),
+  http.delete<{ propertyId: string }>(endpoint("/me/favorites/:propertyId"), async ({ params }) => {
+    await delay(120);
+    if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+    removeFavorite(params.propertyId);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.get(
+    endpoint("/compare"),
+    withScenario((request) => {
+      const ids = (new URL(request.url).searchParams.get("ids") ?? "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (ids.length === 0 || ids.length > COMPARE_MAX) {
+        throw new ValidationError([`ids must list 1 to ${COMPARE_MAX} listing ids`]);
+      }
+      return compareListings([...new Set(ids)]);
+    }),
   ),
   http.get(endpoint("/stations"), withScenario(queryStations)),
   http.get(endpoint("/categories"), withScenario(queryCategories)),

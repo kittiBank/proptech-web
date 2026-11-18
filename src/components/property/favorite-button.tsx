@@ -3,16 +3,17 @@
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFavorites } from "@/providers/favorites-store";
+import type { Property } from "@/types/property";
 
 interface FavoriteButtonProps {
-  propertyId: string;
-  propertyTitle: string;
+  property: Property;
   className?: string;
 }
 
-export function FavoriteButton({ propertyId, propertyTitle, className }: FavoriteButtonProps) {
+export function FavoriteButton({ property, className }: FavoriteButtonProps) {
   const { isFavorite, toggle } = useFavorites();
-  const active = isFavorite(propertyId);
+  const active = isFavorite(property.id);
+  const propertyTitle = property.title;
 
   return (
     <button
@@ -20,7 +21,7 @@ export function FavoriteButton({ propertyId, propertyTitle, className }: Favorit
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggle(propertyId);
+        toggle(property);
       }}
       aria-pressed={active}
       aria-label={active ? `นำ ${propertyTitle} ออกจากรายการโปรด` : `บันทึก ${propertyTitle} ในรายการโปรด`}

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { queryProperties } from "@/mocks/db";
+import { seedDemoFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
 import { failingHandler } from "@/mocks/handlers";
 import { setMockScenario } from "@/mocks/scenario";
@@ -230,5 +232,54 @@ describe("GET /projects/:slug", () => {
     await expect(
       api.createProjectViewing("aster-sathorn", { name: "สมหญิง", phone: "123", date: "2026-12-01" }),
     ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("/me/favorites", () => {
+  it("saves, notes and removes a favorite", async () => {
+    expect((await api.listFavorites()).data).toEqual([]);
+    const saved = await api.saveFavorite("p-1001");
+    expect(saved.data).toMatchObject({ status: "active", note: "", savedPrice: saved.data.property.price });
+    // Saving again is a no-op.
+    await api.saveFavorite("p-1001");
+    expect((await api.listFavorites()).data).toHaveLength(1);
+
+    const noted = await api.updateFavoriteNote("p-1001", " ถามที่จอดรถ ");
+    expect(noted.data.note).toBe("ถามที่จอดรถ");
+
+    await api.removeFavorite("p-1001");
+    expect((await api.listFavorites()).data).toEqual([]);
+  });
+
+  it("rejects unknown listings and over-long notes", async () => {
+    await expect(api.saveFavorite("nope")).rejects.toMatchObject({ status: 404 });
+    await api.saveFavorite("p-1001");
+    await expect(api.updateFavoriteNote("p-1001", "x".repeat(201))).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("reports price drops and closed listings in the demo list", async () => {
+    seedDemoFavorites();
+    const { data } = await api.listFavorites();
+    expect(data.some((f) => f.savedPrice > f.property.price)).toBe(true);
+    expect(data.find((f) => f.property.id === "g-2010")?.status).toBe("closed");
+  });
+});
+
+describe("GET /compare", () => {
+  it("returns details in the order asked and flags closed listings", async () => {
+    const { data } = await api.compareListings(["p-1004", "g-2010", "missing"]);
+    expect(data.map((p) => p.id)).toEqual(["p-1004", "g-2010"]);
+    expect(data.map((p) => p.status)).toEqual(["active", "closed"]);
+    expect(data[0].location.stations.length).toBeGreaterThan(0);
+  });
+
+  it("accepts at most 3 ids", async () => {
+    await expect(api.compareListings(["a", "b", "c", "d"])).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("keeps closed listings out of search", async () => {
+    const { data } = queryProperties({ limit: 1000 });
+    expect(data.length).toBeGreaterThan(100);
+    expect(data.some((p) => p.id === "g-2010")).toBe(false);
   });
 });

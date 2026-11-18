@@ -44,7 +44,7 @@ export function MobileNav() {
             ))}
             <li className="border-b border-line">
               <Link
-                href="/favorites"
+                href={routes.favorites}
                 onClick={close}
                 className="flex h-14 items-center text-[17px] font-medium text-ink"
               >

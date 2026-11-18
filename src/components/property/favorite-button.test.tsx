@@ -1,22 +1,27 @@
-import { render, screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { properties } from "@/data/properties";
+import { listFavorites } from "@/mocks/favorites";
+import { renderWithClient } from "@/test/render";
 import { FavoriteButton } from "./favorite-button";
 
 describe("FavoriteButton", () => {
-  it("toggles the saved state and persists it", async () => {
+  it("saves and removes the listing through the favorites API", async () => {
     const user = userEvent.setup();
-    render(<FavoriteButton propertyId="test-1" propertyTitle="คอนโดทดสอบ" />);
+    const property = properties[0];
+    renderWithClient(<FavoriteButton property={property} />);
 
-    const button = screen.getByRole("button", { name: "บันทึก คอนโดทดสอบ ในรายการโปรด" });
+    const button = await screen.findByRole("button", { name: `บันทึก ${property.title} ในรายการโปรด` });
     expect(button).toHaveAttribute("aria-pressed", "false");
 
     await user.click(button);
     expect(button).toHaveAttribute("aria-pressed", "true");
-    expect(button).toHaveAccessibleName("นำ คอนโดทดสอบ ออกจากรายการโปรด");
-    expect(JSON.parse(window.localStorage.getItem("propertyhub:favorites") ?? "[]")).toContain("test-1");
+    expect(button).toHaveAccessibleName(`นำ ${property.title} ออกจากรายการโปรด`);
+    await waitFor(() => expect(listFavorites().map((f) => f.property.id)).toEqual([property.id]));
 
     await user.click(button);
     expect(button).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => expect(listFavorites()).toEqual([]));
   });
 });

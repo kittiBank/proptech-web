@@ -80,11 +80,7 @@ export function PropertyCard({ property, sizes, priority, distanceFromHere, clas
             </span>
           )}
         </div>
-        <FavoriteButton
-          propertyId={property.id}
-          propertyTitle={property.title}
-          className="absolute top-2 right-2 z-10"
-        />
+        <FavoriteButton property={property} className="absolute top-2 right-2 z-10" />
       </div>
 
       <div className="flex flex-1 flex-col gap-2.5 p-5">

@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
+import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
 import { setMockScenario } from "@/mocks/scenario";
 
@@ -24,6 +25,7 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   setMockScenario("default");
+  resetMockFavorites();
 });
 
 afterAll(() => server.close());

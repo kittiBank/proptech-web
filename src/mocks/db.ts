@@ -11,6 +11,7 @@ import { distanceBetween } from "@/lib/geo";
 import {
   PROJECTS_DEFAULT_LIMIT,
   PROPERTIES_DEFAULT_LIMIT,
+  type CompareListingsResponse,
   type ListAdsQuery,
   type ListNearbyProjectsResponse,
   type ListProjectsQuery,
@@ -58,6 +59,16 @@ const allListings: PropertyDto[] = [...properties, ...generatedListings, ...buil
   (p) => withGallery(pinnedIds.has(p.id) ? { ...p, isPinned: true } : p),
 );
 
+/**
+ * Listings that were taken down, sold or rented. They drop out of search but
+ * stay readable by id so saved copies in favorites can show the closed state.
+ */
+export const closedListingIds = new Set(["g-2010", "g-2031"]);
+
+export function findListingById(id: string): PropertyDto | undefined {
+  return allListings.find((p) => p.id === id);
+}
+
 /** Paid placements, in the order they were booked. */
 const pinnedListings: PropertyDto[] = pinnedPropertyIds
   .map((id) => allListings.find((p) => p.id === id))
@@ -92,12 +103,9 @@ const comparators: Record<PropertySort, (a: PropertyDto, b: PropertyDto) => numb
 };
 
 export function queryProperties(query: ListPropertiesQuery): ListPropertiesResponse {
+  const open = allListings.filter((p) => !closedListingIds.has(p.id));
   const source =
-    query.pinned === true
-      ? pinnedListings
-      : query.pinned === false
-        ? allListings.filter((p) => !p.isPinned)
-        : allListings;
+    query.pinned === true ? pinnedListings : query.pinned === false ? open.filter((p) => !p.isPinned) : open;
 
   const stations = new Set(
     query.station
@@ -227,10 +235,20 @@ export function queryNearbyProperties(
   const limit = query.limit ?? NEARBY_DEFAULT_LIMIT;
 
   const ranked = allListings
-    .filter((p) => p.id !== origin.id)
+    .filter((p) => p.id !== origin.id && !closedListingIds.has(p.id))
     .map((p) => ({ ...p, distance: distanceBetween(from, listingPoint(p)) }))
     .filter((p) => p.distance <= NEARBY_RADIUS_M)
     .sort((a, b) => Number(b.mode === origin.mode) - Number(a.mode === origin.mode) || a.distance - b.distance);
 
   return { data: ranked.slice(0, limit) };
+}
+
+/** `GET /compare?ids=`: listing details in the order asked, unknown ids skipped. */
+export function compareListings(ids: string[]): CompareListingsResponse {
+  return {
+    data: ids
+      .map((id) => findListingById(id))
+      .filter((p): p is PropertyDto => Boolean(p))
+      .map((p) => ({ ...buildPropertyDetail(p), status: closedListingIds.has(p.id) ? "closed" : "active" })),
+  };
 }

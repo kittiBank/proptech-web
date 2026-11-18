@@ -19,6 +19,9 @@ export const routes = {
     return query ? `/search?${query}` : "/search";
   },
   project: (slug: string) => `/projects/${slug}`,
+  favorites: "/account/favorites",
+  /** Side-by-side table for up to 3 listing ids. */
+  compare: (ids: string[]) => `/compare?ids=${ids.map(encodeURIComponent).join(",")}`,
   location: (id: string) => `/buy?location=${id}`,
   category: (type: string) => `/buy?type=${type}`,
 } as const;

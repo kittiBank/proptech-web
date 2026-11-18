@@ -21,6 +21,8 @@ export const queryKeys = {
     detail: (slug: string) => ["projects", "detail", slug] as const,
     nearby: (slug: string, limit: number) => ["projects", "nearby", slug, limit] as const,
   },
+  favorites: ["me", "favorites"] as const,
+  compare: (ids: string[]) => ["compare", ids] as const,
   stations: ["stations"] as const,
   categories: ["categories"] as const,
   ads: (placement: AdPlacement) => ["ads", placement] as const,
@@ -94,3 +96,18 @@ export const adQueries = {
       retry: false,
     }),
 };
+
+/** The signed-in user's favorites. Mutations update this cache in place (see `useFavorites`). */
+export const favoritesQuery = queryOptions({
+  queryKey: queryKeys.favorites,
+  queryFn: ({ signal }) => api.listFavorites(signal),
+  staleTime: 5 * MINUTE,
+});
+
+export const compareQuery = (ids: string[]) =>
+  queryOptions({
+    queryKey: queryKeys.compare(ids),
+    queryFn: ({ signal }) => api.compareListings(ids, signal),
+    staleTime: MINUTE,
+    enabled: ids.length > 0,
+  });

@@ -1,4 +1,7 @@
 import type {
+  CompareListingsResponse,
+  ListFavoritesResponse,
+  SaveFavoriteResponse,
   CreateEnquiryRequest,
   CreateEnquiryResponse,
   CreateProjectViewingRequest,
@@ -17,7 +20,7 @@ import type {
   ListPropertiesResponse,
   ListStationsResponse,
 } from "@/types/api";
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPost, apiSend } from "./client";
 
 /** One function per REST endpoint. Components use these through `queries.ts`, never directly. */
 export const api = {
@@ -64,4 +67,22 @@ export const api = {
 
   /** GET /ads — sponsored banners for one placement. */
   listAds: (query: ListAdsQuery, signal?: AbortSignal) => apiGet<ListAdsResponse>("/ads", { ...query }, { signal }),
+
+  /** GET /me/favorites — the signed-in user's saved listings, newest first. */
+  listFavorites: (signal?: AbortSignal) => apiGet<ListFavoritesResponse>("/me/favorites", undefined, { signal }),
+
+  /** PUT /me/favorites/:propertyId — save a listing (idempotent). */
+  saveFavorite: (propertyId: string) =>
+    apiSend<SaveFavoriteResponse>("PUT", `/me/favorites/${encodeURIComponent(propertyId)}`),
+
+  /** PATCH /me/favorites/:propertyId — change the private note. */
+  updateFavoriteNote: (propertyId: string, note: string) =>
+    apiSend<SaveFavoriteResponse>("PATCH", `/me/favorites/${encodeURIComponent(propertyId)}`, { note }),
+
+  /** DELETE /me/favorites/:propertyId — unsave a listing. */
+  removeFavorite: (propertyId: string) => apiSend<void>("DELETE", `/me/favorites/${encodeURIComponent(propertyId)}`),
+
+  /** GET /compare?ids= — details of up to 3 listings side by side. */
+  compareListings: (ids: string[], signal?: AbortSignal) =>
+    apiGet<CompareListingsResponse>("/compare", { ids: ids.join(",") }, { signal }),
 };

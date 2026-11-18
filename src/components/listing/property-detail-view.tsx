@@ -141,7 +141,7 @@ function ListingHeader({ property: p }: { property: PropertyDetail }) {
           </a>
         </div>
         <div className="flex shrink-0 gap-2">
-          <FavoriteButton propertyId={p.id} propertyTitle={p.title} className={listingIconButton} />
+          <FavoriteButton property={p} className={listingIconButton} />
           <ShareMenu title={p.title} />
         </div>
       </div>

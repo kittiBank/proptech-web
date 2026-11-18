@@ -1,61 +1,92 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/endpoints";
+import { favoritesQuery, queryKeys } from "@/lib/api/queries";
+import type { FavoriteDto, ListFavoritesResponse } from "@/types/api";
+import type { Property } from "@/types/property";
 
 /**
- * Favorites live in localStorage until accounts exist; the API swap is
- * `POST/DELETE /me/favorites/:id` inside `toggle`.
+ * Favorites come from `/me/favorites`. Saving and removing update the cached
+ * list straight away (hearts and counts react instantly), roll back if the
+ * request fails, and refetch afterwards to pick up the server's copy.
  */
-const STORAGE_KEY = "propertyhub:favorites";
-const EMPTY: readonly string[] = [];
 
-let favorites: readonly string[] = EMPTY;
-let loaded = false;
-const listeners = new Set<() => void>();
+type Change = { kind: "save"; property: Property } | { kind: "remove"; propertyId: string };
 
-function load() {
-  if (loaded) return;
-  loaded = true;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) favorites = parsed.filter((v): v is string => typeof v === "string");
-  } catch {
-    favorites = EMPTY;
-  }
+function applyChange(list: FavoriteDto[], change: Change): FavoriteDto[] {
+  if (change.kind === "remove") return list.filter((f) => f.property.id !== change.propertyId);
+  if (list.some((f) => f.property.id === change.property.id)) return list;
+  const optimistic: FavoriteDto = {
+    property: change.property,
+    savedAt: new Date().toISOString(),
+    savedPrice: change.property.price,
+    note: "",
+    status: "active",
+  };
+  return [optimistic, ...list];
 }
 
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
-  } catch {
-    // Storage unavailable (private mode); favorites stay in memory.
-  }
-}
-
-function subscribe(listener: () => void) {
-  load();
-  listeners.add(listener);
-  listener();
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return favorites;
-}
-
-function getServerSnapshot() {
-  return EMPTY;
-}
-
-export function toggleFavorite(id: string) {
-  favorites = favorites.includes(id) ? favorites.filter((f) => f !== id) : [...favorites, id];
-  persist();
-  listeners.forEach((l) => l());
+async function mutate(client: QueryClient, change: Change) {
+  await client.cancelQueries({ queryKey: queryKeys.favorites });
+  const previous = client.getQueryData<ListFavoritesResponse>(queryKeys.favorites);
+  client.setQueryData<ListFavoritesResponse>(queryKeys.favorites, (old) => ({
+    data: applyChange(old?.data ?? [], change),
+  }));
+  return { previous };
 }
 
 export function useFavorites() {
-  const ids = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const client = useQueryClient();
+  const { data, isPending, isError, refetch, isFetching } = useQuery(favoritesQuery);
+  const favorites = useMemo(() => data?.data ?? [], [data]);
+  const ids = useMemo(() => favorites.map((f) => f.property.id), [favorites]);
+
+  const { mutate: change } = useMutation({
+    mutationFn: async (c: Change): Promise<void> => {
+      if (c.kind === "save") await api.saveFavorite(c.property.id);
+      else await api.removeFavorite(c.propertyId);
+    },
+    onMutate: (c) => mutate(client, c),
+    onError: (_error, _c, context) => {
+      if (context?.previous) client.setQueryData(queryKeys.favorites, context.previous);
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: queryKeys.favorites }),
+  });
+
   const isFavorite = useCallback((id: string) => ids.includes(id), [ids]);
-  return { ids, count: ids.length, isFavorite, toggle: toggleFavorite };
+  const save = useCallback((property: Property) => change({ kind: "save", property }), [change]);
+  const remove = useCallback((propertyId: string) => change({ kind: "remove", propertyId }), [change]);
+  const toggle = useCallback(
+    (property: Property) => (ids.includes(property.id) ? remove(property.id) : save(property)),
+    [ids, remove, save],
+  );
+
+  return {
+    favorites,
+    ids,
+    count: ids.length,
+    isFavorite,
+    toggle,
+    save,
+    remove,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+  };
+}
+
+/** Edits a favorite's private note, updating the cached list on success. */
+export function useFavoriteNote() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ propertyId, note }: { propertyId: string; note: string }) =>
+      api.updateFavoriteNote(propertyId, note),
+    onSuccess: ({ data: updated }) =>
+      client.setQueryData<ListFavoritesResponse>(queryKeys.favorites, (old) =>
+        old ? { data: old.data.map((f) => (f.property.id === updated.property.id ? updated : f)) } : old,
+      ),
+  });
 }

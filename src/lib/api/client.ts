@@ -73,17 +73,31 @@ export async function apiGet<T>(path: string, query?: QueryParams, init?: Reques
   return (await res.json()) as T;
 }
 
-export async function apiPost<TResponse, TBody>(path: string, body: TBody, init?: RequestInit): Promise<TResponse> {
+/** Sends a write request. `body` is JSON-encoded when given; a 204 resolves to `undefined`. */
+export async function apiSend<TResponse>(
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+  init?: RequestInit,
+): Promise<TResponse> {
   await waitForMockApi();
   const res = await fetch(buildApiUrl(path), {
     ...init,
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json", ...init?.headers },
-    body: JSON.stringify(body),
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...init?.headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
     const errorBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(res.status, errorBody, `POST ${path}`);
+    throw new ApiError(res.status, errorBody, `${method} ${path}`);
   }
-  return (await res.json()) as TResponse;
+  return (res.status === 204 ? undefined : await res.json()) as TResponse;
+}
+
+export function apiPost<TResponse, TBody>(path: string, body: TBody, init?: RequestInit): Promise<TResponse> {
+  return apiSend<TResponse>("POST", path, body, init);
 }

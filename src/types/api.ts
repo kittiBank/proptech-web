@@ -203,3 +203,44 @@ export const NEARBY_MAX_LIMIT = 24;
 
 export const PROPERTIES_DEFAULT_LIMIT = 20;
 export const PROPERTIES_MAX_LIMIT = 100;
+
+// ---------------------------------------------------------------------------
+// Favorites and compare (signed-in user; the mock keeps one user's list)
+// ---------------------------------------------------------------------------
+
+export type FavoriteStatus = "active" | "closed";
+
+/** A saved listing. `savedPrice` above `property.price` means the price dropped since saving. */
+export interface FavoriteDto {
+  property: PropertyDto;
+  /** ISO date-time the listing was saved. */
+  savedAt: string;
+  /** Asking price when the listing was saved, THB. */
+  savedPrice: number;
+  /** Private note, empty when none. */
+  note: string;
+  /** `closed` = the listing was taken down, sold or rented; the snapshot stays for reference. */
+  status: FavoriteStatus;
+}
+
+/** `GET /me/favorites` — newest saved first. */
+export type ListFavoritesResponse = ListResponse<FavoriteDto>;
+
+/** `PUT /me/favorites/:propertyId` — idempotent save; 201 when new, 200 when already saved. */
+export interface SaveFavoriteResponse {
+  data: FavoriteDto;
+}
+
+/** `PATCH /me/favorites/:propertyId` body. */
+export interface UpdateFavoriteRequest {
+  /** Max 200 characters; empty string clears it. */
+  note: string;
+}
+
+/** `DELETE /me/favorites/:propertyId` — 204, also when it was not saved. */
+
+/** `GET /compare?ids=` — up to `COMPARE_MAX` listing ids, comma-separated. Unknown ids are skipped. */
+export type CompareListingsResponse = ListResponse<PropertyDetailDto & { status: FavoriteStatus }>;
+
+export const COMPARE_MAX = 3;
+export const FAVORITE_NOTE_MAX = 200;
