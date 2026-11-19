@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { Prefetched } from "@/components/query/prefetched";
 import { JsonLd } from "@/components/seo/json-ld";
 import { PropertyDetailSkeleton } from "@/components/listing/property-detail-skeleton";
 import { PropertyDetailView } from "@/components/listing/property-detail-view";
 import { routes } from "@/data/navigation";
+import { queryKeys } from "@/lib/api/queries";
 import { getPropertyForSeo } from "@/lib/api/server";
 import { metaDescription } from "@/lib/site";
 import { breadcrumbJsonLd, listingJsonLd } from "@/lib/structured-data";
@@ -47,16 +49,27 @@ async function StructuredData({ params }: Props) {
   );
 }
 
+/** The view with the listing already in the query cache, so the photo and text are in the HTML. */
+async function ServerRenderedListing({ params }: Props) {
+  const { slug } = await params;
+  const item = await getPropertyForSeo(slug);
+  return (
+    <Prefetched queries={[{ queryKey: queryKeys.properties.detail(slug), data: item && { data: item } }]}>
+      <PropertyDetailView />
+    </Prefetched>
+  );
+}
+
 /**
  * Listing page. The view reads the slug with `useParams` inside Suspense and
  * loads `GET /properties/:slug` through TanStack Query (mocked by MSW until the
- * API exists). Metadata and JSON-LD are read on the server (`lib/api/server.ts`).
+ * API exists). The first render, metadata and JSON-LD use a server read (`lib/api/server.ts`).
  */
 export default function PropertyPage({ params }: Props) {
   return (
     <>
       <Suspense fallback={<PropertyDetailSkeleton />}>
-        <PropertyDetailView />
+        <ServerRenderedListing params={params} />
       </Suspense>
       <Suspense>
         <StructuredData params={params} />

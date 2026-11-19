@@ -110,7 +110,7 @@ export function PropertyGallery({ images, href, sizes, priority, className, imag
                   onClick={() => goTo(i)}
                   aria-label={`รูปที่ ${i + 1} จาก ${count}: ${image.alt}`}
                   aria-current={i === index}
-                  className="flex h-6 w-5 items-center justify-center"
+                  className="flex size-6 items-center justify-center"
                 >
                   <span
                     aria-hidden="true"

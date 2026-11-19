@@ -35,7 +35,9 @@ export function PropertyPhoto({ image, sizes, priority, className, imageClassNam
           alt={image.alt}
           fill
           sizes={sizes}
-          priority={priority}
+          // Next 16 deprecates `priority`; eager + high fetch priority is the recommended LCP hint.
+          loading={priority ? "eager" : undefined}
+          fetchPriority={priority ? "high" : undefined}
           className={cn("object-cover", imageClassName)}
           onError={() => setFailed(true)}
         />

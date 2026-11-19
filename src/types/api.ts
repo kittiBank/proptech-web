@@ -277,6 +277,14 @@ export interface SessionResponse {
   data: UserDto;
 }
 
+/**
+ * `GET /auth/me` — 200 with `data: null` when signed out. Not a 401: every page
+ * checks the session, and a 401 would log a console error on each visit.
+ */
+export interface GetSessionResponse {
+  data: UserDto | null;
+}
+
 /** `POST /auth/login` — 401 on a wrong email or password. */
 export interface LoginRequest {
   email: string;

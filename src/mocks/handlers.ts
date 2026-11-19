@@ -22,6 +22,7 @@ import {
   type OnboardingRequest,
   type RegisterRequest,
   type ResetPasswordRequest,
+  type GetSessionResponse,
   type SessionResponse,
   type VerifyEmailRequest,
   type UpdateFavoriteRequest,
@@ -340,10 +341,9 @@ export const handlers = [
     },
   ),
   // --- Auth -------------------------------------------------------------
-  http.get<PathParams, DefaultBodyType, SessionBody>(endpoint("/auth/me"), async () => {
+  http.get(endpoint("/auth/me"), async () => {
     await delay(80);
-    const user = currentUser();
-    return user ? HttpResponse.json<SessionResponse>({ data: user }) : unauthorized();
+    return HttpResponse.json<GetSessionResponse>({ data: currentUser() ?? null });
   }),
   http.post<PathParams, DefaultBodyType, SessionBody>(endpoint("/auth/login"), async ({ request }) => {
     const failed = await writeScenario();

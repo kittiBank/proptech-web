@@ -121,6 +121,8 @@ export function SearchView() {
         </aside>
 
         <div ref={resultsRef} className="min-w-0 scroll-mt-[88px]">
+          {/* Keeps the outline h1 → h2 → card h3 on phones, where the filter aside (and its h2) is hidden. */}
+          <h2 className="sr-only">ผลการค้นหา</h2>
           <div className="flex items-center gap-2">
             <FilterSheet state={state} onApply={replace} />
 

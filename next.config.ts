@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
+    // Next's defaults plus 400: card grids render ~390px wide, which would otherwise round up to 640.
+    imageSizes: [32, 48, 64, 96, 128, 256, 384, 400],
     remotePatterns: [
       {
         protocol: "https",

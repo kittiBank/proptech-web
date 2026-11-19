@@ -1,4 +1,5 @@
 import type {
+  GetSessionResponse,
   GetArticleResponse,
   ListArticlesQuery,
   ListArticlesResponse,
@@ -116,7 +117,7 @@ export const api = {
     apiGet<CompareListingsResponse>("/compare", { ids: ids.join(",") }, { signal }),
 
   /** GET /auth/me — the signed-in user; 401 when signed out. */
-  getSession: (signal?: AbortSignal) => apiGet<SessionResponse>("/auth/me", undefined, { signal }),
+  getSession: (signal?: AbortSignal) => apiGet<GetSessionResponse>("/auth/me", undefined, { signal }),
 
   /** POST /auth/login */
   login: (body: LoginRequest) => apiSend<SessionResponse>("POST", "/auth/login", body),
