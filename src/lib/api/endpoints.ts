@@ -1,4 +1,7 @@
 import type {
+  GetArticleResponse,
+  ListArticlesQuery,
+  ListArticlesResponse,
   DraftResponse,
   ListDraftsResponse,
   ListingQuotaResponse,
@@ -76,6 +79,14 @@ export const api = {
       `/projects/${encodeURIComponent(slug)}/viewings`,
       body,
     ),
+
+  /** GET /articles — guide articles, newest first. */
+  listArticles: (query: ListArticlesQuery = {}, signal?: AbortSignal) =>
+    apiGet<ListArticlesResponse>("/articles", { ...query }, { signal }),
+
+  /** GET /articles/:slug — one article with its body. */
+  getArticle: (slug: string, signal?: AbortSignal) =>
+    apiGet<GetArticleResponse>(`/articles/${encodeURIComponent(slug)}`, undefined, { signal }),
 
   /** GET /stations — BTS/MRT stations grouped by line. */
   listStations: (signal?: AbortSignal) => apiGet<ListStationsResponse>("/stations", undefined, { signal }),

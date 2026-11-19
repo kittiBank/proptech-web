@@ -1,5 +1,5 @@
-import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import type { AdPlacement, ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
+import { infiniteQueryOptions, keepPreviousData, queryOptions } from "@tanstack/react-query";
+import type { AdPlacement, ListArticlesQuery, ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
 import { ApiError } from "./client";
 import { api } from "./endpoints";
 
@@ -21,6 +21,12 @@ export const queryKeys = {
     list: (query: ListProjectsQuery) => ["projects", "list", query] as const,
     detail: (slug: string) => ["projects", "detail", slug] as const,
     nearby: (slug: string, limit: number) => ["projects", "nearby", slug, limit] as const,
+  },
+  articles: {
+    all: ["articles"] as const,
+    list: (query: ListArticlesQuery) => ["articles", "list", query] as const,
+    feed: (query: Omit<ListArticlesQuery, "page">) => ["articles", "feed", query] as const,
+    detail: (slug: string) => ["articles", "detail", slug] as const,
   },
   session: ["auth", "session"] as const,
   favorites: ["me", "favorites"] as const,
@@ -81,6 +87,31 @@ export const projectQueries = {
       queryKey: queryKeys.projects.nearby(slug, limit),
       queryFn: ({ signal }) => api.listNearbyProjects(slug, limit, signal),
       staleTime: 5 * MINUTE,
+    }),
+};
+
+export const articleQueries = {
+  list: (query: ListArticlesQuery) =>
+    queryOptions({
+      queryKey: queryKeys.articles.list(query),
+      queryFn: ({ signal }) => api.listArticles(query, signal),
+      staleTime: 10 * MINUTE,
+    }),
+  /** "Load more" feed: each page is appended under the previous one. */
+  feed: (query: Omit<ListArticlesQuery, "page">) =>
+    infiniteQueryOptions({
+      queryKey: queryKeys.articles.feed(query),
+      queryFn: ({ signal, pageParam }) => api.listArticles({ ...query, page: pageParam }, signal),
+      initialPageParam: 1,
+      getNextPageParam: (last) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
+      staleTime: 10 * MINUTE,
+      placeholderData: keepPreviousData,
+    }),
+  detail: (slug: string) =>
+    queryOptions({
+      queryKey: queryKeys.articles.detail(slug),
+      queryFn: ({ signal }) => api.getArticle(slug, signal),
+      staleTime: 10 * MINUTE,
     }),
 };
 

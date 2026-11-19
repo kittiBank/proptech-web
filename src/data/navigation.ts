@@ -1,5 +1,5 @@
 /**
- * Site routes. `/`, `/search`, `/property/[slug]` and `/projects(/[slug])` are implemented; the rest are reserved paths
+ * Site routes. `/`, `/search`, `/property/[slug]`, `/projects(/[slug])`, `/guides(/[slug])` and `/tools/mortgage` are implemented; the rest are reserved paths
  * for upcoming pages and land on the branded not-found page until then.
  */
 export const routes = {
@@ -8,6 +8,9 @@ export const routes = {
   rent: "/rent",
   newProjects: "/projects",
   guides: "/guides",
+  guide: (slug: string) => `/guides/${slug}`,
+  /** Full mortgage calculator; optional params prefill it (see `lib/mortgage.ts`). */
+  mortgageTool: "/tools/mortgage",
   /** `next` = where to go after signing in; `intent` = gated action that opened it (modal copy). */
   login: (params: { next?: string; intent?: string } = {}) => {
     const query = new URLSearchParams(

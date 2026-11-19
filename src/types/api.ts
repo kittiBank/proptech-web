@@ -488,3 +488,72 @@ export interface PublishDraftResponse {
     order?: { id: string; amount: number; promotion: PromotionId };
   };
 }
+
+// ---------------------------------------------------------------------------
+// Guides (articles)
+// ---------------------------------------------------------------------------
+
+export type ArticleCategory = "buying" | "renting" | "selling" | "finance" | "location" | "new-projects";
+
+/** One piece of article body. The CMS stores bodies as blocks so the page can render rich parts (D2). */
+export type ArticleBlock =
+  | { type: "paragraph"; text: string }
+  /** Section heading; `id` is the anchor the table of contents links to. */
+  | { type: "heading"; id: string; text: string }
+  | { type: "list"; items: string[] }
+  | { type: "callout"; tone: "warning" | "tip"; title: string; text: string }
+  /** Inline mortgage estimate, prefilled with these values. */
+  | { type: "calculator"; price: number; downPaymentPct: number; annualRatePct: number; years: number };
+
+/** Listings shown beside an article: a ready-made `GET /properties` filter and its heading. */
+export interface ArticleRelatedListings {
+  title: string;
+  query: Pick<ListPropertiesQuery, "mode" | "type" | "station" | "minPrice" | "maxPrice">;
+}
+
+/** Card fields, as returned by `GET /articles`. */
+export interface ArticleSummaryDto {
+  slug: string;
+  title: string;
+  excerpt: string;
+  category: ArticleCategory;
+  cover: { src: string; alt: string };
+  author: string;
+  readingMinutes: number;
+  /** ISO date. */
+  publishedAt: string;
+  featured: boolean;
+}
+
+export interface ArticleDetailDto extends ArticleSummaryDto {
+  /** Shown under the author, e.g. "ตรวจทานโดยทนายความ". */
+  reviewedBy?: string;
+  /** ISO date. */
+  updatedAt: string;
+  coverCaption?: string;
+  body: ArticleBlock[];
+  related?: ArticleRelatedListings;
+}
+
+/** `GET /articles` query string. */
+export interface ListArticlesQuery {
+  category?: ArticleCategory;
+  /** Free-text search over title and excerpt. */
+  q?: string;
+  featured?: boolean;
+  /** 1-based. Default 1. */
+  page?: number;
+  /** Default 9, max 30. */
+  limit?: number;
+}
+
+/** `GET /articles`, newest first. */
+export type ListArticlesResponse = PaginatedResponse<ArticleSummaryDto>;
+
+/** `GET /articles/:slug` — 404 when the article does not exist. */
+export interface GetArticleResponse {
+  data: ArticleDetailDto;
+}
+
+export const ARTICLES_DEFAULT_LIMIT = 9;
+export const ARTICLES_MAX_LIMIT = 30;
