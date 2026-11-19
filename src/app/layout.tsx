@@ -5,14 +5,23 @@ import "@fontsource/ibm-plex-sans-thai/thai-400.css";
 import "@fontsource/ibm-plex-sans-thai/thai-500.css";
 import "@fontsource/ibm-plex-sans-thai/thai-600.css";
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "PropertyHub — ซื้อ ขาย เช่า บ้านและคอนโดในกรุงเทพฯ",
-    template: "%s | PropertyHub",
+    default: `${SITE_NAME} — ซื้อ ขาย เช่า บ้านและคอนโดในกรุงเทพฯ`,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "ค้นหาบ้าน คอนโด ทาวน์โฮม ที่ดิน และอาคารพาณิชย์กว่า 96,000 ประกาศทั่วกรุงเทพฯ พร้อมระยะเดินถึง BTS และ MRT",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "th_TH",
+  },
+  twitter: { card: "summary_large_image" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

@@ -5,6 +5,7 @@ import { SearchSkeleton, SearchView } from "@/components/search/search-view";
 export const metadata: Metadata = {
   title: "ค้นหาประกาศ",
   description: "ค้นหาบ้าน คอนโด ทาวน์โฮม ที่ดิน และอาคารพาณิชย์ในกรุงเทพฯ กรองตามราคา ขนาด ห้องนอน และสถานี BTS/MRT",
+  alternates: { canonical: "/search" },
 };
 
 /**

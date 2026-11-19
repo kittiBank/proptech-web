@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "โครงการใหม่",
   description:
     "โครงการคอนโด บ้านเดี่ยว และทาวน์โฮมใหม่ในกรุงเทพฯ และปริมณฑล ราคาเริ่มต้น แบบห้อง และความคืบหน้าก่อสร้าง",
+  alternates: { canonical: "/projects" },
 };
 
 /**
