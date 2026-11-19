@@ -3,6 +3,7 @@ import { http, HttpResponse, type HttpResponseResolver } from "msw/http";
 import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
 import {
+  ARTICLES_MAX_LIMIT,
   NEARBY_MAX_LIMIT,
   PROJECTS_MAX_LIMIT,
   PROPERTIES_MAX_LIMIT,
@@ -24,6 +25,8 @@ import {
   type SessionResponse,
   type VerifyEmailRequest,
   type UpdateFavoriteRequest,
+  type ArticleCategory,
+  type ListArticlesQuery,
   type ListProjectsQuery,
   type ListPropertiesQuery,
   type ProjectSort,
@@ -44,6 +47,7 @@ import {
   queryProperties,
   queryStations,
 } from "./db";
+import { getArticle, queryArticles } from "./articles";
 import {
   checkPhoto,
   createDraft,
@@ -80,6 +84,7 @@ const projectStatuses: ProjectStatus[] = ["pre-sale", "under-construction", "rea
 const projectTypes: ProjectType[] = ["condo", "house", "townhouse"];
 const projectSorts: ProjectSort[] = ["-launchedAt", "startingPrice", "-startingPrice", "completionYear"];
 const transitLineIds: TransitLineId[] = ["bts-sukhumvit", "bts-silom", "mrt-blue"];
+const articleCategoryIds: ArticleCategory[] = ["buying", "renting", "selling", "finance", "location", "new-projects"];
 
 const statusText: Record<number, string> = {
   400: "Bad Request",
@@ -197,6 +202,20 @@ export function parseProjectsQuery(params: URLSearchParams): ListProjectsQuery {
     sort: oneOf("sort", projectSorts),
     page: int("page", { min: 1 }),
     limit: int("limit", { min: 1, max: PROJECTS_MAX_LIMIT }),
+  };
+  done();
+  return query;
+}
+
+/** Parses and validates the `GET /articles` query. */
+export function parseArticlesQuery(params: URLSearchParams): ListArticlesQuery {
+  const { oneOf, int, bool, done } = queryReader(params);
+  const query: ListArticlesQuery = {
+    category: oneOf("category", articleCategoryIds),
+    q: params.get("q")?.trim() || undefined,
+    featured: bool("featured"),
+    page: int("page", { min: 1 }),
+    limit: int("limit", { min: 1, max: ARTICLES_MAX_LIMIT }),
   };
   done();
   return query;
@@ -540,6 +559,19 @@ export const handlers = [
         throw new ValidationError([`ids must list 1 to ${COMPARE_MAX} listing ids`]);
       }
       return compareListings([...new Set(ids)]);
+    }),
+  ),
+  // --- Guides ------------------------------------------------------------
+  http.get(
+    endpoint("/articles"),
+    withScenario((request) => queryArticles(parseArticlesQuery(new URL(request.url).searchParams))),
+  ),
+  http.get(
+    endpoint("/articles/:slug"),
+    withScenario((_request, params) => {
+      const article = getArticle(String(params.slug));
+      if (!article) throw new NotFoundError(`Article "${String(params.slug)}" not found`);
+      return { data: article };
     }),
   ),
   http.get(endpoint("/stations"), withScenario(queryStations)),
