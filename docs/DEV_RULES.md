@@ -9,7 +9,7 @@ Short rules for anyone working on this repo, people and AI agents alike. Scope i
 2. **Read before you edit.** Before changing code, read the files you will touch, the nearby code, `README.md`, this file and `docs/DEV_LOG.md`.
    Reuse existing components, helpers and patterns. Do not create duplicates.
 3. **Branch before any edit.** Never edit on `main`.
-4. **Check before handing over.** Run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test:run`. Run `pnpm build` for route or config changes.
+4. **Check before handing over.** Run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test:run`. Run `pnpm build` for route or config changes, and `pnpm build && pnpm e2e` for UI changes.
 5. **Hand over and do not commit.** The owner reviews, commits and opens the PR by hand.
    AI agents leave changes uncommitted and suggest commit message(s), with which files go in each.
 6. **Log it.** Add a row to `docs/DEV_LOG.md` when the issue is done.
@@ -94,6 +94,7 @@ src/
 
 - Unit test pure logic in `lib/`. Add component tests for key interactions.
 - Use `renderWithClient` from `src/test/render.tsx`. MSW node handlers run automatically, and `failingHandler` tests error states.
+- Browser tests live in `e2e/` (Playwright + axe). Add a page to `e2e/a11y.spec.ts` when you add a route; select by role and label, as users do.
 
 ## 6. Backend and infra
 

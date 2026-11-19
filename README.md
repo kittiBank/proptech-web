@@ -35,9 +35,11 @@ pnpm test            # Vitest in watch mode (test:run runs once)
 pnpm build           # production build
 pnpm start           # serve the production build
 pnpm check:images    # confirm every mock photo URL still loads
+pnpm e2e             # Playwright: main path, axe WCAG 2.1 AA scans, keyboard (run `pnpm build` first)
+pnpm e2e:ui          # same, in the Playwright UI
 ```
 
-CI (`.github/workflows/ci.yml`) runs format check, lint, type check, tests and build on every pull request.
+CI (`.github/workflows/ci.yml`) runs format check, lint, type check, tests and build on every pull request, plus a second job with the Playwright E2E and accessibility suite (`e2e/`) on desktop and mobile Chromium. Install the browser once locally with `pnpm exec playwright install chromium`.
 
 ## Project layout
 

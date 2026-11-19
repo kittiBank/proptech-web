@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Prefetched } from "@/components/query/prefetched";
 import { SearchSkeleton, SearchView } from "@/components/search/search-view";
 import { queryKeys } from "@/lib/api/queries";
@@ -10,6 +11,9 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 /** The view with the first page of results already in the query cache (same key as `SearchView`). */
 async function ServerRenderedSearch({ searchParams }: Props) {
+  // Request-time only: the mock read is synchronous and seeding the cache stamps `Date.now()`,
+  // which Cache Components rejects during prerendering (e.g. on client navigation).
+  await connection();
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(await searchParams)) {
     for (const v of Array.isArray(value) ? value : value === undefined ? [] : [value]) params.append(key, v);

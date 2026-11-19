@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Prefetched } from "@/components/query/prefetched";
 import { JsonLd } from "@/components/seo/json-ld";
 import { PropertyDetailSkeleton } from "@/components/listing/property-detail-skeleton";
@@ -51,6 +52,9 @@ async function StructuredData({ params }: Props) {
 
 /** The view with the listing already in the query cache, so the photo and text are in the HTML. */
 async function ServerRenderedListing({ params }: Props) {
+  // Request-time only: the mock read is synchronous and seeding the cache stamps `Date.now()`,
+  // which Cache Components rejects during prerendering (e.g. on client navigation).
+  await connection();
   const { slug } = await params;
   const item = await getPropertyForSeo(slug);
   return (
