@@ -7,6 +7,8 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 | Date done  | Issue | Ticket | Summary                                               | Branch / PR                            | Status | Note                                                   |
 | ---------- | ----- | ------ | ----------------------------------------------------- | -------------------------------------- | ------ | ------------------------------------------------------ |
+| 2026-11-19 | —     | —      | Fix CI: Prettier format of `docs/design-handoff.md`   | `fix/ci-format-check`                  | done   | CI was red on main since PR #27                        |
+| 2026-11-19 | —     | —      | Dev log, dev rules, CLAUDE.md                         | `docs/dev-log-and-rules` / PR #28      | merged |                                                        |
 | 2026-11-18 | #8    | FE-7   | Post listing wizard `/post`: 5 steps, preview, drafts | `feat/fe4-fe8` / PR #27                | merged | Issue #8 still open on GitHub, close it                |
 | 2026-11-18 | #7    | FE-6   | Auth UI: login, register, recovery, onboarding, modal | `feat/fe4-fe8` / PR #27                | merged |                                                        |
 | 2026-11-18 | #6    | FE-5   | Favorites `/account/favorites` + `/compare`           | `feat/fe4-fe8` / PR #27                | merged |                                                        |
