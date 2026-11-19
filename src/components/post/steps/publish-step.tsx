@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useId } from "react";
 import { RadioCard } from "@/components/ui/choice";
-import { Field, fieldA11y, NativeSelect, TextField } from "@/components/ui/field";
+import { Field, fieldA11y, NativeSelect } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/query-state";
 import { Switch } from "@/components/ui/switch";
 import { propertyTypeLabels } from "@/data/catalog";
@@ -14,7 +14,8 @@ import { formatNumber } from "@/lib/format";
 import { promotionCatalog } from "@/lib/post-wizard";
 import { cn } from "@/lib/utils";
 import type { DraftValues } from "@/types/api";
-import { GroupError, req, toNumber, WizardCard, type StepProps } from "./shared";
+import { NumberField } from "./number-field";
+import { GroupError, req, WizardCard, type StepProps } from "./shared";
 
 const percentile = (sorted: number[], p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
 
@@ -141,13 +142,13 @@ export function PublishStep({ draftId, values, set, errors, touch }: StepProps) 
         <div className="grid gap-4 sm:grid-cols-2">
           {sale && (
             <div id="field-price" className="scroll-mt-40">
-              <TextField
+              <NumberField
                 id={`${id}-price`}
                 label={<>ราคาขาย{req}</>}
                 suffix="฿"
-                inputMode="numeric"
-                value={values.price ? formatNumber(values.price) : ""}
-                onChange={(e) => set({ price: toNumber(e.target.value) })}
+                grouped
+                value={values.price}
+                onValue={(price) => set({ price })}
                 onBlur={() => touch("price")}
                 error={errors.price}
                 hint={perSqm ? `ราคาต่อ ตร.ม. ฿${formatNumber(perSqm)}` : undefined}
@@ -156,26 +157,26 @@ export function PublishStep({ draftId, values, set, errors, touch }: StepProps) 
           )}
           {rent && (
             <div id="field-rentPrice" className="scroll-mt-40">
-              <TextField
+              <NumberField
                 id={`${id}-rent`}
                 label={<>ค่าเช่าต่อเดือน{req}</>}
                 suffix="฿"
-                inputMode="numeric"
-                value={values.rentPrice ? formatNumber(values.rentPrice) : ""}
-                onChange={(e) => set({ rentPrice: toNumber(e.target.value) })}
+                grouped
+                value={values.rentPrice}
+                onValue={(rentPrice) => set({ rentPrice })}
                 onBlur={() => touch("rentPrice")}
                 error={errors.rentPrice}
               />
             </div>
           )}
           {values.propertyType === "condo" && (
-            <TextField
+            <NumberField
               id={`${id}-fee`}
               label="ค่าส่วนกลาง"
               suffix="฿/เดือน"
-              inputMode="numeric"
-              value={values.commonFee ? formatNumber(values.commonFee) : ""}
-              onChange={(e) => set({ commonFee: toNumber(e.target.value) })}
+              grouped
+              value={values.commonFee}
+              onValue={(commonFee) => set({ commonFee })}
             />
           )}
         </div>

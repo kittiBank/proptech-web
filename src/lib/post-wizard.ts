@@ -38,12 +38,20 @@ export const MIN_PHOTO_WIDTH = 1200;
 export const TITLE_MAX = 80;
 export const DESCRIPTION_MIN = 100;
 export const MAX_STATIONS = 3;
+/** Sanity floors for prices (THB). Working defaults, not from the design; adjust with the business. */
+export const MIN_SALE_PRICE = 100_000;
+export const MIN_RENT_PRICE = 1_000;
 /** Free listings an owner can have live at once (design handoff §6). */
 export const FREE_LISTING_LIMIT = 2;
 
+/** Thai digits (๐–๙) as 0–9, so rules about numbers also catch them. */
+const arabicDigits = (text: string) => text.replace(/[๐-๙]/g, (d) => String(d.charCodeAt(0) - 0x0e50));
+
 /** Phone numbers and LINE IDs belong in the contact buttons, not the title. */
 const hasContact = (text: string) =>
-  /0\d{8,9}/.test(text.replace(/[\s.-]/g, "")) || /line\s*(id)?\s*[:@]|@\w{3,}/i.test(text);
+  /0\d{8,9}/.test(arabicDigits(text).replace(/[\s.-]/g, "")) || /line\s*(id)?\s*[:@]|@\w{3,}/i.test(text);
+
+const isWhole = (n: number) => Number.isInteger(n) && n > 0;
 
 const currentBuddhistYear = new Date().getFullYear() + 543;
 
@@ -76,9 +84,14 @@ const detailsCheck: Check = (v) => {
   if (hasRooms(v) && v.bedrooms === undefined) issues.push(["bedrooms", "เลือกจำนวนห้องนอน"]);
   if (v.propertyType !== "land" && v.bathrooms === undefined) issues.push(["bathrooms", "เลือกจำนวนห้องน้ำ"]);
   if (!v.area || v.area <= 0) issues.push(["area", v.propertyType === "land" ? "กรอกขนาดที่ดิน" : "กรอกพื้นที่ใช้สอย"]);
-  if (isCondo(v) && !v.floor) issues.push(["floor", "กรอกชั้นที่ห้องตั้งอยู่"]);
+  if (isCondo(v) && v.floor === undefined) issues.push(["floor", "กรอกชั้นที่ห้องตั้งอยู่"]);
+  if (v.floor !== undefined && !isWhole(v.floor)) issues.push(["floor", "กรอกเลขชั้นเป็นจำนวนเต็มตั้งแต่ 1"]);
   if (v.floor && v.totalFloors && v.floor > v.totalFloors)
     issues.push(["floor", `ชั้นต้องไม่เกินจำนวนชั้นของอาคาร (${v.totalFloors})`]);
+  if (v.totalFloors !== undefined && !isWhole(v.totalFloors))
+    issues.push(["totalFloors", "กรอกจำนวนชั้นเป็นจำนวนเต็มตั้งแต่ 1"]);
+  if (v.parking !== undefined && !Number.isInteger(v.parking))
+    issues.push(["parking", "กรอกจำนวนที่จอดรถเป็นจำนวนเต็ม"]);
   if (v.yearBuilt && (v.yearBuilt < 2400 || v.yearBuilt > currentBuddhistYear + 5))
     issues.push(["yearBuilt", "กรอกปี พ.ศ. เช่น 2563"]);
   const title = v.title?.trim() ?? "";
@@ -107,8 +120,16 @@ const photosCheck: Check = (v) => {
 
 const publishCheck: Check = (v) => {
   const issues: ReturnType<Check> = [];
-  if (v.deal !== "rent" && !v.price) issues.push(["price", "กรอกราคาขาย"]);
-  if (v.deal !== "sale" && !v.rentPrice) issues.push(["rentPrice", "กรอกค่าเช่าต่อเดือน"]);
+  if (v.deal !== "rent") {
+    if (!v.price) issues.push(["price", "กรอกราคาขาย"]);
+    else if (v.price < MIN_SALE_PRICE)
+      issues.push(["price", `ราคาขายต้องไม่ต่ำกว่า ฿${MIN_SALE_PRICE.toLocaleString("th-TH")}`]);
+  }
+  if (v.deal !== "sale") {
+    if (!v.rentPrice) issues.push(["rentPrice", "กรอกค่าเช่าต่อเดือน"]);
+    else if (v.rentPrice < MIN_RENT_PRICE)
+      issues.push(["rentPrice", `ค่าเช่าต้องไม่ต่ำกว่า ฿${MIN_RENT_PRICE.toLocaleString("th-TH")} ต่อเดือน`]);
+  }
   if (!v.confirmed) issues.push(["confirmed", "ยืนยันข้อมูลและยอมรับกฎการลงประกาศก่อนเผยแพร่"]);
   return issues;
 };

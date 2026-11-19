@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DraftPhoto, DraftValues } from "@/types/api";
-import { defaultDraftValues, draftDescription, reachableSteps, stepErrors } from "./post-wizard";
+import { defaultDraftValues, draftDescription, MIN_SALE_PRICE, reachableSteps, stepErrors } from "./post-wizard";
 
 const v = (over: Partial<DraftValues>): DraftValues => ({ ...defaultDraftValues, ...over });
 const photo = (i: number, status: DraftPhoto["status"] = "ready"): DraftPhoto => ({
@@ -67,4 +67,39 @@ it("drafts a description from the entered data", () => {
   expect(text).toContain("2 ห้องนอน");
   expect(text).toContain("BTS พร้อมพงษ์");
   expect(text.length).toBeGreaterThan(100);
+});
+
+describe("number and price rules", () => {
+  const condo = {
+    propertyType: "condo" as const,
+    bedrooms: 1,
+    bathrooms: 1,
+    area: 35,
+    title: "1 ห้องนอน ใกล้ BTS",
+    description: "ก".repeat(120),
+  };
+
+  it("rejects a floor below 1 or a fraction", () => {
+    expect(stepErrors("details", { ...defaultDraftValues, ...condo, floor: -3 }).floor).toMatch(/จำนวนเต็มตั้งแต่ 1/);
+    expect(stepErrors("details", { ...defaultDraftValues, ...condo, floor: 0 }).floor).toMatch(/จำนวนเต็มตั้งแต่ 1/);
+    expect(stepErrors("details", { ...defaultDraftValues, ...condo, floor: 2.5 }).floor).toMatch(/จำนวนเต็ม/);
+    expect(stepErrors("details", { ...defaultDraftValues, ...condo, floor: 12 }).floor).toBeUndefined();
+  });
+
+  it("catches a phone number written in Thai digits", () => {
+    const errors = stepErrors("details", {
+      ...defaultDraftValues,
+      ...condo,
+      floor: 3,
+      title: "ขายคอนโด โทร ๐๘๑๒๓๔๕๖๗๘",
+    });
+    expect(errors.title).toBe("ห้ามใส่เบอร์โทรหรือ LINE ID ในหัวข้อ");
+  });
+
+  it("sets a floor for sale and rent prices", () => {
+    const base = { ...defaultDraftValues, confirmed: true };
+    expect(stepErrors("publish", { ...base, price: 1 }).price).toMatch(/ไม่ต่ำกว่า/);
+    expect(stepErrors("publish", { ...base, price: MIN_SALE_PRICE }).price).toBeUndefined();
+    expect(stepErrors("publish", { ...base, deal: "rent", rentPrice: 500 }).rentPrice).toMatch(/ไม่ต่ำกว่า/);
+  });
 });

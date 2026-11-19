@@ -179,6 +179,8 @@ export const draftQueries = {
       queryFn: ({ signal }) => api.getDraft(id, signal),
       // The wizard owns the live copy; refetching would overwrite unsaved edits.
       staleTime: Infinity,
+      // Store the editor's object as-is, so it can recognise its own writes (see `useDraftEditor`).
+      structuralSharing: false,
       refetchOnMount: false,
     }),
   submission: (id: string) =>
