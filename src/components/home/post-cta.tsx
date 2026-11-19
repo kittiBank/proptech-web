@@ -20,7 +20,7 @@ export function PostCta() {
               <br />
               ที่อยากขายหรือปล่อยเช่า
             </h2>
-            <p className="max-w-[44ch] text-[17px] leading-relaxed text-white/85">
+            <p className="max-w-[44ch] text-[17px] leading-relaxed text-white">
               เจ้าของลงประกาศได้ฟรี 3 ประกาศ นายหน้าจัดการหลายประกาศพร้อมกันและดูสถิติผู้เข้าชมได้จากแดชบอร์ดเดียว
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">

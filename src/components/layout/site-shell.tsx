@@ -3,6 +3,7 @@ import { HomeSearchProvider } from "@/providers/home-search-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { SkipLink } from "./skip-link";
 
 /**
  * Page chrome shared by every public page: skip link, header, main landmark,
@@ -18,12 +19,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <HomeSearchProvider>
-        <a
-          href="#main"
-          className="sr-only z-50 rounded-md bg-ink px-4 py-3 text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
-        >
-          ข้ามไปยังเนื้อหาหลัก
-        </a>
+        <SkipLink />
         <SiteHeader />
         <main id="main" className="flex-1">
           {children}

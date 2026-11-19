@@ -34,6 +34,7 @@ import { PhotosStep } from "./steps/photos-step";
 import { PublishStep } from "./steps/publish-step";
 import type { StepProps } from "./steps/shared";
 import { TypeStep } from "./steps/type-step";
+import { SkipLink } from "@/components/layout/skip-link";
 import { MobileStepper, Stepper } from "./stepper";
 import { useDraftEditor, type SaveState } from "./use-draft-editor";
 
@@ -304,6 +305,7 @@ function Wizard({ draft, step }: { draft: DraftDto; step: PostStep }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-mist">
+      <SkipLink />
       <header className="sticky top-0 z-30 border-b border-line bg-white">
         <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-3 px-2 sm:h-16 sm:gap-4 sm:px-8">
           {back ? (
