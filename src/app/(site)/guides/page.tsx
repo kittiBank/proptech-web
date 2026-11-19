@@ -5,6 +5,7 @@ import { GuidesSkeleton, GuidesView } from "@/components/guides/guides-view";
 export const metadata: Metadata = {
   title: "บทความ & คู่มือ",
   description: "คู่มือซื้อ เช่า ขายบ้านและคอนโด สินเชื่อ ภาษี และทำเลรถไฟฟ้า พร้อมเครื่องมือคำนวณค่างวด",
+  alternates: { canonical: "/guides" },
 };
 
 /**

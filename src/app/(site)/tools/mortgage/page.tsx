@@ -5,6 +5,7 @@ import { MortgageTool } from "@/components/guides/mortgage-tool";
 export const metadata: Metadata = {
   title: "คำนวณค่างวดผ่อนบ้าน",
   description: "คำนวณค่างวดผ่อนบ้านและคอนโดต่อเดือน วงเงินกู้ ดอกเบี้ยรวม และรายได้ขั้นต่ำที่ธนาคารอยากเห็น",
+  alternates: { canonical: "/tools/mortgage" },
 };
 
 /**
