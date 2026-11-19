@@ -1,5 +1,7 @@
 import { cache } from "react";
 import type {
+  ListPropertiesQuery,
+  ListPropertiesResponse,
   ArticleDetailDto,
   GetArticleResponse,
   GetProjectResponse,
@@ -9,8 +11,8 @@ import type {
 } from "@/types/api";
 
 /**
- * Server-side reads for metadata, JSON-LD and the sitemap (the pages
- * themselves still load data in the browser through TanStack Query).
+ * Server-side reads for metadata, JSON-LD, the sitemap and the first render of
+ * key pages (seeded into TanStack Query; later updates still load in the browser).
  *
  * - NEXT_PUBLIC_API_URL set   → fetch the NestJS API.
  * - NEXT_PUBLIC_API_URL unset → read the same in-memory data MSW serves, so
@@ -40,6 +42,21 @@ export const getProjectForSeo = cache(async (slug: string): Promise<ProjectDetai
 export const getArticleForSeo = cache(async (slug: string): Promise<ArticleDetailDto | undefined> => {
   if (API_URL) return fetchDetail<GetArticleResponse["data"]>(`/articles/${encodeURIComponent(slug)}`);
   return (await import("@/mocks/articles")).getArticle(slug);
+});
+
+/** `GET /properties` for the first server render of a list (see `components/query/prefetched.tsx`). */
+export const listPropertiesForSsr = cache(async (query: ListPropertiesQuery): Promise<ListPropertiesResponse> => {
+  if (API_URL) {
+    const params = new URLSearchParams(
+      Object.entries(query)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, String(v)]),
+    );
+    const res = await fetch(`${API_URL}/properties?${params}`, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`GET /properties failed with ${res.status}`);
+    return (await res.json()) as ListPropertiesResponse;
+  }
+  return (await import("@/mocks/db")).queryProperties(query);
 });
 
 interface SitemapEntry {

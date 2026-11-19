@@ -296,16 +296,16 @@ describe("GET /compare", () => {
 
 describe("auth", () => {
   it("logs in, reads the session and logs out", async () => {
-    await expect(api.getSession()).rejects.toMatchObject({ status: 401 });
+    expect((await api.getSession()).data).toBeNull();
     await expect(api.login({ email: DEMO_ACCOUNT.email, password: "wrong", remember: true })).rejects.toMatchObject({
       status: 401,
     });
     const { data } = await api.login({ ...DEMO_ACCOUNT, remember: true });
     expect(data).toMatchObject({ firstName: "สมหญิง", emailVerified: true });
     expect(data).not.toHaveProperty("password");
-    expect((await api.getSession()).data.id).toBe(data.id);
+    expect((await api.getSession()).data?.id).toBe(data.id);
     await api.logout();
-    await expect(api.getSession()).rejects.toMatchObject({ status: 401 });
+    expect((await api.getSession()).data).toBeNull();
   });
 
   it("registers, verifies the email and onboards", async () => {
@@ -333,7 +333,7 @@ describe("auth", () => {
     await api.forgotPassword({ email: DEMO_ACCOUNT.email });
     await expect(api.resetPassword({ token: "bad", password: "newpass123" })).rejects.toMatchObject({ status: 400 });
     await api.resetPassword({ token: MOCK_RESET_TOKEN, password: "newpass123" });
-    await expect(api.getSession()).rejects.toMatchObject({ status: 401 });
+    expect((await api.getSession()).data).toBeNull();
     await expect(api.login({ ...DEMO_ACCOUNT, remember: true })).rejects.toMatchObject({ status: 401 });
     expect((await api.login({ email: DEMO_ACCOUNT.email, password: "newpass123", remember: true })).data.email).toBe(
       DEMO_ACCOUNT.email,

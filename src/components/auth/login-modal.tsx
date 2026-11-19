@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarCheck, Heart, LogIn, Mail, MessageCircle } from "lucide-react";
 import { PropertyPhoto } from "@/components/property/property-photo";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -55,11 +55,28 @@ export function LoginModal() {
 
   const close = () => router.back();
 
+  // Opened by navigation, not a Radix trigger, so Radix has nothing to hand focus back to.
+  // Remember what had focus (e.g. the header link) and restore it once the modal is gone.
+  const [opener] = useState(() =>
+    typeof document === "undefined" ? null : (document.activeElement as HTMLElement | null),
+  );
+  useEffect(
+    () => () => {
+      // After the route change settles; skip if the opener left the page.
+      window.setTimeout(() => {
+        if (opener?.isConnected && opener !== document.body) opener.focus();
+      });
+    },
+    [opener],
+  );
+
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent
         className="overflow-y-auto px-6 pt-8 pb-7 sm:w-[480px] sm:px-8"
         aria-describedby="login-modal-desc"
+        // Focus is restored by the unmount effect above.
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <span className="mx-auto inline-flex size-[52px] items-center justify-center rounded-full bg-brand-soft text-brand">
           <Icon className={`size-6 ${intent === "favorite" ? "fill-brand" : ""}`} aria-hidden="true" />

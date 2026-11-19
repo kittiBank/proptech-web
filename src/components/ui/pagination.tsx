@@ -38,10 +38,10 @@ export function Pagination({ page, pageCount, onPageChange, className, label = "
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
         className={cn(itemBase, "gap-1 text-ink hover:bg-mist")}
-        aria-label="หน้าก่อนหน้า"
       >
         <ChevronLeft className="size-5" aria-hidden="true" />
-        <span className="hidden sm:inline">ก่อนหน้า</span>
+        {/* Visible from sm up; on phones it still names the icon button for screen readers. */}
+        <span className="sr-only sm:not-sr-only">ก่อนหน้า</span>
       </button>
 
       <ul className="flex items-center gap-1">
@@ -71,9 +71,8 @@ export function Pagination({ page, pageCount, onPageChange, className, label = "
         onClick={() => onPageChange(page + 1)}
         disabled={page === pageCount}
         className={cn(itemBase, "gap-1 text-ink hover:bg-mist")}
-        aria-label="หน้าถัดไป"
       >
-        <span className="hidden sm:inline">ถัดไป</span>
+        <span className="sr-only sm:not-sr-only">ถัดไป</span>
         <ChevronRight className="size-5" aria-hidden="true" />
       </button>
     </nav>

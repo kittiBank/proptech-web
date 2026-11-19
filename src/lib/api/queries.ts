@@ -154,7 +154,7 @@ export const compareQuery = (ids: string[]) =>
     enabled: ids.length > 0,
   });
 
-/** The signed-in user, or `null` when signed out (a 401 is an answer, not an error). */
+/** The signed-in user, or `null` when signed out. A 401 is also read as signed out, for older API builds. */
 export const sessionQuery = queryOptions({
   queryKey: queryKeys.session,
   queryFn: async ({ signal }) => {

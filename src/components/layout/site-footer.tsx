@@ -48,6 +48,8 @@ export function SiteFooter() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
+                      // Many footer pages are not built yet; prefetching them logs 404s and wastes bandwidth.
+                      prefetch={false}
                       className="inline-flex min-h-9 items-center text-[15px] text-white/70 hover:text-white"
                     >
                       {link.label}

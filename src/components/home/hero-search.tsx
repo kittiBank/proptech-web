@@ -6,7 +6,7 @@ import { House, KeyRound, MapPin, Search, X } from "lucide-react";
 import { PriceOptions, priceLabel, StationOptions, TypeOptions } from "@/components/search/search-options";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup } from "radix-ui";
 import { popularSearches } from "@/data/catalog";
 import { categoriesQuery } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
@@ -19,7 +19,7 @@ const fieldClass =
 
 /** Segmented Buy/Rent toggle inside the panel; the selected option is a white chip on the mist track. */
 const toggleClass =
-  "inline-flex h-9 min-w-[96px] items-center justify-center gap-1.5 rounded-sm px-4 text-[15px] font-medium text-slate transition-colors after:hidden hover:text-ink data-[state=active]:bg-white data-[state=active]:text-ink data-[state=active]:ring-1 data-[state=active]:ring-line-strong data-[state=active]:[&_svg]:text-brand";
+  "inline-flex h-9 min-w-[96px] items-center justify-center gap-1.5 rounded-sm px-4 text-[15px] font-medium text-slate transition-colors after:hidden hover:text-ink data-[state=on]:bg-white data-[state=on]:text-ink data-[state=on]:ring-1 data-[state=on]:ring-line-strong data-[state=on]:[&_svg]:text-brand";
 
 /** Sale/rent split of the category totals; replaced by API facets later. */
 function toListingTotals(categories: PropertyCategory[]): Record<ListingMode, number> {
@@ -44,37 +44,40 @@ export function HeroSearch() {
         }}
         className="rounded-lg bg-white"
       >
-        <Tabs value={draft.mode} onValueChange={(v) => setDraft({ mode: v as ListingMode })}>
-          <div className="flex items-center justify-between gap-4 border-b border-line px-3 py-2.5 sm:px-4">
-            <TabsList
-              aria-label="ต้องการซื้อหรือเช่า"
-              className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1 rounded-md bg-mist p-1 sm:inline-flex sm:flex-none"
-            >
-              <TabsTrigger value="buy" className={toggleClass}>
-                <House aria-hidden="true" className="size-4" />
-                ซื้อ
-              </TabsTrigger>
-              <TabsTrigger value="rent" className={toggleClass}>
-                <KeyRound aria-hidden="true" className="size-4" />
-                เช่า
-              </TabsTrigger>
-            </TabsList>
-            <div className="flex items-center gap-4">
-              {listingTotals && (
-                <p className="hidden text-sm text-slate md:block" aria-live="polite">
-                  {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
-                  <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
-                  รายการ
-                </p>
-              )}
-              {/* Always rendered so the row does not shift; disabled while there is nothing to clear. */}
-              <Button type="button" variant="ghost" size="sm" onClick={clearFilters} disabled={!canClear}>
-                <X aria-hidden="true" />
-                ล้างตัวกรอง
-              </Button>
-            </div>
+        <div className="flex items-center justify-between gap-4 border-b border-line px-3 py-2.5 sm:px-4">
+          {/* A filter switch, not tabs: there are no tab panels, so it is a radio group (arrow keys move between). */}
+          <ToggleGroup.Root
+            type="single"
+            value={draft.mode}
+            // Ignore the "deselect" that a single toggle group sends when the active item is pressed again.
+            onValueChange={(v) => v && setDraft({ mode: v as ListingMode })}
+            aria-label="ต้องการซื้อหรือเช่า"
+            className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1 rounded-md bg-mist p-1 sm:inline-flex sm:flex-none"
+          >
+            <ToggleGroup.Item value="buy" className={toggleClass}>
+              <House aria-hidden="true" className="size-4" />
+              ซื้อ
+            </ToggleGroup.Item>
+            <ToggleGroup.Item value="rent" className={toggleClass}>
+              <KeyRound aria-hidden="true" className="size-4" />
+              เช่า
+            </ToggleGroup.Item>
+          </ToggleGroup.Root>
+          <div className="flex items-center gap-4">
+            {listingTotals && (
+              <p className="hidden text-sm text-slate md:block" aria-live="polite">
+                {draft.mode === "buy" ? "ประกาศขาย" : "ประกาศเช่า"}{" "}
+                <span className="font-medium text-ink tabular-nums">{formatNumber(listingTotals[draft.mode])}</span>{" "}
+                รายการ
+              </p>
+            )}
+            {/* Always rendered so the row does not shift; disabled while there is nothing to clear. */}
+            <Button type="button" variant="ghost" size="sm" onClick={clearFilters} disabled={!canClear}>
+              <X aria-hidden="true" />
+              ล้างตัวกรอง
+            </Button>
           </div>
-        </Tabs>
+        </div>
 
         <div className="grid md:grid-cols-2 md:items-stretch lg:grid-cols-[1.35fr_1.25fr_1fr_1fr_auto]">
           <label className={fieldClass}>

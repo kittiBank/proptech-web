@@ -185,9 +185,11 @@ export function LocationMap({ location, title }: { location: PropertyDetail["loc
           type="button"
           onClick={() => setOpen(true)}
           className="group block aspect-[4/3] w-full sm:aspect-[800/420]"
-          aria-label="เปิดแผนที่แบบเต็ม"
         >
-          <SchematicMap point={point} nearest={stations[0]} />
+          {/* Decorative preview: the button is named by its visible label below. */}
+          <span aria-hidden="true" className="contents">
+            <SchematicMap point={point} nearest={stations[0]} />
+          </span>
           <span className="absolute bottom-3 left-3 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-medium text-white transition-colors group-hover:bg-brand">
             <Maximize2 className="size-4" aria-hidden="true" />
             ดูแผนที่แบบเต็ม
