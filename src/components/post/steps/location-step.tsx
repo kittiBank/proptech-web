@@ -26,9 +26,11 @@ function ProjectSearch({ values, set }: Pick<StepProps, "values" | "set">) {
   const [query, setQuery] = useState(values.projectName ?? "");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const { data } = useQuery(projectPlacesQuery(query));
+  const { data, isFetching } = useQuery(projectPlacesQuery(query));
   const results = open && query.trim().length >= 2 ? (data?.data ?? []) : [];
   const showList = open && query.trim().length >= 2;
+  // Until the first answer for this text arrives, say so instead of "not found".
+  const searching = isFetching && results.length === 0;
 
   const pick = (place: ProjectPlace) => {
     setQuery(place.name);
@@ -113,21 +115,27 @@ function ProjectSearch({ values, set }: Pick<StepProps, "values" | "set">) {
               </span>
             </li>
           ))}
-          <li
-            id={`${id}-opt-${results.length}`}
-            role="option"
-            aria-selected={active === results.length}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setOpen(false);
-            }}
-            className={cn(
-              "cursor-pointer border-t border-line px-4 py-3 text-sm text-slate hover:bg-mist",
-              active === results.length && "bg-mist",
-            )}
-          >
-            {results.length ? "ไม่ใช่โครงการเหล่านี้ กรอกที่อยู่เอง" : "ไม่พบโครงการ กรอกที่อยู่เอง"}
-          </li>
+          {searching ? (
+            <li role="option" aria-disabled="true" aria-selected={false} className="px-4 py-3 text-sm text-slate">
+              กำลังค้นหาโครงการ…
+            </li>
+          ) : (
+            <li
+              id={`${id}-opt-${results.length}`}
+              role="option"
+              aria-selected={active === results.length}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setOpen(false);
+              }}
+              className={cn(
+                "cursor-pointer border-t border-line px-4 py-3 text-sm text-slate hover:bg-mist",
+                active === results.length && "bg-mist",
+              )}
+            >
+              {results.length ? "ไม่ใช่โครงการเหล่านี้ กรอกที่อยู่เอง" : "ไม่พบโครงการ กรอกที่อยู่เอง"}
+            </li>
+          )}
         </ul>
       )}
     </div>

@@ -57,9 +57,3 @@ export const req = (
     *
   </span>
 );
-
-/** Number from an input, `undefined` when empty or not a number. */
-export function toNumber(raw: string): number | undefined {
-  const n = Number(raw.replace(/[,\s]/g, ""));
-  return raw.trim() === "" || !Number.isFinite(n) ? undefined : n;
-}

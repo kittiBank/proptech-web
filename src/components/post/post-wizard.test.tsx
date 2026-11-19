@@ -85,15 +85,17 @@ describe("PostWizard", () => {
     expect(await screen.findByText("พบเบอร์โทรในรูป ลบเบอร์หรือใช้รูปอื่น", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByText("รูปปก")).toBeInTheDocument();
     expect(screen.getByText("ผ่านแล้ว 1 รูป ต้องการอีก 4 รูป")).toBeInTheDocument();
-    await waitFor(() => expect(getDraft(USER, id)?.values.photos).toHaveLength(2));
+    // Saved by the 0.8 s auto-save, after the mock upload latency.
+    await waitFor(() => expect(getDraft(USER, id)?.values.photos).toHaveLength(2), { timeout: 3000 });
   });
 
   it("reorders photos and sets a new cover with the keyboard buttons", async () => {
     const user = userEvent.setup();
     const id = openStep("photos", { propertyType: "condo", photos: ready(5) }, ["type", "location", "details"]);
     await user.click(await screen.findByRole("button", { name: "ตั้งรูป 3 เป็นรูปปก" }));
-    await waitFor(() =>
-      expect(getDraft(USER, id)?.values.photos.map((p) => p.id)).toEqual(["p2", "p0", "p1", "p3", "p4"]),
+    await waitFor(
+      () => expect(getDraft(USER, id)?.values.photos.map((p) => p.id)).toEqual(["p2", "p0", "p1", "p3", "p4"]),
+      { timeout: 3000 },
     );
   });
 

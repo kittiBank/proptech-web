@@ -12,7 +12,8 @@ import { stationsQuery } from "@/lib/api/queries";
 import { DESCRIPTION_MIN, draftDescription, TITLE_MAX } from "@/lib/post-wizard";
 import { cn } from "@/lib/utils";
 import type { DraftValues } from "@/types/api";
-import { GroupError, req, toNumber, WizardCard, type StepProps } from "./shared";
+import { NumberField } from "./number-field";
+import { GroupError, req, WizardCard, type StepProps } from "./shared";
 
 const bedroomOptions = [
   { value: 0, label: "สตูดิโอ" },
@@ -98,12 +99,13 @@ export function DetailsStep({ values, set, errors, touch }: StepProps) {
       l.stations.map((s) => [s.stationCode, `${l.id === "mrt-blue" ? "MRT" : "BTS"} ${s.name}`]),
     ),
   );
-  const num = (key: keyof DraftValues & string) => ({
-    value: values[key] === undefined ? "" : String(values[key]),
-    inputMode: "numeric" as const,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => set({ [key]: toNumber(e.target.value) }),
+  type NumberKey = "area" | "floor" | "totalFloors" | "yearBuilt" | "parking";
+  const num = (key: NumberKey, decimal = false) => ({
+    value: values[key],
+    onValue: (n: number | undefined) => set({ [key]: n }),
     onBlur: () => touch(key),
     error: errors[key],
+    decimal,
   });
 
   return (
@@ -132,7 +134,7 @@ export function DetailsStep({ values, set, errors, touch }: StepProps) {
           )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div id="field-area" className="scroll-mt-40">
-              <TextField
+              <NumberField
                 id={`${id}-area`}
                 label={
                   <>
@@ -141,12 +143,12 @@ export function DetailsStep({ values, set, errors, touch }: StepProps) {
                   </>
                 }
                 suffix={type === "land" ? "ตร.ว." : "ตร.ม."}
-                {...num("area")}
+                {...num("area", true)}
               />
             </div>
             {type !== "land" && (
               <div id="field-floor" className="scroll-mt-40">
-                <TextField
+                <NumberField
                   id={`${id}-floor`}
                   label={
                     <>
@@ -159,7 +161,7 @@ export function DetailsStep({ values, set, errors, touch }: StepProps) {
               </div>
             )}
             {isCondo && (
-              <TextField
+              <NumberField
                 id={`${id}-totalFloors`}
                 label="อาคารสูง"
                 suffix="ชั้น"
@@ -184,14 +186,14 @@ export function DetailsStep({ values, set, errors, touch }: StepProps) {
               </Field>
             )}
             {type !== "land" && (
-              <TextField
+              <NumberField
                 id={`${id}-yearBuilt`}
                 label="ปีที่สร้างเสร็จ (พ.ศ.)"
                 placeholder="2563"
                 {...num("yearBuilt")}
               />
             )}
-            {type !== "land" && <TextField id={`${id}-parking`} label="ที่จอดรถ" suffix="คัน" {...num("parking")} />}
+            {type !== "land" && <NumberField id={`${id}-parking`} label="ที่จอดรถ" suffix="คัน" {...num("parking")} />}
           </div>
         </div>
       </WizardCard>

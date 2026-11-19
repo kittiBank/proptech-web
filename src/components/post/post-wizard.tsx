@@ -202,13 +202,16 @@ export function PostWizard() {
       </PostShellMessage>
     );
   }
-  return <Wizard draft={data.data} step={step} />;
+  // One instance per step: touched fields and "show all errors" start fresh on each step,
+  // including when Next restores a hidden copy of an earlier step page.
+  return <Wizard key={step} draft={data.data} step={step} />;
 }
 
-function Wizard({ draft, step }: { draft: DraftDto; step: PostStep }) {
+function Wizard({ draft: cached, step }: { draft: DraftDto; step: PostStep }) {
   const router = useRouter();
   const client = useQueryClient();
-  const { set, markComplete, flush, save, retry } = useDraftEditor(draft);
+  // `draft` is the editor's live copy (synchronous for inputs); `cached` is the query cache's.
+  const { draft, set, markComplete, flush, save, retry } = useDraftEditor(cached);
   const { values, completedSteps } = draft;
   const reachable = reachableSteps(completedSteps);
   const allowed = reachable.includes(step);
@@ -338,7 +341,8 @@ function Wizard({ draft, step }: { draft: DraftDto; step: PostStep }) {
         </div>
         <div className="border-t border-line">
           <div className="mx-auto max-w-[1180px] px-4 py-4 sm:px-8">
-            <div className="hidden overflow-x-auto md:block">
+            {/* Padding (offset by a negative margin) so the scroll box does not clip the current step's halo ring. */}
+            <div className="-m-1.5 hidden overflow-x-auto p-1.5 md:block">
               <Stepper draftId={draft.id} current={step} completed={completedSteps} reachable={reachable} />
             </div>
             <div className="md:hidden">
