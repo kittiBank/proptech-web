@@ -1,13 +1,14 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { HomeSearchProvider } from "@/providers/home-search-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { BottomNav } from "./bottom-nav";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 import { SkipLink } from "./skip-link";
 
 /**
  * Page chrome shared by every public page: skip link, header, main landmark,
- * footer. Used by `app/(site)/layout.tsx` and by the root `not-found.tsx`
+ * footer and the phone bottom nav. Used by `app/(site)/layout.tsx` and by the root `not-found.tsx`
  * (unmatched URLs render outside any route group, so they need it directly).
  *
  * QueryProvider holds the TanStack Query cache for every page's API data.
@@ -25,6 +26,10 @@ export function SiteShell({ children }: { children: ReactNode }) {
           {children}
         </main>
         <SiteFooter />
+        {/* Reads the pathname, which prerendering cannot know; it renders on the client. */}
+        <Suspense>
+          <BottomNav />
+        </Suspense>
       </HomeSearchProvider>
     </QueryProvider>
   );

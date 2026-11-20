@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FilterPanel } from "./filter-panel";
 import { FilterSheet } from "./filter-sheet";
+import { NoResults } from "./no-results";
 import { SearchBar } from "./search-bar";
 import { useSearchState } from "./use-search-state";
 
@@ -200,12 +201,11 @@ export function SearchView() {
           ) : isError ? (
             <QueryError what="ผลการค้นหา" onRetry={() => refetch()} retrying={isFetching} className="mt-6" />
           ) : results.length === 0 ? (
-            <EmptyResults
-              outOfRange={total > 0}
-              hasFilters={hasFilters}
-              onClear={clearAll}
-              onFirstPage={() => goToPage(1)}
-            />
+            total > 0 ? (
+              <PageOutOfRange onFirstPage={() => goToPage(1)} />
+            ) : (
+              <NoResults state={state} onClear={clearAll} />
+            )
           ) : state.view === "map" ? (
             <div
               aria-busy={isPlaceholderData}
@@ -266,40 +266,15 @@ export function SearchView() {
   );
 }
 
-function EmptyResults({
-  outOfRange,
-  hasFilters,
-  onClear,
-  onFirstPage,
-}: {
-  outOfRange: boolean;
-  hasFilters: boolean;
-  onClear: () => void;
-  onFirstPage: () => void;
-}) {
+/** A page number past the last page (old link or a shrinking result set). */
+function PageOutOfRange({ onFirstPage }: { onFirstPage: () => void }) {
   return (
     <div className="mt-6 flex flex-col items-start gap-4 rounded-lg border border-dashed border-line-strong p-8 sm:p-10">
       <SearchX className="size-8 text-brand" aria-hidden="true" />
-      {outOfRange ? (
-        <>
-          <p className="text-lg font-semibold text-ink">หน้านี้ไม่มีประกาศแล้ว</p>
-          <Button variant="outline" onClick={onFirstPage}>
-            กลับไปหน้าแรกของผลการค้นหา
-          </Button>
-        </>
-      ) : (
-        <>
-          <div>
-            <p className="text-lg font-semibold text-ink">ไม่พบประกาศที่ตรงกับเงื่อนไข</p>
-            <p className="mt-1 text-[15px] text-slate">ลองขยายช่วงราคา เปลี่ยนประเภท หรือเลือกสถานีใกล้เคียงเพิ่ม</p>
-          </div>
-          {hasFilters && (
-            <Button variant="outline" onClick={onClear}>
-              ล้างตัวกรองทั้งหมด
-            </Button>
-          )}
-        </>
-      )}
+      <p className="text-lg font-semibold text-ink">หน้านี้ไม่มีประกาศแล้ว</p>
+      <Button variant="outline" onClick={onFirstPage}>
+        กลับไปหน้าแรกของผลการค้นหา
+      </Button>
     </div>
   );
 }

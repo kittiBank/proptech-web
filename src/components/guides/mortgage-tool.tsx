@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { Container } from "@/components/home/section-header";
+import { BottomActionBar } from "@/components/ui/bottom-action-bar";
 import { Button } from "@/components/ui/button";
 import { ChoiceChip } from "@/components/ui/choice";
 import { TextField } from "@/components/ui/field";
@@ -107,11 +108,11 @@ function BudgetLink({
 
   if (variant === "bar") {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+      <BottomActionBar label="หาห้องในงบนี้" className="bg-white/95 backdrop-blur">
         <Button asChild size="lg" className="w-full font-semibold">
           <Link href={href}>{cta}</Link>
         </Button>
-      </div>
+      </BottomActionBar>
     );
   }
 

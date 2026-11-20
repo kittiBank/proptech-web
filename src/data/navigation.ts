@@ -42,6 +42,9 @@ export const routes = {
   /** Opens (or starts) the chat with an agent or poster. */
   messageTo: (recipient: string) => `/messages?to=${encodeURIComponent(recipient)}`,
   favorites: "/account/favorites",
+  account: "/account",
+  savedSearches: "/account/saved-searches",
+  notifications: "/notifications",
   /** Side-by-side table for up to 3 listing ids. */
   compare: (ids: string[]) => `/compare?ids=${ids.map(encodeURIComponent).join(",")}`,
   location: (id: string) => `/buy?location=${id}`,

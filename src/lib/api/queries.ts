@@ -39,6 +39,8 @@ export const queryKeys = {
     submission: (id: string) => ["me", "drafts", id, "submission"] as const,
   },
   listingQuota: ["me", "listing-quota"] as const,
+  savedSearches: ["me", "saved-searches"] as const,
+  unreadCounts: ["me", "unread-counts"] as const,
   promotions: ["promotions"] as const,
   projectPlaces: (q: string) => ["places", "projects", q] as const,
   nearbyStations: (lat: number, lng: number) => ["stations", "nearby", lat, lng] as const,
@@ -201,6 +203,19 @@ export const draftQueries = {
       queryFn: ({ signal }) => api.getSubmission(id, signal),
     }),
 };
+
+export const savedSearchesQuery = queryOptions({
+  queryKey: queryKeys.savedSearches,
+  queryFn: ({ signal }) => api.listSavedSearches(signal),
+});
+
+/** Badge counts; refreshed every minute while the app is open. Only fetch when signed in. */
+export const unreadCountsQuery = queryOptions({
+  queryKey: queryKeys.unreadCounts,
+  queryFn: async ({ signal }) => (await api.getUnreadCounts(signal)).data,
+  staleTime: MINUTE,
+  refetchInterval: MINUTE,
+});
 
 export const listingQuotaQuery = queryOptions({
   queryKey: queryKeys.listingQuota,

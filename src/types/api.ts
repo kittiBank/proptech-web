@@ -249,6 +249,48 @@ export interface GetAgentResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Saved searches and unread counts (signed-in user)
+// ---------------------------------------------------------------------------
+
+export type AlertFrequency = "instant" | "daily" | "weekly";
+
+/** A search the user saved for alerts (B9, D11). */
+export interface SavedSearchDto {
+  id: string;
+  /** e.g. "คอนโดขาย ใกล้ BTS ทองหล่อ". */
+  name: string;
+  /** The `/search` query string it reruns, e.g. "mode=buy&type=condo&station=E6". */
+  query: string;
+  alerts: { email: boolean; line: boolean; frequency: AlertFrequency };
+  /** Listings posted since the user last opened it. */
+  newCount: number;
+  /** ISO date. */
+  createdAt: string;
+}
+
+/** Most saved searches one account can keep. */
+export const MAX_SAVED_SEARCHES = 10;
+
+/** `POST /me/saved-searches` body. Saving the same `query` again returns the existing search (200). 409 at the limit. */
+export interface CreateSavedSearchRequest {
+  name: string;
+  query: string;
+}
+
+/** `POST /me/saved-searches` (201 new, 200 already saved). */
+export interface SavedSearchResponse {
+  data: SavedSearchDto;
+}
+
+/** `GET /me/saved-searches`, newest first. */
+export type ListSavedSearchesResponse = ListResponse<SavedSearchDto>;
+
+/** `GET /me/unread-counts` — badges for the bottom nav and the notifications bell. */
+export interface UnreadCountsResponse {
+  data: { messages: number; notifications: number };
+}
+
+// ---------------------------------------------------------------------------
 // Favorites and compare (signed-in user; the mock keeps one user's list)
 // ---------------------------------------------------------------------------
 

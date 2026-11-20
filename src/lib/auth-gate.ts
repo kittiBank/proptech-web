@@ -9,12 +9,12 @@ import { useSession } from "@/providers/session";
 import type { PropertyImage } from "@/types/property";
 
 /**
- * Gated actions (favorite, message, request a viewing). Signed-out visitors
+ * Gated actions (favorite, message, request a viewing, save a search). Signed-out visitors
  * get the login modal; the action waits in sessionStorage and the component
  * that started it runs it once the visitor is signed in and back on the page.
  */
 
-export type GateIntent = "favorite" | "message" | "viewing";
+export type GateIntent = "favorite" | "message" | "viewing" | "save-search";
 
 export interface PendingAction {
   intent: GateIntent;

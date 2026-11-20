@@ -4,11 +4,13 @@ import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
 import {
   ARTICLES_MAX_LIMIT,
+  MAX_SAVED_SEARCHES,
   NEARBY_MAX_LIMIT,
   PROJECTS_MAX_LIMIT,
   PROPERTIES_MAX_LIMIT,
   type ApiErrorBody,
   type CreateEnquiryRequest,
+  type CreateSavedSearchRequest,
   type CreateEnquiryResponse,
   type CreateProjectViewingRequest,
   type CreateProjectViewingResponse,
@@ -63,6 +65,8 @@ import {
   updateDraft,
 } from "./drafts";
 import { listFavorites, removeFavorite, saveFavorite, updateFavoriteNote } from "./favorites";
+import { createSavedSearch, listSavedSearches } from "./saved-searches";
+import { unreadCounts } from "./unread";
 import { getMockScenario } from "./scenario";
 import {
   completeOnboarding,
@@ -428,6 +432,33 @@ export const handlers = [
     const user = completeOnboarding(await readBody<OnboardingRequest>(request));
     return user ? HttpResponse.json<SessionResponse>({ data: user }) : unauthorized();
   }),
+  // --- Saved searches and badges ------------------------------------------
+  http.get(
+    endpoint("/me/saved-searches"),
+    withScenario(() => ({ data: listSavedSearches(requireUser().id) })),
+  ),
+  http.post(endpoint("/me/saved-searches"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<CreateSavedSearchRequest>(request);
+    const errors: string[] = [];
+    if (!body.name?.trim()) errors.push("name should not be empty");
+    if (typeof body.query !== "string" || !new URLSearchParams(body.query).get("mode"))
+      errors.push("query must be a search query string with a mode");
+    if (errors.length) return errorResponse(400, errors);
+    const result = createSavedSearch(user.id, { name: body.name!.trim(), query: body.query! });
+    if (result.kind === "limit") return errorResponse(409, `You can keep at most ${MAX_SAVED_SEARCHES} saved searches`);
+    return HttpResponse.json({ data: result.search }, { status: result.kind === "created" ? 201 : 200 });
+  }),
+  http.get(
+    endpoint("/me/unread-counts"),
+    withScenario(() => {
+      requireUser();
+      return { data: unreadCounts() };
+    }),
+  ),
   // --- Post a listing ----------------------------------------------------
   http.get(
     endpoint("/me/drafts"),

@@ -10,6 +10,7 @@ const pages = [
   { name: "home", path: "/" },
   { name: "search", path: "/search?mode=buy" },
   { name: "search map", path: "/search?mode=buy&view=map" },
+  { name: "search no results", path: "/search?mode=buy&type=condo&q=no-such-place-xyz" },
   { name: "listing", path: "/property/listing-2012" },
   { name: "projects", path: "/projects" },
   { name: "agent", path: "/agents/kittipat-srisuk" },

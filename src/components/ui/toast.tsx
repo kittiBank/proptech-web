@@ -75,7 +75,7 @@ export function Toaster() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-4 bottom-[calc(16px+env(safe-area-inset-bottom))] z-[60] flex justify-center sm:bottom-6"
+      className="pointer-events-none fixed inset-x-4 bottom-[calc(80px+env(safe-area-inset-bottom))] z-[60] flex justify-center lg:bottom-6"
     >
       {item && <ToastView key={item.id} item={item} />}
     </div>

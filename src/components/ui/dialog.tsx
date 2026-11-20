@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { X } from "lucide-react";
+import { HideBottomNav } from "@/lib/bottom-nav";
 import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
@@ -35,6 +36,7 @@ function DialogContent({ className, children, variant = "panel", closeLabel = "à
         {...props}
       >
         {children}
+        <HideBottomNav />
         <DialogPrimitive.Close
           aria-label={closeLabel}
           className={cn(

@@ -5,6 +5,7 @@ import { dismissToast } from "@/components/ui/toast";
 import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
+import { resetMockSavedSearches } from "@/mocks/saved-searches";
 import { resetMockSession } from "@/mocks/session";
 import { setMockScenario } from "@/mocks/scenario";
 import { resetNavigation } from "@/test/next-navigation";
@@ -37,6 +38,7 @@ afterEach(() => {
   resetMockFavorites();
   resetMockSession();
   resetMockDrafts();
+  resetMockSavedSearches();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();

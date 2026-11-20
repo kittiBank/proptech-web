@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { BadgeCheck, CircleCheck, Flag, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/ui/avatar";
+import { BottomActionBar } from "@/components/ui/bottom-action-bar";
 import { Button } from "@/components/ui/button";
 import { LineMark } from "./line-mark";
 import { routes } from "@/data/navigation";
@@ -267,7 +268,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
 /** Phone-width contact bar pinned to the bottom of the screen. */
 export function MobileContactBar({ property }: { property: PropertyDetail }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-line bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+    <BottomActionBar label="ติดต่อด่วน" className="gap-2 bg-white/95 backdrop-blur">
       <Button asChild className="flex-1" size="lg">
         <a href={telHref(property.poster.phone)}>
           <Phone aria-hidden="true" />
@@ -287,6 +288,6 @@ export function MobileContactBar({ property }: { property: PropertyDetail }) {
           ข้อความ
         </a>
       </Button>
-    </div>
+    </BottomActionBar>
   );
 }

@@ -1,4 +1,8 @@
 import type {
+  CreateSavedSearchRequest,
+  ListSavedSearchesResponse,
+  SavedSearchResponse,
+  UnreadCountsResponse,
   GetSessionResponse,
   GetArticleResponse,
   ListArticlesQuery,
@@ -150,6 +154,17 @@ export const api = {
 
   /** PATCH /me/onboarding */
   completeOnboarding: (body: OnboardingRequest) => apiSend<SessionResponse>("PATCH", "/me/onboarding", body),
+
+  /** GET /me/saved-searches — newest first. */
+  listSavedSearches: (signal?: AbortSignal) =>
+    apiGet<ListSavedSearchesResponse>("/me/saved-searches", undefined, { signal }),
+
+  /** POST /me/saved-searches — 201 new, 200 when that query is already saved, 409 at the limit. */
+  createSavedSearch: (body: CreateSavedSearchRequest) =>
+    apiSend<SavedSearchResponse>("POST", "/me/saved-searches", body),
+
+  /** GET /me/unread-counts — unread messages and notifications. */
+  getUnreadCounts: (signal?: AbortSignal) => apiGet<UnreadCountsResponse>("/me/unread-counts", undefined, { signal }),
 
   /** GET /me/drafts — unfinished listing drafts, newest first. */
   listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),

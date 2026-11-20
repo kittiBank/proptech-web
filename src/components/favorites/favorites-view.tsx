@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { routes } from "@/data/navigation";
 import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useHideBottomNav } from "@/lib/bottom-nav";
 import { cn } from "@/lib/utils";
 import { useFavoriteNote, useFavorites } from "@/providers/favorites-store";
 import { COMPARE_MAX, FAVORITE_NOTE_MAX, type FavoriteDto } from "@/types/api";
@@ -311,6 +312,8 @@ export function FavoritesView() {
   const picks = selected
     .filter((id) => favorites.some((f) => f.property.id === id && f.status === "active"))
     .slice(0, max);
+  // The compare bar takes the bottom of the screen while listings are picked.
+  useHideBottomNav(picks.length > 0);
 
   const counts = useMemo(
     () => ({
