@@ -10,3 +10,6 @@ export const DEMO_ACCOUNT = { email: "somying@example.com", password: "Password1
 /** Tokens the mock "emails" carry; any other token is invalid. */
 export const MOCK_VERIFY_TOKEN = "mock-verify";
 export const MOCK_RESET_TOKEN = "mock-reset";
+
+/** The one-time code the mock "SMS" sends when verifying a phone number. */
+export const MOCK_OTP_CODE = "123456";

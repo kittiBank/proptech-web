@@ -10,22 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { CardGridSkeleton, QueryError, Skeleton } from "@/components/ui/query-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { areaRanges, bedroomOptions, priceRanges, propertyTypeLabels } from "@/data/catalog";
 import { propertyQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
-import { findStation } from "@/lib/search";
 import {
   clearSearchFilters,
   describeSearch,
+  searchCriteria,
   sortOptions,
   toListQuery,
   type SearchSort,
-  type SearchState,
   type SearchView as View,
 } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
 import { FilterPanel } from "./filter-panel";
 import { FilterSheet } from "./filter-sheet";
+import { NoResults } from "./no-results";
 import { SearchBar } from "./search-bar";
 import { useSearchState } from "./use-search-state";
 
@@ -40,29 +39,6 @@ const views: { value: View; label: string; icon: typeof LayoutGrid }[] = [
   { value: "map", label: "แผนที่", icon: MapIcon },
 ];
 
-/** One removable chip per active filter. */
-function activeChips(state: SearchState): { key: string; label: string; clear: Partial<SearchState> }[] {
-  const chips: { key: string; label: string; clear: Partial<SearchState> }[] = [];
-  if (state.keyword) chips.push({ key: "q", label: `“${state.keyword}”`, clear: { keyword: "" } });
-  if (state.type !== "all") chips.push({ key: "type", label: propertyTypeLabels[state.type], clear: { type: "all" } });
-  for (const code of state.stations) {
-    const station = findStation(code);
-    chips.push({
-      key: `station-${code}`,
-      label: station ? `${station.system} ${station.name}` : code,
-      clear: { stations: state.stations.filter((c) => c !== code) },
-    });
-  }
-  const price = priceRanges[state.mode].find((r) => r.value === state.price);
-  if (price && state.price !== "any") chips.push({ key: "price", label: price.label, clear: { price: "any" } });
-  const beds = bedroomOptions.find((o) => o.value === state.bedrooms);
-  if (beds && state.bedrooms !== "any")
-    chips.push({ key: "beds", label: `${beds.label} ห้องนอน`, clear: { bedrooms: "any" } });
-  const area = areaRanges.find((r) => r.value === state.area);
-  if (area && state.area !== "any") chips.push({ key: "area", label: area.label, clear: { area: "any" } });
-  return chips;
-}
-
 export function SearchView() {
   const { state, update, replace } = useSearchState();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -76,7 +52,7 @@ export function SearchView() {
   const total = data?.meta.total ?? 0;
   const pageCount = data?.meta.totalPages ?? 1;
   const firstIndex = data && total > 0 ? (data.meta.page - 1) * data.meta.limit + 1 : 0;
-  const chips = activeChips(state);
+  const chips = searchCriteria(state);
   const hasFilters = chips.length > 0;
   const selected = results.find((p) => p.id === selectedId);
 
@@ -200,12 +176,11 @@ export function SearchView() {
           ) : isError ? (
             <QueryError what="ผลการค้นหา" onRetry={() => refetch()} retrying={isFetching} className="mt-6" />
           ) : results.length === 0 ? (
-            <EmptyResults
-              outOfRange={total > 0}
-              hasFilters={hasFilters}
-              onClear={clearAll}
-              onFirstPage={() => goToPage(1)}
-            />
+            total > 0 ? (
+              <PageOutOfRange onFirstPage={() => goToPage(1)} />
+            ) : (
+              <NoResults state={state} onClear={clearAll} />
+            )
           ) : state.view === "map" ? (
             <div
               aria-busy={isPlaceholderData}
@@ -266,40 +241,15 @@ export function SearchView() {
   );
 }
 
-function EmptyResults({
-  outOfRange,
-  hasFilters,
-  onClear,
-  onFirstPage,
-}: {
-  outOfRange: boolean;
-  hasFilters: boolean;
-  onClear: () => void;
-  onFirstPage: () => void;
-}) {
+/** A page number past the last page (old link or a shrinking result set). */
+function PageOutOfRange({ onFirstPage }: { onFirstPage: () => void }) {
   return (
     <div className="mt-6 flex flex-col items-start gap-4 rounded-lg border border-dashed border-line-strong p-8 sm:p-10">
       <SearchX className="size-8 text-brand" aria-hidden="true" />
-      {outOfRange ? (
-        <>
-          <p className="text-lg font-semibold text-ink">หน้านี้ไม่มีประกาศแล้ว</p>
-          <Button variant="outline" onClick={onFirstPage}>
-            กลับไปหน้าแรกของผลการค้นหา
-          </Button>
-        </>
-      ) : (
-        <>
-          <div>
-            <p className="text-lg font-semibold text-ink">ไม่พบประกาศที่ตรงกับเงื่อนไข</p>
-            <p className="mt-1 text-[15px] text-slate">ลองขยายช่วงราคา เปลี่ยนประเภท หรือเลือกสถานีใกล้เคียงเพิ่ม</p>
-          </div>
-          {hasFilters && (
-            <Button variant="outline" onClick={onClear}>
-              ล้างตัวกรองทั้งหมด
-            </Button>
-          )}
-        </>
-      )}
+      <p className="text-lg font-semibold text-ink">หน้านี้ไม่มีประกาศแล้ว</p>
+      <Button variant="outline" onClick={onFirstPage}>
+        กลับไปหน้าแรกของผลการค้นหา
+      </Button>
     </div>
   );
 }

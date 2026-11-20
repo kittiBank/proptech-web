@@ -6,12 +6,14 @@ interface SwitchProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   label: string;
+  /** Keep the label for screen readers only, e.g. in a settings table whose headers name the column. */
+  hideLabel?: boolean;
   disabled?: boolean;
   className?: string;
 }
 
 /** 44×26 on/off switch with its label (design handoff `Toggle`). */
-export function Switch({ checked, onCheckedChange, label, disabled, className }: SwitchProps) {
+export function Switch({ checked, onCheckedChange, label, hideLabel, disabled, className }: SwitchProps) {
   return (
     <button
       type="button"
@@ -38,7 +40,7 @@ export function Switch({ checked, onCheckedChange, label, disabled, className }:
           )}
         />
       </span>
-      {label}
+      {hideLabel ? <span className="sr-only">{label}</span> : label}
     </button>
   );
 }

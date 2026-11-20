@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 import type { ListingMode, PropertyType } from "@/types/property";
 
 /** Solid tags for the deal type, so sale vs rent reads at a glance. White text passes AA on both. */
-const modeTag: Record<ListingMode, { label: string; className: string }> = {
-  buy: { label: "ขาย", className: "bg-rose-600 text-white" },
-  rent: { label: "เช่า", className: "bg-sky-700 text-white" },
+export const modeTag: Record<ListingMode, { label: string; className: string }> = {
+  buy: { label: "ขาย", className: "bg-tag-sale text-white" },
+  rent: { label: "เช่า", className: "bg-tag-rent text-white" },
 };
 
 /** Soft tags per property type; each -800 text on its -50 ground passes AA. */

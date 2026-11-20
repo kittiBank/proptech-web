@@ -4,11 +4,23 @@ import { delay } from "msw/utils/delay";
 import { MOCK_API_BASE_PATH } from "@/lib/api/client";
 import {
   ARTICLES_MAX_LIMIT,
+  MAX_SAVED_SEARCHES,
   NEARBY_MAX_LIMIT,
   PROJECTS_MAX_LIMIT,
   PROPERTIES_MAX_LIMIT,
   type ApiErrorBody,
   type CreateEnquiryRequest,
+  type ChangePasswordRequest,
+  type CreateViewingRequest,
+  type SendMessageRequest,
+  type StartThreadRequest,
+  type ThreadFilter,
+  type UpdateViewingRequest,
+  type CreateSavedSearchRequest,
+  type NotificationKind,
+  type UpdateProfileRequest,
+  type UpdateSavedSearchRequest,
+  type VerifyPhoneRequest,
   type CreateEnquiryResponse,
   type CreateProjectViewingRequest,
   type CreateProjectViewingResponse,
@@ -38,6 +50,7 @@ import {
   compareListings,
   queryNearbyStations,
   searchProjectPlaces,
+  getAgentProfile,
   getProjectDetail,
   getPropertyDetail,
   queryNearbyProjects,
@@ -62,16 +75,44 @@ import {
   updateDraft,
 } from "./drafts";
 import { listFavorites, removeFavorite, saveFavorite, updateFavoriteNote } from "./favorites";
+import {
+  deleteProfile,
+  getProfile,
+  markPasswordChanged,
+  sendPhoneOtp,
+  setLinked,
+  signOutOtherDevices,
+  updateProfile,
+  verifyPhone,
+} from "./account";
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from "./notifications";
+import { createSavedSearch, deleteSavedSearch, listSavedSearches, updateSavedSearch } from "./saved-searches";
+import {
+  createViewing,
+  getThread,
+  listAppointments,
+  listThreads,
+  markThreadRead,
+  sendMessage,
+  startThread,
+  updateViewing,
+  viewingSlots,
+  type ViewingError,
+} from "./inbox";
+import { unreadCounts } from "./unread";
 import { getMockScenario } from "./scenario";
 import {
   completeOnboarding,
+  changePassword,
   currentUser,
+  deleteAccount,
   login,
   logout,
   oauthLogin,
   register,
   requestPasswordReset,
   resetPassword,
+  updateAccountNames,
   verifyEmail,
 } from "./session";
 
@@ -113,6 +154,16 @@ class UnauthorizedError extends Error {}
 type SessionBody = SessionResponse | ApiErrorBody;
 
 const unauthorized = () => errorResponse(401, "Sign in required");
+
+function viewingError(error: ViewingError) {
+  const map = {
+    not_found: [404, "Not found"],
+    forbidden: [403, "Only the buyer can request a viewing"],
+    conflict: [409, "Another request is still open"],
+    invalid: [400, "Invalid slot or party size"],
+  } as const;
+  return errorResponse(map[error][0], map[error][1]);
+}
 
 function requireUser() {
   const user = currentUser();
@@ -179,6 +230,7 @@ export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQue
   query.q = params.get("q")?.trim() || undefined;
   query.station = params.get("station")?.trim() || undefined;
   query.project = params.get("project")?.trim() || undefined;
+  query.agent = params.get("agent")?.trim() || undefined;
   query.minPrice = int("minPrice", { min: 0 });
   query.maxPrice = int("maxPrice", { min: 0 });
   query.minBedrooms = int("minBedrooms", { min: 0 });
@@ -297,6 +349,14 @@ export const handlers = [
         { status: 201 },
       );
     },
+  ),
+  http.get(
+    endpoint("/agents/:slug"),
+    withScenario((_request, params) => {
+      const profile = getAgentProfile(String(params.slug));
+      if (!profile) throw new NotFoundError(`Agent "${String(params.slug)}" not found`);
+      return { data: profile };
+    }),
   ),
   http.get(
     endpoint("/projects"),
@@ -418,6 +478,243 @@ export const handlers = [
     const user = completeOnboarding(await readBody<OnboardingRequest>(request));
     return user ? HttpResponse.json<SessionResponse>({ data: user }) : unauthorized();
   }),
+  // --- Saved searches and badges ------------------------------------------
+  http.get(
+    endpoint("/me/saved-searches"),
+    withScenario(() => ({ data: listSavedSearches(requireUser().id) })),
+  ),
+  http.post(endpoint("/me/saved-searches"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<CreateSavedSearchRequest>(request);
+    const errors: string[] = [];
+    if (!body.name?.trim()) errors.push("name should not be empty");
+    if (typeof body.query !== "string" || !new URLSearchParams(body.query).get("mode"))
+      errors.push("query must be a search query string with a mode");
+    if (errors.length) return errorResponse(400, errors);
+    const result = createSavedSearch(user.id, { name: body.name!.trim(), query: body.query! });
+    if (result.kind === "limit") return errorResponse(409, `You can keep at most ${MAX_SAVED_SEARCHES} saved searches`);
+    return HttpResponse.json({ data: result.search }, { status: result.kind === "created" ? 201 : 200 });
+  }),
+  http.patch(endpoint("/me/saved-searches/:id"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const updated = updateSavedSearch(user.id, String(params.id), await readBody<UpdateSavedSearchRequest>(request));
+    return updated ? HttpResponse.json({ data: updated }) : errorResponse(404, "Saved search not found");
+  }),
+  http.delete(endpoint("/me/saved-searches/:id"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return deleteSavedSearch(user.id, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Saved search not found");
+  }),
+  // --- Account: profile, security, privacy ---------------------------------
+  http.get(
+    endpoint("/me/profile"),
+    withScenario(() => ({ data: getProfile(requireUser()) })),
+  ),
+  http.patch(endpoint("/me/profile"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<UpdateProfileRequest>(request);
+    const errors: string[] = [];
+    if (body.firstName !== undefined && !body.firstName.trim()) errors.push("firstName should not be empty");
+    if (body.lastName !== undefined && !body.lastName.trim()) errors.push("lastName should not be empty");
+    if (body.phone && !/^0\d{8,9}$/.test(body.phone)) errors.push("phone must be a Thai phone number");
+    if (typeof body.avatarUrl === "string" && body.avatarUrl.length > 7_000_000)
+      errors.push("avatar must be 5 MB or less");
+    if (errors.length) return errorResponse(400, errors);
+    updateAccountNames(user.id, { firstName: body.firstName?.trim(), lastName: body.lastName?.trim() });
+    updateProfile(user, body);
+    return HttpResponse.json({ data: getProfile(currentUser()!) });
+  }),
+  http.post(endpoint("/me/phone/otp"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return sendPhoneOtp(user)
+      ? new HttpResponse(null, { status: 202 })
+      : errorResponse(400, "Add a phone number first");
+  }),
+  http.post(endpoint("/me/phone/verify"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { code } = await readBody<VerifyPhoneRequest>(request);
+    if (!verifyPhone(user, String(code ?? ""))) return errorResponse(400, "Invalid or expired code");
+    return HttpResponse.json({ data: getProfile(user) });
+  }),
+  http.post(endpoint("/me/password"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<ChangePasswordRequest>(request);
+    if (!body.newPassword || body.newPassword.length < 8) return errorResponse(400, "newPassword is too short");
+    if (!changePassword(user.id, body.currentPassword ?? "", body.newPassword))
+      return errorResponse(400, "currentPassword is incorrect");
+    markPasswordChanged(user);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(endpoint("/me/linked/:provider"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const provider = String(params.provider);
+    if (provider !== "google" && provider !== "line") return errorResponse(404, "Unknown provider");
+    setLinked(user, provider, true);
+    return HttpResponse.json({ data: getProfile(user) });
+  }),
+  http.delete(endpoint("/me/linked/:provider"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const provider = String(params.provider);
+    if (provider !== "google" && provider !== "line") return errorResponse(404, "Unknown provider");
+    setLinked(user, provider, false);
+    return HttpResponse.json({ data: getProfile(user) });
+  }),
+  http.post(endpoint("/me/sessions/revoke-others"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    signOutOtherDevices(user);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(endpoint("/me/data-export"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    return currentUser() ? new HttpResponse(null, { status: 202 }) : unauthorized();
+  }),
+  http.delete(endpoint("/me"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    deleteProfile(user.id);
+    deleteAccount(user.id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  // --- Messages and viewings ------------------------------------------------
+  http.get(
+    endpoint("/me/threads"),
+    withScenario((request) => {
+      const filter = new URL(request.url).searchParams.get("filter") as ThreadFilter | null;
+      return { data: listThreads(requireUser().id, filter ?? "all") };
+    }),
+  ),
+  http.post(endpoint("/me/threads"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { to } = await readBody<StartThreadRequest>(request);
+    const thread = typeof to === "string" ? startThread(user.id, to) : undefined;
+    return thread ? HttpResponse.json({ data: thread }) : errorResponse(404, "Recipient not found");
+  }),
+  http.get(
+    endpoint("/me/threads/:id"),
+    withScenario((_request, params) => {
+      const detail = getThread(requireUser().id, String(params.id));
+      if (!detail) throw new NotFoundError("Thread not found");
+      return { data: detail };
+    }),
+  ),
+  http.post(endpoint("/me/threads/:id/read"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return markThreadRead(user.id, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Thread not found");
+  }),
+  http.post(endpoint("/me/threads/:id/messages"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { text } = await readBody<SendMessageRequest>(request);
+    if (typeof text !== "string" || !text.trim()) return errorResponse(400, "text should not be empty");
+    if (text.length > 2000) return errorResponse(400, "text must be 2000 characters or less");
+    const message = sendMessage(user.id, String(params.id), text.trim());
+    return message ? HttpResponse.json({ data: message }, { status: 201 }) : errorResponse(404, "Thread not found");
+  }),
+  http.get(
+    endpoint("/me/threads/:id/slots"),
+    withScenario((_request, params) => {
+      const slots = viewingSlots(requireUser().id, String(params.id));
+      if (!slots) throw new NotFoundError("Thread has no listing to view");
+      return { data: slots };
+    }),
+  ),
+  http.post(endpoint("/me/threads/:id/viewings"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = createViewing(
+      user.id,
+      String(params.id),
+      (await readBody<CreateViewingRequest>(request)) as CreateViewingRequest,
+    );
+    return typeof result === "string" ? viewingError(result) : HttpResponse.json({ data: result }, { status: 201 });
+  }),
+  http.get(
+    endpoint("/me/viewings"),
+    withScenario(() => ({ data: listAppointments(requireUser().id) })),
+  ),
+  http.patch(endpoint("/me/viewings/:id"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = updateViewing(
+      user.id,
+      String(params.id),
+      (await readBody<UpdateViewingRequest>(request)) as UpdateViewingRequest,
+    );
+    return typeof result === "string" ? viewingError(result) : HttpResponse.json({ data: result });
+  }),
+  // --- Notifications -------------------------------------------------------
+  http.get(
+    endpoint("/me/notifications"),
+    withScenario((request) => {
+      const kind = new URL(request.url).searchParams.get("kind") as NotificationKind | null;
+      return { data: listNotifications(requireUser().id, kind ?? undefined) };
+    }),
+  ),
+  http.post(endpoint("/me/notifications/read-all"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    markAllNotificationsRead(user.id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.patch(endpoint("/me/notifications/:id"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return markNotificationRead(user.id, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Notification not found");
+  }),
+  http.get(
+    endpoint("/me/unread-counts"),
+    withScenario(() => ({ data: unreadCounts(requireUser().id) })),
+  ),
   // --- Post a listing ----------------------------------------------------
   http.get(
     endpoint("/me/drafts"),

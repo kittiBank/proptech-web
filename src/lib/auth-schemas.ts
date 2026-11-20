@@ -53,7 +53,7 @@ export function passwordRules(password: string, email = ""): PasswordRule[] {
  * Rules that need only the password sit on the field, so they report even
  * while other fields are still invalid (object refinements wait for those).
  */
-const newPassword = z
+export const newPassword = z
   .string()
   .min(1, "ตั้งรหัสผ่าน")
   .min(8, "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร")

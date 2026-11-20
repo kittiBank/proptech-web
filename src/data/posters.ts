@@ -1,4 +1,5 @@
 import type { Poster } from "@/types/property";
+import { agentSlugForName } from "./agents";
 
 /**
  * Owner and agent profiles, keyed by the name on `Property.agent`.
@@ -63,6 +64,17 @@ const profiles: Omit<Poster, "id" | "kind">[] = [
     idVerified: false,
     languages: ["ไทย", "English"],
   },
+  {
+    name: "บ้านดี พร็อพเพอร์ตี้",
+    phone: "02-000-1106",
+    lineId: "baandee.property",
+    memberSince: "2018-05-07",
+    activeListings: 38,
+    responseMinutes: 20,
+    phoneVerified: true,
+    idVerified: true,
+    languages: ["ไทย", "English"],
+  },
 ];
 
 const byName = new Map(profiles.map((p) => [p.name, p]));
@@ -74,7 +86,8 @@ function slugify(name: string, index: number) {
 /** Profile for a listing's poster; unknown names get a plain unverified profile. */
 export function findPoster(agent: { name: string; kind: "owner" | "agent" }, seed: number): Poster {
   const known = byName.get(agent.name);
-  if (known) return { ...known, id: slugify(agent.name, profiles.indexOf(known)), kind: agent.kind };
+  const profileSlug = agent.kind === "agent" ? agentSlugForName(agent.name) : undefined;
+  if (known) return { ...known, id: slugify(agent.name, profiles.indexOf(known)), kind: agent.kind, profileSlug };
   return {
     id: slugify(agent.name, 100 + (seed % 900)),
     name: agent.name,

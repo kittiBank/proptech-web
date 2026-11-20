@@ -1,9 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { dismissToast } from "@/components/ui/toast";
+import { resetMockAccount } from "@/mocks/account";
+import { resetMockInbox } from "@/mocks/inbox";
 import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
+import { resetMockNotifications } from "@/mocks/notifications";
+import { resetMockSavedSearches } from "@/mocks/saved-searches";
 import { resetMockSession } from "@/mocks/session";
 import { setMockScenario } from "@/mocks/scenario";
 import { resetNavigation } from "@/test/next-navigation";
@@ -36,8 +41,13 @@ afterEach(() => {
   resetMockFavorites();
   resetMockSession();
   resetMockDrafts();
+  resetMockSavedSearches();
+  resetMockAccount();
+  resetMockNotifications();
+  resetMockInbox();
   window.sessionStorage.clear();
   resetNavigation();
+  dismissToast();
 });
 
 afterAll(() => server.close());

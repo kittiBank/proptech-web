@@ -180,3 +180,26 @@ export function describeSearch(state: SearchState): string {
         : "";
   return `${verb}${what}${near}`;
 }
+
+/** One removable chip per active filter (search page, saved searches). */
+export function searchCriteria(state: SearchState): { key: string; label: string; clear: Partial<SearchState> }[] {
+  const chips: { key: string; label: string; clear: Partial<SearchState> }[] = [];
+  if (state.keyword) chips.push({ key: "q", label: `“${state.keyword}”`, clear: { keyword: "" } });
+  if (state.type !== "all") chips.push({ key: "type", label: propertyTypeLabels[state.type], clear: { type: "all" } });
+  for (const code of state.stations) {
+    const station = findStation(code);
+    chips.push({
+      key: `station-${code}`,
+      label: station ? `${station.system} ${station.name}` : code,
+      clear: { stations: state.stations.filter((c) => c !== code) },
+    });
+  }
+  const price = priceRanges[state.mode].find((r) => r.value === state.price);
+  if (price && state.price !== "any") chips.push({ key: "price", label: price.label, clear: { price: "any" } });
+  const beds = bedroomOptions.find((o) => o.value === state.bedrooms);
+  if (beds && state.bedrooms !== "any")
+    chips.push({ key: "beds", label: `${beds.label} ห้องนอน`, clear: { bedrooms: "any" } });
+  const area = areaRanges.find((r) => r.value === state.area);
+  if (area && state.area !== "any") chips.push({ key: "area", label: area.label, clear: { area: "any" } });
+  return chips;
+}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarCheck, Heart, LogIn, Mail, MessageCircle } from "lucide-react";
+import { BellRing, CalendarCheck, Heart, LogIn, Mail, MessageCircle } from "lucide-react";
 import { PropertyPhoto } from "@/components/property/property-photo";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { routes } from "@/data/navigation";
@@ -29,6 +29,12 @@ const copy: Record<GateIntent | "default", { icon: typeof Heart; title: string; 
     title: "เข้าสู่ระบบเพื่อนัดชม",
     body: "ติดตามสถานะนัดหมายและรับการยืนยันเวลาจากฝ่ายขายได้ในบัญชีของคุณ",
     after: "เข้าสู่ระบบแล้วคำขอนัดชมจะถูกส่งให้ทันที",
+  },
+  "save-search": {
+    icon: BellRing,
+    title: "เข้าสู่ระบบเพื่อรับแจ้งเตือน",
+    body: "บันทึกการค้นหานี้ไว้ในบัญชี แล้วเราจะแจ้งทางอีเมลหรือ LINE เมื่อมีประกาศใหม่ที่ตรงเงื่อนไข",
+    after: "เข้าสู่ระบบแล้วการค้นหานี้จะถูกบันทึกให้ทันที",
   },
   default: {
     icon: LogIn,

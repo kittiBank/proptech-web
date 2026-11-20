@@ -26,10 +26,10 @@ export function useSignOut() {
     mutationFn: () => api.logout(),
     onSuccess: () => {
       client.setQueryData(queryKeys.session, null);
-      client.removeQueries({ queryKey: queryKeys.favorites });
+      // Everything under ["me", …] belongs to the account that just left.
+      client.removeQueries({ queryKey: ["me"] });
     },
   });
 }
 
 export const displayName = (user: Pick<UserDto, "firstName" | "lastName">) => `${user.firstName} ${user.lastName}`;
-export const initial = (user: Pick<UserDto, "firstName">) => user.firstName.charAt(0) || "?";

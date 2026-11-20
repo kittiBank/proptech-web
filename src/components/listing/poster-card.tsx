@@ -1,46 +1,49 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { BadgeCheck, CircleCheck, Flag, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarPlus,
+  CircleCheck,
+  Flag,
+  MessageCircle,
+  Phone,
+  ShieldAlert,
+  Smartphone,
+} from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
+import { Avatar } from "@/components/ui/avatar";
+import { BottomActionBar } from "@/components/ui/bottom-action-bar";
 import { Button } from "@/components/ui/button";
+import { LineMark } from "./line-mark";
+import { routes } from "@/data/navigation";
 import { api } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/client";
 import { useAuthGate, useResumeAction } from "@/lib/auth-gate";
+import { lineHref, maskPhone, telHref } from "@/lib/contact";
 import { formatNumber } from "@/lib/format";
 import { formatResponseTime, toBuddhistYear } from "@/lib/listing";
 import { cn } from "@/lib/utils";
 import type { Poster, PropertyDetail } from "@/types/property";
 
-const avatarColours = ["bg-brand", "bg-ink", "bg-violet-700", "bg-mrt-blue", "bg-bts-silom"];
-
-function initials(name: string) {
-  const words = name.replace(/^(บริษัท|คุณ)\s*/, "").split(/\s+/);
-  return words[0]?.charAt(0) ?? "?";
-}
-
-/** 02-000-1101 → 02-000-11xx until the visitor asks for the number. */
-const maskPhone = (phone: string) => phone.replace(/\d{2}$/, "xx");
-
-const lineHref = (lineId: string) => `https://line.me/R/ti/p/~${encodeURIComponent(lineId)}`;
-
 function PosterHeader({ poster }: { poster: Poster }) {
-  const colour = avatarColours[poster.name.length % avatarColours.length];
   return (
     <div className="flex items-start gap-4">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "inline-flex size-14 shrink-0 items-center justify-center rounded-full text-2xl font-semibold text-white",
-          colour,
-        )}
-      >
-        {initials(poster.name)}
-      </span>
+      <Avatar name={poster.name} size="lg" />
       <div className="min-w-0">
         <p className="text-[13px] text-slate">{poster.kind === "agent" ? "นายหน้า" : "เจ้าของทรัพย์ลงประกาศเอง"}</p>
         <p className="text-lg leading-snug font-semibold text-ink">{poster.name}</p>
         {poster.company && <p className="text-sm text-slate">{poster.company}</p>}
+        {poster.profileSlug && (
+          <Link
+            href={routes.agent(poster.profileSlug)}
+            className="mt-1 inline-flex min-h-6 text-sm font-medium text-brand-strong underline-offset-4 hover:underline"
+          >
+            ดูโปรไฟล์และประกาศทั้งหมด
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -158,6 +161,35 @@ function EnquiryForm({ property, onDone }: { property: PropertyDetail; onDone?: 
   );
 }
 
+/** Opens the chat about this listing, where the buyer can request a viewing (B16, B18). Signed-out visitors log in first. */
+function ChatViewingButton({ property }: { property: PropertyDetail }) {
+  const router = useRouter();
+  const requireAuth = useAuthGate();
+  const key = `property:${property.slug}`;
+  const open = () => router.push(routes.messageTo(key));
+  useResumeAction("viewing", key, open);
+  return (
+    <Button
+      size="lg"
+      variant="ghost"
+      className="text-brand-strong"
+      onClick={() =>
+        requireAuth(
+          {
+            intent: "viewing",
+            key,
+            preview: { title: property.title, subtitle: `กับ ${property.poster.name}`, image: property.image },
+          },
+          open,
+        )
+      }
+    >
+      <CalendarPlus aria-hidden="true" />
+      ขอนัดดูห้องผ่านแชต
+    </Button>
+  );
+}
+
 /** Right-hand column: who posted the listing and every way to reach them. */
 export function PosterCard({ property }: { property: PropertyDetail }) {
   const { poster } = property;
@@ -214,7 +246,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
         <div className="mt-5 flex flex-col gap-2.5">
           {showPhone ? (
             <Button asChild size="lg">
-              <a href={`tel:${poster.phone.replace(/\D/g, "")}`}>
+              <a href={telHref(poster.phone)}>
                 <Phone aria-hidden="true" />
                 โทร {poster.phone}
               </a>
@@ -228,12 +260,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
           {poster.lineId && (
             <Button asChild size="lg" variant="outline">
               <a href={lineHref(poster.lineId)} target="_blank" rel="noopener noreferrer">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-5 items-center justify-center rounded-full bg-[#06C755] text-[11px] font-bold text-white"
-                >
-                  L
-                </span>
+                <LineMark />
                 แชทผ่าน LINE
               </a>
             </Button>
@@ -248,6 +275,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
             <MessageCircle aria-hidden="true" />
             ส่งข้อความถึงผู้ลงประกาศ
           </Button>
+          <ChatViewingButton property={property} />
         </div>
 
         {formOpen && (
@@ -280,9 +308,9 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
 /** Phone-width contact bar pinned to the bottom of the screen. */
 export function MobileContactBar({ property }: { property: PropertyDetail }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-line bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+    <BottomActionBar label="ติดต่อด่วน" className="gap-2 bg-white/95 backdrop-blur">
       <Button asChild className="flex-1" size="lg">
-        <a href={`tel:${property.poster.phone.replace(/\D/g, "")}`}>
+        <a href={telHref(property.poster.phone)}>
           <Phone aria-hidden="true" />
           โทร
         </a>
@@ -300,6 +328,6 @@ export function MobileContactBar({ property }: { property: PropertyDetail }) {
           ข้อความ
         </a>
       </Button>
-    </div>
+    </BottomActionBar>
   );
 }

@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, FileQuestion, Lightbulb, Printer, TriangleAlert } from "lucide-react";
+import { ChevronRight, FileQuestion, Printer, TriangleAlert } from "lucide-react";
 import { Container } from "@/components/home/section-header";
 import { ShareMenu } from "@/components/listing/share-menu";
 import { PropertyPhoto } from "@/components/property/property-photo";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { QueryError, Skeleton } from "@/components/ui/query-state";
 import { articleCategoryLabels } from "@/data/articles";
 import { priceRanges } from "@/data/catalog";
@@ -122,7 +123,7 @@ function RelatedListings({ related }: { related: ArticleRelatedListings }) {
         </ul>
       )}
       {data && (
-        <Button asChild variant="outline" size="sm" className="h-10">
+        <Button asChild variant="outline" size="base">
           <Link href={searchHrefFor(related)}>ดูทั้งหมด {formatNumber(data.meta.total)} ประกาศ</Link>
         </Button>
       )}
@@ -130,25 +131,16 @@ function RelatedListings({ related }: { related: ArticleRelatedListings }) {
   );
 }
 
-function Callout({ block }: { block: Extract<ArticleBlock, { type: "callout" }> }) {
-  const warning = block.tone === "warning";
-  const Icon = warning ? TriangleAlert : Lightbulb;
+function ArticleCallout({ block }: { block: Extract<ArticleBlock, { type: "callout" }> }) {
   return (
-    <aside
-      className={cn(
-        "my-6 flex gap-3 rounded-r-lg border-l-4 px-4 py-4 sm:px-5",
-        warning ? "border-[#F59E0B] bg-warning-soft" : "border-brand bg-brand-soft",
-      )}
+    <Callout
+      tone={block.tone === "warning" ? "warning" : "info"}
+      icon={block.tone === "warning" ? TriangleAlert : undefined}
+      title={block.title}
+      className="my-6"
     >
-      <Icon
-        className={cn("mt-0.5 size-5 shrink-0", warning ? "text-warning" : "text-brand-strong")}
-        aria-hidden="true"
-      />
-      <div className="text-[15px] text-ink">
-        <p className="font-semibold">{block.title}</p>
-        <p className="mt-0.5">{block.text}</p>
-      </div>
-    </aside>
+      <p>{block.text}</p>
+    </Callout>
   );
 }
 
@@ -182,7 +174,7 @@ function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
               </ul>
             );
           case "callout":
-            return <Callout key={i} block={block} />;
+            return <ArticleCallout key={i} block={block} />;
           case "calculator":
             return <InlineCalculator key={i} {...block} />;
         }

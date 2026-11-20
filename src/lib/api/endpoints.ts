@@ -1,4 +1,25 @@
 import type {
+  CreateViewingRequest,
+  ListAppointmentsResponse,
+  ListThreadsResponse,
+  MessageDto,
+  ThreadDetailResponse,
+  ThreadDto,
+  ThreadFilter,
+  UpdateViewingRequest,
+  ViewingRequestDto,
+  ViewingSlotsResponse,
+  ChangePasswordRequest,
+  ListNotificationsResponse,
+  NotificationKind,
+  ProfileResponse,
+  UpdateProfileRequest,
+  UpdateSavedSearchRequest,
+  VerifyPhoneRequest,
+  CreateSavedSearchRequest,
+  ListSavedSearchesResponse,
+  SavedSearchResponse,
+  UnreadCountsResponse,
   GetSessionResponse,
   GetArticleResponse,
   ListArticlesQuery,
@@ -28,6 +49,7 @@ import type {
   CreateEnquiryResponse,
   CreateProjectViewingRequest,
   CreateProjectViewingResponse,
+  GetAgentResponse,
   GetProjectResponse,
   GetPropertyResponse,
   ListNearbyProjectsResponse,
@@ -80,6 +102,10 @@ export const api = {
       `/projects/${encodeURIComponent(slug)}/viewings`,
       body,
     ),
+
+  /** GET /agents/:slug — public agent profile. Their listings come from `GET /properties?agent=`. */
+  getAgent: (slug: string, signal?: AbortSignal) =>
+    apiGet<GetAgentResponse>(`/agents/${encodeURIComponent(slug)}`, undefined, { signal }),
 
   /** GET /articles — guide articles, newest first. */
   listArticles: (query: ListArticlesQuery = {}, signal?: AbortSignal) =>
@@ -145,6 +171,96 @@ export const api = {
 
   /** PATCH /me/onboarding */
   completeOnboarding: (body: OnboardingRequest) => apiSend<SessionResponse>("PATCH", "/me/onboarding", body),
+
+  /** GET /me/saved-searches — newest first. */
+  listSavedSearches: (signal?: AbortSignal) =>
+    apiGet<ListSavedSearchesResponse>("/me/saved-searches", undefined, { signal }),
+
+  /** POST /me/saved-searches — 201 new, 200 when that query is already saved, 409 at the limit. */
+  createSavedSearch: (body: CreateSavedSearchRequest) =>
+    apiSend<SavedSearchResponse>("POST", "/me/saved-searches", body),
+
+  /** PATCH /me/saved-searches/:id — rename or change alerts. */
+  updateSavedSearch: (id: string, body: UpdateSavedSearchRequest) =>
+    apiSend<SavedSearchResponse>("PATCH", `/me/saved-searches/${encodeURIComponent(id)}`, body),
+
+  /** DELETE /me/saved-searches/:id */
+  deleteSavedSearch: (id: string) => apiSend<void>("DELETE", `/me/saved-searches/${encodeURIComponent(id)}`),
+
+  /** GET /me/profile — personal info, security and settings (B7). */
+  getProfile: (signal?: AbortSignal) => apiGet<ProfileResponse>("/me/profile", undefined, { signal }),
+
+  /** PATCH /me/profile */
+  updateProfile: (body: UpdateProfileRequest) => apiSend<ProfileResponse>("PATCH", "/me/profile", body),
+
+  /** POST /me/phone/otp — texts a code to the profile phone (202). */
+  sendPhoneOtp: () => apiSend<void>("POST", "/me/phone/otp"),
+
+  /** POST /me/phone/verify — 400 on a wrong code. */
+  verifyPhone: (body: VerifyPhoneRequest) => apiSend<ProfileResponse>("POST", "/me/phone/verify", body),
+
+  /** POST /me/password — 204; 400 when the current password is wrong. */
+  changePassword: (body: ChangePasswordRequest) => apiSend<void>("POST", "/me/password", body),
+
+  /** POST or DELETE /me/linked/:provider — link or unlink a sign-in provider. */
+  setLinkedAccount: (provider: "google" | "line", linked: boolean) =>
+    apiSend<ProfileResponse>(linked ? "POST" : "DELETE", `/me/linked/${provider}`),
+
+  /** POST /me/sessions/revoke-others — signs out every other device. */
+  signOutOtherDevices: () => apiSend<void>("POST", "/me/sessions/revoke-others"),
+
+  /** POST /me/data-export — PDPA data copy, emailed later (202). */
+  requestDataExport: () => apiSend<void>("POST", "/me/data-export"),
+
+  /** DELETE /me — deletes the account and signs out. */
+  deleteAccount: () => apiSend<void>("DELETE", "/me"),
+
+  /** GET /me/notifications?kind= — newest first. */
+  listNotifications: (kind?: NotificationKind, signal?: AbortSignal) =>
+    apiGet<ListNotificationsResponse>("/me/notifications", { kind }, { signal }),
+
+  /** PATCH /me/notifications/:id — marks one read. */
+  markNotificationRead: (id: string) =>
+    apiSend<void>("PATCH", `/me/notifications/${encodeURIComponent(id)}`, { read: true }),
+
+  /** POST /me/notifications/read-all */
+  markAllNotificationsRead: () => apiSend<void>("POST", "/me/notifications/read-all"),
+
+  /** GET /me/threads?filter= — chats, newest activity first. */
+  listThreads: (filter: ThreadFilter = "all", signal?: AbortSignal) =>
+    apiGet<ListThreadsResponse>("/me/threads", { filter }, { signal }),
+
+  /** GET /me/threads/:id — one chat with its messages and viewing requests. */
+  getThread: (id: string, signal?: AbortSignal) =>
+    apiGet<ThreadDetailResponse>(`/me/threads/${encodeURIComponent(id)}`, undefined, { signal }),
+
+  /** POST /me/threads — open or start the chat with "agent:<slug>", "property:<slug>" or "project:<slug>". */
+  startThread: (to: string) => apiSend<{ data: ThreadDto }>("POST", "/me/threads", { to }),
+
+  /** POST /me/threads/:id/read */
+  markThreadRead: (id: string) => apiSend<void>("POST", `/me/threads/${encodeURIComponent(id)}/read`),
+
+  /** POST /me/threads/:id/messages */
+  sendMessage: (id: string, text: string) =>
+    apiSend<{ data: MessageDto }>("POST", `/me/threads/${encodeURIComponent(id)}/messages`, { text }),
+
+  /** GET /me/threads/:id/slots — bookable viewing hours for the next week. */
+  getViewingSlots: (id: string, signal?: AbortSignal) =>
+    apiGet<ViewingSlotsResponse>(`/me/threads/${encodeURIComponent(id)}/slots`, undefined, { signal }),
+
+  /** POST /me/threads/:id/viewings — buyer asks for a viewing (403 lister, 409 while one is open). */
+  createViewing: (id: string, body: CreateViewingRequest) =>
+    apiSend<{ data: ViewingRequestDto }>("POST", `/me/threads/${encodeURIComponent(id)}/viewings`, body),
+
+  /** GET /me/viewings — every viewing in the user's chats. */
+  listAppointments: (signal?: AbortSignal) => apiGet<ListAppointmentsResponse>("/me/viewings", undefined, { signal }),
+
+  /** PATCH /me/viewings/:id — cancel / accept (buyer), confirm / decline / propose (lister). */
+  updateViewing: (id: string, body: UpdateViewingRequest) =>
+    apiSend<{ data: ViewingRequestDto }>("PATCH", `/me/viewings/${encodeURIComponent(id)}`, body),
+
+  /** GET /me/unread-counts — unread messages and notifications. */
+  getUnreadCounts: (signal?: AbortSignal) => apiGet<UnreadCountsResponse>("/me/unread-counts", undefined, { signal }),
 
   /** GET /me/drafts — unfinished listing drafts, newest first. */
   listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),

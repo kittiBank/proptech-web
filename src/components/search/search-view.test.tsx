@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { failingHandler } from "@/mocks/handlers";
 import { server } from "@/mocks/node";
+import { listSavedSearches } from "@/mocks/saved-searches";
+import { setMockScenario } from "@/mocks/scenario";
+import { currentUser, resetMockSession } from "@/mocks/session";
 import { router, setPathname, setSearchParams } from "@/test/next-navigation";
 import { makeQueryClient } from "@/providers/query-provider";
 import { SearchView } from "./search-view";
@@ -13,7 +16,7 @@ function renderAt(query: string, ui: ReactNode = <SearchView />) {
   setSearchParams(query);
   const client = makeQueryClient();
   client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, retry: false } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return { client, ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>) };
 }
 
 /** The URL the last navigation went to, as params. */
@@ -67,13 +70,43 @@ describe("SearchView", () => {
     expect(lastUrl(router.replace).get("beds")).toBe("3");
   });
 
-  it("explains an empty result and offers to clear filters", async () => {
+  it("suggests looser searches with their counts when nothing matches (D11)", async () => {
+    renderAt("mode=buy&type=condo&q=no-such-place-xyz");
+
+    expect(await screen.findByRole("heading", { name: "ยังไม่มีประกาศที่ตรงทุกเงื่อนไข" })).toBeInTheDocument();
+    const withoutKeyword = await screen.findByRole("link", { name: /ไม่ใช้คำค้น “no-such-place-xyz”/ });
+    expect(withoutKeyword).toHaveAttribute("href", "/search?mode=buy&type=condo");
+    expect(withoutKeyword).toHaveTextContent(/\d+ ประกาศ/);
+  });
+
+  it("offers to clear filters when no looser search finds anything", async () => {
     const user = userEvent.setup();
+    setMockScenario("empty");
     renderAt("mode=buy&q=no-such-place-xyz");
 
-    expect(await screen.findByText("ไม่พบประกาศที่ตรงกับเงื่อนไข")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "ล้างตัวกรองทั้งหมด" }));
+    await user.click(await screen.findByRole("button", { name: "ล้างตัวกรองทั้งหมด" }));
     expect(lastUrl(router.replace).toString()).toBe("mode=buy");
+  });
+
+  it("saves the search for alerts after signing in", async () => {
+    const user = userEvent.setup();
+    const { client } = renderAt("mode=buy&type=condo&q=no-such-place-xyz&sort=price-asc&page=2");
+    await screen.findByRole("heading", { name: "ยังไม่มีประกาศที่ตรงทุกเงื่อนไข" });
+
+    await user.click(screen.getByRole("button", { name: "รับแจ้งเตือน" }));
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith(expect.stringContaining("/login?intent=save-search"), { scroll: false }),
+    );
+    expect(listSavedSearches("u-1")).toEqual([]);
+
+    // Signing in refreshes the session; the pending save then runs by itself.
+    resetMockSession({ signedIn: true });
+    await client.invalidateQueries({ queryKey: ["auth", "session"] });
+    expect(await screen.findByRole("button", { name: "บันทึกแล้ว" })).toBeDisabled();
+    const user1 = currentUser()!;
+    expect(listSavedSearches(user1.id)).toMatchObject([
+      { name: "ซื้อคอนโด", query: "mode=buy&q=no-such-place-xyz&type=condo" },
+    ]);
   });
 
   it("shows an error with a retry", async () => {

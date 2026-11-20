@@ -21,6 +21,7 @@ import type {
   PropertyCategory,
   PropertyType,
   TransitLine,
+  TransitStation,
 } from "./property";
 
 // ---------------------------------------------------------------------------
@@ -93,6 +94,8 @@ export interface ListPropertiesQuery {
   maxArea?: number;
   /** Project slug: only listings posted inside that project. */
   project?: string;
+  /** Agent profile slug: only that agent's listings. */
+  agent?: string;
   sort?: PropertySort;
   /** 1-based. Default 1. */
   page?: number;
@@ -204,6 +207,314 @@ export const NEARBY_MAX_LIMIT = 24;
 
 export const PROPERTIES_DEFAULT_LIMIT = 20;
 export const PROPERTIES_MAX_LIMIT = 100;
+
+// ---------------------------------------------------------------------------
+// Agents (public profiles)
+// ---------------------------------------------------------------------------
+
+/** A station an agent has live listings near, for "ย่านที่ดูแล". */
+export interface AgentAreaDto {
+  station: TransitStation;
+  /** Live listings near this station. */
+  listingCount: number;
+}
+
+/** `GET /agents/:slug` — public agent profile (A7, A9). 404 for unknown slugs. */
+export interface AgentProfileDto {
+  slug: string;
+  name: string;
+  company?: string;
+  teamSize?: number;
+  about: string;
+  yearsExperience: number;
+  /** ISO date the account was created. */
+  memberSince: string;
+  /** Typical reply time in minutes. */
+  responseMinutes: number;
+  languages: string[];
+  phone: string;
+  lineId?: string;
+  phoneVerified: boolean;
+  idVerified: boolean;
+  /** e.g. "จันทร์–เสาร์ 9:00–19:00". */
+  workingHours: string;
+  /** Busiest stations first, at most 6. */
+  areas: AgentAreaDto[];
+  /** Live listings, for the listing tabs. */
+  counts: { all: number; buy: number; rent: number };
+}
+
+export interface GetAgentResponse {
+  data: AgentProfileDto;
+}
+
+// ---------------------------------------------------------------------------
+// Account: profile, security, notification settings, privacy (B7, B20)
+// ---------------------------------------------------------------------------
+
+export type NotificationTopic = "saved_search" | "price_drop" | "message" | "listing_closed" | "new_project";
+export type NotificationChannel = "email" | "line" | "web";
+export type NotificationMatrix = Record<NotificationTopic, Record<NotificationChannel, boolean>>;
+
+export interface SignedInDevice {
+  id: string;
+  /** e.g. "MacBook Air, Chrome". */
+  name: string;
+  current: boolean;
+  /** ISO date. */
+  lastActiveAt: string;
+}
+
+/** `GET /me/profile` — everything B7 shows. Names and email mirror the session user. */
+export interface ProfileDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  emailVerified: boolean;
+  /** Thai mobile, "0812345678". */
+  phone?: string;
+  phoneVerified: boolean;
+  lineId?: string;
+  language: "th" | "en";
+  /** Data URL or CDN URL. */
+  avatarUrl?: string;
+  linked: { google?: string; line: boolean };
+  /** ISO date; undefined for SSO-only accounts. */
+  passwordChangedAt?: string;
+  devices: SignedInDevice[];
+  notifications: NotificationMatrix;
+  marketingOptIn: boolean;
+}
+
+export interface ProfileResponse {
+  data: ProfileDto;
+}
+
+/** `PATCH /me/profile` — personal info, avatar and settings. Changing `phone` clears `phoneVerified`. */
+export type UpdateProfileRequest = Partial<
+  Pick<ProfileDto, "firstName" | "lastName" | "phone" | "lineId" | "language" | "notifications" | "marketingOptIn">
+> & {
+  /** `null` removes the photo. */
+  avatarUrl?: string | null;
+};
+
+/** `POST /me/phone/otp` (202) then `POST /me/phone/verify`. The mock code is `MOCK_OTP_CODE`. */
+export interface VerifyPhoneRequest {
+  code: string;
+}
+
+/** `POST /me/password` — 204; 400 when `currentPassword` is wrong. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (B19)
+// ---------------------------------------------------------------------------
+
+export type NotificationKind = "price_drop" | "viewing" | "new_match" | "listing_closed" | "new_project";
+
+export interface NotificationDto {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  detail: string;
+  /** Where tapping it goes. */
+  href: string;
+  /** ISO date. */
+  createdAt: string;
+  read: boolean;
+}
+
+/** `GET /me/notifications?kind=` — newest first. */
+export type ListNotificationsResponse = ListResponse<NotificationDto>;
+
+// ---------------------------------------------------------------------------
+// Messages and viewing requests (B14–B18)
+// ---------------------------------------------------------------------------
+
+export type ViewingStatusDto =
+  "requested" | "confirmed" | "counter_proposed" | "declined" | "expired" | "cancelled" | "completed";
+
+/** A request expires when the lister has not answered within this many hours. */
+export const VIEWING_EXPIRY_HOURS = 24;
+
+/** The listing a thread is about (property or developer project). */
+export interface ThreadListingDto {
+  kind: "property" | "project";
+  id: string;
+  title: string;
+  /** Page to open it. */
+  href: string;
+  price?: number;
+  mode?: ListingMode;
+  /** "฿9.2 ล้าน", "เริ่ม ฿4.59 ล้าน". */
+  priceLabel: string;
+  image: { src: string; alt: string };
+  station?: TransitStation;
+  stationDistance?: number;
+  /** Lister's viewing hours, e.g. "09:00–19:00". */
+  viewingHours: string;
+}
+
+export interface ThreadCounterpartDto {
+  name: string;
+  kind: "agent" | "owner" | "developer";
+  /** Public agent profile, when there is one. */
+  profileSlug?: string;
+  phone: string;
+  idVerified: boolean;
+  responseMinutes: number;
+}
+
+export interface ViewingRequestDto {
+  id: string;
+  threadId: string;
+  /** ISO start of the requested slot (Bangkok time). */
+  slot: string;
+  backupSlot?: string;
+  /** Set when the lister proposes another time. */
+  proposedSlot?: string;
+  partySize: number;
+  note?: string;
+  status: ViewingStatusDto;
+  createdAt: string;
+  /** When a `requested` request lapses. */
+  expiresAt: string;
+  respondedAt?: string;
+}
+
+export interface MessageDto {
+  id: string;
+  threadId: string;
+  from: "me" | "them";
+  /** `viewing` messages render the request card for `viewingId`. */
+  kind: "text" | "viewing";
+  text: string;
+  viewingId?: string;
+  createdAt: string;
+  /** When the other side read it (my messages only). */
+  readAt?: string;
+}
+
+export interface ThreadDto {
+  id: string;
+  /** Buyers may request viewings; listers answer them (seller dashboard). */
+  role: "buyer" | "lister";
+  counterpart: ThreadCounterpartDto;
+  listing?: ThreadListingDto;
+  lastMessage: Pick<MessageDto, "text" | "from" | "createdAt">;
+  unreadCount: number;
+  /** The most recent viewing request, if any. */
+  viewing?: ViewingRequestDto;
+}
+
+/** `GET /me/threads?filter=` — newest activity first. */
+export type ListThreadsResponse = ListResponse<ThreadDto>;
+export type ThreadFilter = "all" | "unread" | "viewing";
+
+/** `GET /me/threads/:id` — 404 for someone else's thread. */
+export interface ThreadDetailResponse {
+  data: { thread: ThreadDto; messages: MessageDto[]; viewings: ViewingRequestDto[] };
+}
+
+/** `POST /me/threads` — opens the existing thread with that recipient or starts one. `to`: "agent:<slug>" or "property:<slug>". */
+export interface StartThreadRequest {
+  to: string;
+}
+
+/** `POST /me/threads/:id/messages` */
+export interface SendMessageRequest {
+  text: string;
+}
+
+/** One bookable hour on a day (B18). */
+export interface ViewingSlotDto {
+  /** "10:00" */
+  time: string;
+  available: boolean;
+}
+
+/** `GET /me/threads/:id/slots` — the next days the lister takes viewings. */
+export interface ViewingSlotsResponse {
+  data: { days: { date: string; slots: ViewingSlotDto[] }[]; viewingHours: string };
+}
+
+/** `POST /me/threads/:id/viewings` — buyers only (403 for listers); 409 while another request is open. */
+export interface CreateViewingRequest {
+  slot: string;
+  backupSlot?: string;
+  partySize: number;
+  note?: string;
+}
+
+/**
+ * `PATCH /me/viewings/:id`. Buyer: `cancel`, or `accept` a counter-proposal.
+ * Lister: `confirm`, `decline`, or `propose` with `slot`.
+ */
+export interface UpdateViewingRequest {
+  action: "cancel" | "accept" | "confirm" | "decline" | "propose";
+  slot?: string;
+}
+
+/** A viewing with what the appointments page needs to show it. */
+export interface AppointmentDto extends ViewingRequestDto {
+  listing?: ThreadListingDto;
+  counterpart: ThreadCounterpartDto;
+  role: ThreadDto["role"];
+}
+
+/** `GET /me/viewings` — every viewing request in the user's threads, soonest first. */
+export type ListAppointmentsResponse = ListResponse<AppointmentDto>;
+
+// ---------------------------------------------------------------------------
+// Saved searches and unread counts (signed-in user)
+// ---------------------------------------------------------------------------
+
+export type AlertFrequency = "instant" | "daily" | "weekly";
+
+/** A search the user saved for alerts (B9, D11). */
+export interface SavedSearchDto {
+  id: string;
+  /** e.g. "คอนโดขาย ใกล้ BTS ทองหล่อ". */
+  name: string;
+  /** The `/search` query string it reruns, e.g. "mode=buy&type=condo&station=E6". */
+  query: string;
+  alerts: { email: boolean; line: boolean; frequency: AlertFrequency };
+  /** Listings posted since the user last opened it. */
+  newCount: number;
+  /** ISO date. */
+  createdAt: string;
+}
+
+/** Most saved searches one account can keep. */
+export const MAX_SAVED_SEARCHES = 10;
+
+/** `POST /me/saved-searches` body. Saving the same `query` again returns the existing search (200). 409 at the limit. */
+export interface CreateSavedSearchRequest {
+  name: string;
+  query: string;
+}
+
+/** `POST /me/saved-searches` (201 new, 200 already saved). */
+export interface SavedSearchResponse {
+  data: SavedSearchDto;
+}
+
+/** `PATCH /me/saved-searches/:id` — rename or change alerts. `DELETE` removes it (204). */
+export interface UpdateSavedSearchRequest {
+  name?: string;
+  alerts?: Partial<SavedSearchDto["alerts"]>;
+}
+
+/** `GET /me/saved-searches`, newest first. */
+export type ListSavedSearchesResponse = ListResponse<SavedSearchDto>;
+
+/** `GET /me/unread-counts` — badges for the bottom nav and the notifications bell. */
+export interface UnreadCountsResponse {
+  data: { messages: number; notifications: number };
+}
 
 // ---------------------------------------------------------------------------
 // Favorites and compare (signed-in user; the mock keeps one user's list)

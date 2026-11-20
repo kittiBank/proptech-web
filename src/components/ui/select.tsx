@@ -85,4 +85,47 @@ function SelectSeparator({ className, ...props }: React.ComponentProps<typeof Se
   return <SelectPrimitive.Separator className={cn("mx-1 my-1 h-px bg-line", className)} {...props} />;
 }
 
-export { Select, SelectValue, SelectGroup, SelectLabel, SelectSeparator, SelectTrigger, SelectContent, SelectItem };
+const selectTrigger =
+  "h-11 w-auto min-w-0 rounded-md border border-line-strong bg-white px-3.5 hover:border-ink data-[placeholder]:text-ink";
+
+/** Labelled single-choice filter, styled like an outline button (projects, agent listings). */
+function FilterSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as T)}>
+      <SelectTrigger aria-label={label} className={cn(selectTrigger, className)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export {
+  FilterSelect,
+  Select,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+};

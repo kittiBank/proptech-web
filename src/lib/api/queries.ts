@@ -1,5 +1,12 @@
 import { infiniteQueryOptions, keepPreviousData, queryOptions } from "@tanstack/react-query";
-import type { AdPlacement, ListArticlesQuery, ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
+import type {
+  AdPlacement,
+  ThreadFilter,
+  NotificationKind,
+  ListArticlesQuery,
+  ListProjectsQuery,
+  ListPropertiesQuery,
+} from "@/types/api";
 import { ApiError } from "./client";
 import { api } from "./endpoints";
 
@@ -22,6 +29,9 @@ export const queryKeys = {
     detail: (slug: string) => ["projects", "detail", slug] as const,
     nearby: (slug: string, limit: number) => ["projects", "nearby", slug, limit] as const,
   },
+  agents: {
+    detail: (slug: string) => ["agents", "detail", slug] as const,
+  },
   articles: {
     all: ["articles"] as const,
     list: (query: ListArticlesQuery) => ["articles", "list", query] as const,
@@ -36,6 +46,20 @@ export const queryKeys = {
     submission: (id: string) => ["me", "drafts", id, "submission"] as const,
   },
   listingQuota: ["me", "listing-quota"] as const,
+  savedSearches: ["me", "saved-searches"] as const,
+  unreadCounts: ["me", "unread-counts"] as const,
+  profile: ["me", "profile"] as const,
+  threads: {
+    all: ["me", "threads"] as const,
+    list: (filter: ThreadFilter) => ["me", "threads", "list", filter] as const,
+    detail: (id: string) => ["me", "threads", "detail", id] as const,
+    slots: (id: string) => ["me", "threads", "slots", id] as const,
+  },
+  appointments: ["me", "viewings"] as const,
+  notifications: {
+    all: ["me", "notifications"] as const,
+    list: (kind?: NotificationKind) => ["me", "notifications", kind ?? "all"] as const,
+  },
   promotions: ["promotions"] as const,
   projectPlaces: (q: string) => ["places", "projects", q] as const,
   nearbyStations: (lat: number, lng: number) => ["stations", "nearby", lat, lng] as const,
@@ -86,6 +110,15 @@ export const projectQueries = {
     queryOptions({
       queryKey: queryKeys.projects.nearby(slug, limit),
       queryFn: ({ signal }) => api.listNearbyProjects(slug, limit, signal),
+      staleTime: 5 * MINUTE,
+    }),
+};
+
+export const agentQueries = {
+  detail: (slug: string) =>
+    queryOptions({
+      queryKey: queryKeys.agents.detail(slug),
+      queryFn: ({ signal }) => api.getAgent(slug, signal),
       staleTime: 5 * MINUTE,
     }),
 };
@@ -189,6 +222,60 @@ export const draftQueries = {
       queryFn: ({ signal }) => api.getSubmission(id, signal),
     }),
 };
+
+export const savedSearchesQuery = queryOptions({
+  queryKey: queryKeys.savedSearches,
+  queryFn: ({ signal }) => api.listSavedSearches(signal),
+});
+
+/** Badge counts; refreshed every minute while the app is open. Only fetch when signed in. */
+export const unreadCountsQuery = queryOptions({
+  queryKey: queryKeys.unreadCounts,
+  queryFn: async ({ signal }) => (await api.getUnreadCounts(signal)).data,
+  staleTime: MINUTE,
+  refetchInterval: MINUTE,
+});
+
+export const profileQuery = queryOptions({
+  queryKey: queryKeys.profile,
+  queryFn: async ({ signal }) => (await api.getProfile(signal)).data,
+});
+
+export const notificationsQuery = (kind?: NotificationKind) =>
+  queryOptions({
+    queryKey: queryKeys.notifications.list(kind),
+    queryFn: ({ signal }) => api.listNotifications(kind, signal),
+    placeholderData: keepPreviousData,
+  });
+
+/** Chats poll so replies show up without a reload (mock replies arrive a few seconds after sending). */
+export const threadQueries = {
+  list: (filter: ThreadFilter = "all") =>
+    queryOptions({
+      queryKey: queryKeys.threads.list(filter),
+      queryFn: ({ signal }) => api.listThreads(filter, signal),
+      refetchInterval: 15_000,
+      placeholderData: keepPreviousData,
+    }),
+  detail: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.threads.detail(id),
+      queryFn: async ({ signal }) => (await api.getThread(id, signal)).data,
+      refetchInterval: 5_000,
+    }),
+  slots: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.threads.slots(id),
+      queryFn: async ({ signal }) => (await api.getViewingSlots(id, signal)).data,
+      staleTime: MINUTE,
+    }),
+};
+
+export const appointmentsQuery = queryOptions({
+  queryKey: queryKeys.appointments,
+  queryFn: ({ signal }) => api.listAppointments(signal),
+  refetchInterval: 30_000,
+});
 
 export const listingQuotaQuery = queryOptions({
   queryKey: queryKeys.listingQuota,

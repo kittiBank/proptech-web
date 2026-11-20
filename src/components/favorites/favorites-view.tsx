@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Heart, TrendingDown } from "lucide-react";
 import { PropertyPhoto } from "@/components/property/property-photo";
 import { TransitBadge } from "@/components/property/transit-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { EmptyState } from "@/components/ui/empty-state";
 import { inputClass } from "@/components/ui/field";
 import { QueryError, Skeleton } from "@/components/ui/query-state";
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { routes } from "@/data/navigation";
 import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useHideBottomNav } from "@/lib/bottom-nav";
 import { cn } from "@/lib/utils";
 import { useFavoriteNote, useFavorites } from "@/providers/favorites-store";
 import { COMPARE_MAX, FAVORITE_NOTE_MAX, type FavoriteDto } from "@/types/api";
@@ -305,18 +307,13 @@ export function FavoritesView() {
   const [sort, setSort] = useState<Sort>("saved");
   const [selected, setSelected] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState(false);
-  const [removed, setRemoved] = useState<FavoriteDto | null>(null);
 
   // A shrinking screen or an unsaved listing can leave stale picks behind.
   const picks = selected
     .filter((id) => favorites.some((f) => f.property.id === id && f.status === "active"))
     .slice(0, max);
-
-  useEffect(() => {
-    if (!removed) return;
-    const t = window.setTimeout(() => setRemoved(null), 6000);
-    return () => window.clearTimeout(t);
-  }, [removed]);
+  // The compare bar takes the bottom of the screen while listings are picked.
+  useHideBottomNav(picks.length > 0);
 
   const counts = useMemo(
     () => ({
@@ -337,12 +334,10 @@ export function FavoritesView() {
   const onRemove = (f: FavoriteDto) => {
     remove(f.property.id);
     setSelected((prev) => prev.filter((id) => id !== f.property.id));
-    setRemoved(f);
-  };
-
-  const undo = () => {
-    if (removed) save(removed.property);
-    setRemoved(null);
+    toast(`นำ “${f.property.title}” ออกแล้ว`, {
+      action: { label: "เลิกทำ", onClick: () => save(f.property) },
+      duration: 6000,
+    });
   };
 
   const header = (
@@ -417,7 +412,6 @@ export function FavoritesView() {
           }
           className="mt-6 rounded-lg bg-white"
         />
-        {removed && <UndoToast favorite={removed} onUndo={undo} />}
       </>
     );
   }
@@ -534,26 +528,6 @@ export function FavoritesView() {
           </div>
         </div>
       )}
-
-      {removed && !showBar && <UndoToast favorite={removed} onUndo={undo} />}
-    </div>
-  );
-}
-
-function UndoToast({ favorite, onUndo }: { favorite: FavoriteDto; onUndo: () => void }) {
-  return (
-    <div
-      role="status"
-      className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-md items-center gap-3 rounded-lg bg-ink px-4 py-3 text-sm text-white shadow-[0_12px_32px_rgba(26,22,48,.12)] sm:bottom-6"
-    >
-      <span className="line-clamp-1 flex-1">นำ “{favorite.property.title}” ออกแล้ว</span>
-      <button
-        type="button"
-        onClick={onUndo}
-        className="h-9 shrink-0 rounded-md px-2 font-semibold text-violet-200 hover:text-white"
-      >
-        เลิกทำ
-      </button>
     </div>
   );
 }

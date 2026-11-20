@@ -6,8 +6,8 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { contact, mainNav, routes } from "@/data/navigation";
-import { displayName, initial, useSession, useSignOut } from "@/providers/session";
-import { Avatar } from "./account-menu";
+import { displayName, useSession, useSignOut } from "@/providers/session";
+import { Avatar } from "@/components/ui/avatar";
 import { LogoMark } from "./logo";
 import { NavLink } from "./nav-link";
 
@@ -66,7 +66,7 @@ export function MobileNav() {
           </Button>
           {user ? (
             <div className="flex items-center gap-3 rounded-md bg-mist p-3">
-              <Avatar name={initial(user)} className="size-10 text-base" />
+              <Avatar name={displayName(user)} size="md" className="bg-brand" />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-ink">{displayName(user)}</p>
                 <p className="truncate text-sm text-slate">{user.email}</p>

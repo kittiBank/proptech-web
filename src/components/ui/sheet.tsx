@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Dialog as SheetPrimitive } from "radix-ui";
 import { X } from "lucide-react";
+import { HideBottomNav } from "@/lib/bottom-nav";
 import { cn } from "@/lib/utils";
 
 const Sheet = SheetPrimitive.Root;
@@ -33,6 +34,7 @@ function SheetContent({
         {...props}
       >
         {children}
+        <HideBottomNav />
         <SheetPrimitive.Close
           className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-mist"
           aria-label={closeLabel}

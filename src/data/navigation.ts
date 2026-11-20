@@ -1,5 +1,5 @@
 /**
- * Site routes. `/`, `/search`, `/property/[slug]`, `/projects(/[slug])`, `/guides(/[slug])` and `/tools/mortgage` are implemented; the rest are reserved paths
+ * Site routes. `/`, `/search`, `/property/[slug]`, `/projects(/[slug])`, `/agents/[slug]`, `/guides(/[slug])` and `/tools/mortgage` are implemented; the rest are reserved paths
  * for upcoming pages and land on the branded not-found page until then.
  */
 export const routes = {
@@ -36,7 +36,19 @@ export const routes = {
     return query ? `/search?${query}` : "/search";
   },
   project: (slug: string) => `/projects/${slug}`,
+  /** Public agent profile; optional params keep the listing tab, filters and page (see `lib/agent-params.ts`). */
+  agent: (slug: string, query = "") => `/agents/${encodeURIComponent(slug)}${query ? `?${query}` : ""}`,
+  messages: "/messages",
+  thread: (id: string) => `/messages/${encodeURIComponent(id)}`,
+  /** Opens (or starts) the chat with an agent or poster. */
+  messageTo: (recipient: string) => `/messages?to=${encodeURIComponent(recipient)}`,
   favorites: "/account/favorites",
+  account: "/account",
+  profile: "/account/profile",
+  appointments: "/account/appointments",
+  dashboard: "/dashboard",
+  savedSearches: "/account/saved-searches",
+  notifications: "/notifications",
   /** Side-by-side table for up to 3 listing ids. */
   compare: (ids: string[]) => `/compare?ids=${ids.map(encodeURIComponent).join(",")}`,
   location: (id: string) => `/buy?location=${id}`,
