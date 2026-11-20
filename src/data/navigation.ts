@@ -39,6 +39,7 @@ export const routes = {
   /** Public agent profile; optional params keep the listing tab, filters and page (see `lib/agent-params.ts`). */
   agent: (slug: string, query = "") => `/agents/${encodeURIComponent(slug)}${query ? `?${query}` : ""}`,
   messages: "/messages",
+  thread: (id: string) => `/messages/${encodeURIComponent(id)}`,
   /** Opens (or starts) the chat with an agent or poster. */
   messageTo: (recipient: string) => `/messages?to=${encodeURIComponent(recipient)}`,
   favorites: "/account/favorites",

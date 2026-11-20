@@ -331,6 +331,144 @@ export interface NotificationDto {
 export type ListNotificationsResponse = ListResponse<NotificationDto>;
 
 // ---------------------------------------------------------------------------
+// Messages and viewing requests (B14–B18)
+// ---------------------------------------------------------------------------
+
+export type ViewingStatusDto =
+  "requested" | "confirmed" | "counter_proposed" | "declined" | "expired" | "cancelled" | "completed";
+
+/** A request expires when the lister has not answered within this many hours. */
+export const VIEWING_EXPIRY_HOURS = 24;
+
+/** The listing a thread is about (property or developer project). */
+export interface ThreadListingDto {
+  kind: "property" | "project";
+  id: string;
+  title: string;
+  /** Page to open it. */
+  href: string;
+  price?: number;
+  mode?: ListingMode;
+  /** "฿9.2 ล้าน", "เริ่ม ฿4.59 ล้าน". */
+  priceLabel: string;
+  image: { src: string; alt: string };
+  station?: TransitStation;
+  stationDistance?: number;
+  /** Lister's viewing hours, e.g. "09:00–19:00". */
+  viewingHours: string;
+}
+
+export interface ThreadCounterpartDto {
+  name: string;
+  kind: "agent" | "owner" | "developer";
+  /** Public agent profile, when there is one. */
+  profileSlug?: string;
+  phone: string;
+  idVerified: boolean;
+  responseMinutes: number;
+}
+
+export interface ViewingRequestDto {
+  id: string;
+  threadId: string;
+  /** ISO start of the requested slot (Bangkok time). */
+  slot: string;
+  backupSlot?: string;
+  /** Set when the lister proposes another time. */
+  proposedSlot?: string;
+  partySize: number;
+  note?: string;
+  status: ViewingStatusDto;
+  createdAt: string;
+  /** When a `requested` request lapses. */
+  expiresAt: string;
+  respondedAt?: string;
+}
+
+export interface MessageDto {
+  id: string;
+  threadId: string;
+  from: "me" | "them";
+  /** `viewing` messages render the request card for `viewingId`. */
+  kind: "text" | "viewing";
+  text: string;
+  viewingId?: string;
+  createdAt: string;
+  /** When the other side read it (my messages only). */
+  readAt?: string;
+}
+
+export interface ThreadDto {
+  id: string;
+  /** Buyers may request viewings; listers answer them (seller dashboard). */
+  role: "buyer" | "lister";
+  counterpart: ThreadCounterpartDto;
+  listing?: ThreadListingDto;
+  lastMessage: Pick<MessageDto, "text" | "from" | "createdAt">;
+  unreadCount: number;
+  /** The most recent viewing request, if any. */
+  viewing?: ViewingRequestDto;
+}
+
+/** `GET /me/threads?filter=` — newest activity first. */
+export type ListThreadsResponse = ListResponse<ThreadDto>;
+export type ThreadFilter = "all" | "unread" | "viewing";
+
+/** `GET /me/threads/:id` — 404 for someone else's thread. */
+export interface ThreadDetailResponse {
+  data: { thread: ThreadDto; messages: MessageDto[]; viewings: ViewingRequestDto[] };
+}
+
+/** `POST /me/threads` — opens the existing thread with that recipient or starts one. `to`: "agent:<slug>" or "property:<slug>". */
+export interface StartThreadRequest {
+  to: string;
+}
+
+/** `POST /me/threads/:id/messages` */
+export interface SendMessageRequest {
+  text: string;
+}
+
+/** One bookable hour on a day (B18). */
+export interface ViewingSlotDto {
+  /** "10:00" */
+  time: string;
+  available: boolean;
+}
+
+/** `GET /me/threads/:id/slots` — the next days the lister takes viewings. */
+export interface ViewingSlotsResponse {
+  data: { days: { date: string; slots: ViewingSlotDto[] }[]; viewingHours: string };
+}
+
+/** `POST /me/threads/:id/viewings` — buyers only (403 for listers); 409 while another request is open. */
+export interface CreateViewingRequest {
+  slot: string;
+  backupSlot?: string;
+  partySize: number;
+  note?: string;
+}
+
+/**
+ * `PATCH /me/viewings/:id`. Buyer: `cancel`, or `accept` a counter-proposal.
+ * Lister: `confirm`, `decline`, or `propose` with `slot`.
+ */
+export interface UpdateViewingRequest {
+  action: "cancel" | "accept" | "confirm" | "decline" | "propose";
+  slot?: string;
+}
+
+/** A viewing with what the appointments page needs to show it. */
+export interface AppointmentDto extends ViewingRequestDto {
+  listing?: ThreadListingDto;
+  counterpart: ThreadCounterpartDto;
+  role: ThreadDto["role"];
+}
+
+/** `GET /me/viewings` — every viewing request in the user's threads, soonest first. */
+export type ListAppointmentsResponse = ListResponse<AppointmentDto>;
+
+// ---------------------------------------------------------------------------
 // Saved searches and unread counts (signed-in user)
 // ---------------------------------------------------------------------------
 

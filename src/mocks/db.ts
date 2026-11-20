@@ -347,3 +347,10 @@ export function searchProjectPlaces(q: string): SearchProjectPlacesResponse {
 export function queryNearbyStations(point: { lat: number; lng: number }): NearbyStationsResponse {
   return { data: stationsNear(point).filter((s) => s.distance <= 1500) };
 }
+
+/** Live listings posted under a name (owner or agent), newest first; used to seed mock chats. */
+export function listingsByPoster(name: string): PropertyDto[] {
+  return allListings
+    .filter((p) => p.agent.name === name && !closedListingIds.has(p.id))
+    .sort((a, b) => b.postedAt.localeCompare(a.postedAt));
+}

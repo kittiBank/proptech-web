@@ -3,6 +3,7 @@ import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { dismissToast } from "@/components/ui/toast";
 import { resetMockAccount } from "@/mocks/account";
+import { resetMockInbox } from "@/mocks/inbox";
 import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
@@ -43,6 +44,7 @@ afterEach(() => {
   resetMockSavedSearches();
   resetMockAccount();
   resetMockNotifications();
+  resetMockInbox();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();

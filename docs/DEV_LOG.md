@@ -7,6 +7,7 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 | Date done  | Issue | Ticket | Summary                                                                                                                              | Branch / PR                            | Status | Note                                                                                          |
 | ---------- | ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- | ------ | --------------------------------------------------------------------------------------------- |
+| 2026-11-20 | #18   | FE-14  | Messages `/messages(/[threadId])` (B14–B16), viewing request sheet (B18), `/account/appointments` (B17)                              | `feat/fe10-fe15`                       | done   | Mock `/me/threads`, `/me/viewings`; 24h expiry; mock replies + polling in browser             |
 | 2026-11-20 | #17   | FE-13  | Account: sidebar shell, `/account` menu (B20), profile/security/notifications/PDPA (B7), saved searches (B9), `/notifications` (B19) | `feat/fe10-fe15`                       | done   | Mock `/me/profile`, OTP `123456`, `/me/notifications`; `/account` forwards desktop to profile |
 | 2026-11-20 | #16   | FE-12  | Mobile bottom nav (unread badge, hides for sheets/action bars/chat) + D11 no-results with relaxations and save search                | `feat/fe10-fe15`                       | done   | Mock `POST /me/saved-searches`, `GET /me/unread-counts` (fixed demo counts until FE-13/14)    |
 | 2026-11-20 | #15   | FE-11  | Agent profile `/agents/[slug]`: hero, areas, listing tabs, mobile contact bar                                                        | `feat/fe10-fe15`                       | done   | Mock `GET /agents/:slug`, `GET /properties?agent=`; chat link waits for FE-14                 |
@@ -29,5 +30,5 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 ## Up next
 
-Open issues, in planned order: FE-14 (#18), FE-15 (#19) on `feat/fe10-fe15`, then FE-16 (#20) … FE-22 (#26).
+Open issues, in planned order: FE-15 (#19) on `feat/fe10-fe15`, then FE-16 (#20) … FE-22 (#26).
 Run `gh issue list` for the current list.

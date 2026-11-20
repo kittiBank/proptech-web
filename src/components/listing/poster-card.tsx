@@ -1,8 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { BadgeCheck, CircleCheck, Flag, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarPlus,
+  CircleCheck,
+  Flag,
+  MessageCircle,
+  Phone,
+  ShieldAlert,
+  Smartphone,
+} from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { BottomActionBar } from "@/components/ui/bottom-action-bar";
@@ -151,6 +161,35 @@ function EnquiryForm({ property, onDone }: { property: PropertyDetail; onDone?: 
   );
 }
 
+/** Opens the chat about this listing, where the buyer can request a viewing (B16, B18). Signed-out visitors log in first. */
+function ChatViewingButton({ property }: { property: PropertyDetail }) {
+  const router = useRouter();
+  const requireAuth = useAuthGate();
+  const key = `property:${property.slug}`;
+  const open = () => router.push(routes.messageTo(key));
+  useResumeAction("viewing", key, open);
+  return (
+    <Button
+      size="lg"
+      variant="ghost"
+      className="text-brand-strong"
+      onClick={() =>
+        requireAuth(
+          {
+            intent: "viewing",
+            key,
+            preview: { title: property.title, subtitle: `กับ ${property.poster.name}`, image: property.image },
+          },
+          open,
+        )
+      }
+    >
+      <CalendarPlus aria-hidden="true" />
+      ขอนัดดูห้องผ่านแชต
+    </Button>
+  );
+}
+
 /** Right-hand column: who posted the listing and every way to reach them. */
 export function PosterCard({ property }: { property: PropertyDetail }) {
   const { poster } = property;
@@ -236,6 +275,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
             <MessageCircle aria-hidden="true" />
             ส่งข้อความถึงผู้ลงประกาศ
           </Button>
+          <ChatViewingButton property={property} />
         </div>
 
         {formOpen && (

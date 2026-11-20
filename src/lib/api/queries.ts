@@ -1,6 +1,7 @@
 import { infiniteQueryOptions, keepPreviousData, queryOptions } from "@tanstack/react-query";
 import type {
   AdPlacement,
+  ThreadFilter,
   NotificationKind,
   ListArticlesQuery,
   ListProjectsQuery,
@@ -48,6 +49,13 @@ export const queryKeys = {
   savedSearches: ["me", "saved-searches"] as const,
   unreadCounts: ["me", "unread-counts"] as const,
   profile: ["me", "profile"] as const,
+  threads: {
+    all: ["me", "threads"] as const,
+    list: (filter: ThreadFilter) => ["me", "threads", "list", filter] as const,
+    detail: (id: string) => ["me", "threads", "detail", id] as const,
+    slots: (id: string) => ["me", "threads", "slots", id] as const,
+  },
+  appointments: ["me", "viewings"] as const,
   notifications: {
     all: ["me", "notifications"] as const,
     list: (kind?: NotificationKind) => ["me", "notifications", kind ?? "all"] as const,
@@ -239,6 +247,35 @@ export const notificationsQuery = (kind?: NotificationKind) =>
     queryFn: ({ signal }) => api.listNotifications(kind, signal),
     placeholderData: keepPreviousData,
   });
+
+/** Chats poll so replies show up without a reload (mock replies arrive a few seconds after sending). */
+export const threadQueries = {
+  list: (filter: ThreadFilter = "all") =>
+    queryOptions({
+      queryKey: queryKeys.threads.list(filter),
+      queryFn: ({ signal }) => api.listThreads(filter, signal),
+      refetchInterval: 15_000,
+      placeholderData: keepPreviousData,
+    }),
+  detail: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.threads.detail(id),
+      queryFn: async ({ signal }) => (await api.getThread(id, signal)).data,
+      refetchInterval: 5_000,
+    }),
+  slots: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.threads.slots(id),
+      queryFn: async ({ signal }) => (await api.getViewingSlots(id, signal)).data,
+      staleTime: MINUTE,
+    }),
+};
+
+export const appointmentsQuery = queryOptions({
+  queryKey: queryKeys.appointments,
+  queryFn: ({ signal }) => api.listAppointments(signal),
+  refetchInterval: 30_000,
+});
 
 export const listingQuotaQuery = queryOptions({
   queryKey: queryKeys.listingQuota,

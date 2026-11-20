@@ -1,4 +1,14 @@
 import type {
+  CreateViewingRequest,
+  ListAppointmentsResponse,
+  ListThreadsResponse,
+  MessageDto,
+  ThreadDetailResponse,
+  ThreadDto,
+  ThreadFilter,
+  UpdateViewingRequest,
+  ViewingRequestDto,
+  ViewingSlotsResponse,
   ChangePasswordRequest,
   ListNotificationsResponse,
   NotificationKind,
@@ -215,6 +225,39 @@ export const api = {
 
   /** POST /me/notifications/read-all */
   markAllNotificationsRead: () => apiSend<void>("POST", "/me/notifications/read-all"),
+
+  /** GET /me/threads?filter= — chats, newest activity first. */
+  listThreads: (filter: ThreadFilter = "all", signal?: AbortSignal) =>
+    apiGet<ListThreadsResponse>("/me/threads", { filter }, { signal }),
+
+  /** GET /me/threads/:id — one chat with its messages and viewing requests. */
+  getThread: (id: string, signal?: AbortSignal) =>
+    apiGet<ThreadDetailResponse>(`/me/threads/${encodeURIComponent(id)}`, undefined, { signal }),
+
+  /** POST /me/threads — open or start the chat with "agent:<slug>", "property:<slug>" or "project:<slug>". */
+  startThread: (to: string) => apiSend<{ data: ThreadDto }>("POST", "/me/threads", { to }),
+
+  /** POST /me/threads/:id/read */
+  markThreadRead: (id: string) => apiSend<void>("POST", `/me/threads/${encodeURIComponent(id)}/read`),
+
+  /** POST /me/threads/:id/messages */
+  sendMessage: (id: string, text: string) =>
+    apiSend<{ data: MessageDto }>("POST", `/me/threads/${encodeURIComponent(id)}/messages`, { text }),
+
+  /** GET /me/threads/:id/slots — bookable viewing hours for the next week. */
+  getViewingSlots: (id: string, signal?: AbortSignal) =>
+    apiGet<ViewingSlotsResponse>(`/me/threads/${encodeURIComponent(id)}/slots`, undefined, { signal }),
+
+  /** POST /me/threads/:id/viewings — buyer asks for a viewing (403 lister, 409 while one is open). */
+  createViewing: (id: string, body: CreateViewingRequest) =>
+    apiSend<{ data: ViewingRequestDto }>("POST", `/me/threads/${encodeURIComponent(id)}/viewings`, body),
+
+  /** GET /me/viewings — every viewing in the user's chats. */
+  listAppointments: (signal?: AbortSignal) => apiGet<ListAppointmentsResponse>("/me/viewings", undefined, { signal }),
+
+  /** PATCH /me/viewings/:id — cancel / accept (buyer), confirm / decline / propose (lister). */
+  updateViewing: (id: string, body: UpdateViewingRequest) =>
+    apiSend<{ data: ViewingRequestDto }>("PATCH", `/me/viewings/${encodeURIComponent(id)}`, body),
 
   /** GET /me/unread-counts — unread messages and notifications. */
   getUnreadCounts: (signal?: AbortSignal) => apiGet<UnreadCountsResponse>("/me/unread-counts", undefined, { signal }),

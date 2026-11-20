@@ -11,6 +11,11 @@ import {
   type ApiErrorBody,
   type CreateEnquiryRequest,
   type ChangePasswordRequest,
+  type CreateViewingRequest,
+  type SendMessageRequest,
+  type StartThreadRequest,
+  type ThreadFilter,
+  type UpdateViewingRequest,
   type CreateSavedSearchRequest,
   type NotificationKind,
   type UpdateProfileRequest,
@@ -82,6 +87,18 @@ import {
 } from "./account";
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from "./notifications";
 import { createSavedSearch, deleteSavedSearch, listSavedSearches, updateSavedSearch } from "./saved-searches";
+import {
+  createViewing,
+  getThread,
+  listAppointments,
+  listThreads,
+  markThreadRead,
+  sendMessage,
+  startThread,
+  updateViewing,
+  viewingSlots,
+  type ViewingError,
+} from "./inbox";
 import { unreadCounts } from "./unread";
 import { getMockScenario } from "./scenario";
 import {
@@ -137,6 +154,16 @@ class UnauthorizedError extends Error {}
 type SessionBody = SessionResponse | ApiErrorBody;
 
 const unauthorized = () => errorResponse(401, "Sign in required");
+
+function viewingError(error: ViewingError) {
+  const map = {
+    not_found: [404, "Not found"],
+    forbidden: [403, "Only the buyer can request a viewing"],
+    conflict: [409, "Another request is still open"],
+    invalid: [400, "Invalid slot or party size"],
+  } as const;
+  return errorResponse(map[error][0], map[error][1]);
+}
 
 function requireUser() {
   const user = currentUser();
@@ -581,6 +608,85 @@ export const handlers = [
     deleteProfile(user.id);
     deleteAccount(user.id);
     return new HttpResponse(null, { status: 204 });
+  }),
+  // --- Messages and viewings ------------------------------------------------
+  http.get(
+    endpoint("/me/threads"),
+    withScenario((request) => {
+      const filter = new URL(request.url).searchParams.get("filter") as ThreadFilter | null;
+      return { data: listThreads(requireUser().id, filter ?? "all") };
+    }),
+  ),
+  http.post(endpoint("/me/threads"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { to } = await readBody<StartThreadRequest>(request);
+    const thread = typeof to === "string" ? startThread(user.id, to) : undefined;
+    return thread ? HttpResponse.json({ data: thread }) : errorResponse(404, "Recipient not found");
+  }),
+  http.get(
+    endpoint("/me/threads/:id"),
+    withScenario((_request, params) => {
+      const detail = getThread(requireUser().id, String(params.id));
+      if (!detail) throw new NotFoundError("Thread not found");
+      return { data: detail };
+    }),
+  ),
+  http.post(endpoint("/me/threads/:id/read"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return markThreadRead(user.id, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Thread not found");
+  }),
+  http.post(endpoint("/me/threads/:id/messages"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { text } = await readBody<SendMessageRequest>(request);
+    if (typeof text !== "string" || !text.trim()) return errorResponse(400, "text should not be empty");
+    if (text.length > 2000) return errorResponse(400, "text must be 2000 characters or less");
+    const message = sendMessage(user.id, String(params.id), text.trim());
+    return message ? HttpResponse.json({ data: message }, { status: 201 }) : errorResponse(404, "Thread not found");
+  }),
+  http.get(
+    endpoint("/me/threads/:id/slots"),
+    withScenario((_request, params) => {
+      const slots = viewingSlots(requireUser().id, String(params.id));
+      if (!slots) throw new NotFoundError("Thread has no listing to view");
+      return { data: slots };
+    }),
+  ),
+  http.post(endpoint("/me/threads/:id/viewings"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = createViewing(
+      user.id,
+      String(params.id),
+      (await readBody<CreateViewingRequest>(request)) as CreateViewingRequest,
+    );
+    return typeof result === "string" ? viewingError(result) : HttpResponse.json({ data: result }, { status: 201 });
+  }),
+  http.get(
+    endpoint("/me/viewings"),
+    withScenario(() => ({ data: listAppointments(requireUser().id) })),
+  ),
+  http.patch(endpoint("/me/viewings/:id"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = updateViewing(
+      user.id,
+      String(params.id),
+      (await readBody<UpdateViewingRequest>(request)) as UpdateViewingRequest,
+    );
+    return typeof result === "string" ? viewingError(result) : HttpResponse.json({ data: result });
   }),
   // --- Notifications -------------------------------------------------------
   http.get(
