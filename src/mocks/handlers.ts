@@ -10,7 +10,12 @@ import {
   PROPERTIES_MAX_LIMIT,
   type ApiErrorBody,
   type CreateEnquiryRequest,
+  type ChangePasswordRequest,
   type CreateSavedSearchRequest,
+  type NotificationKind,
+  type UpdateProfileRequest,
+  type UpdateSavedSearchRequest,
+  type VerifyPhoneRequest,
   type CreateEnquiryResponse,
   type CreateProjectViewingRequest,
   type CreateProjectViewingResponse,
@@ -65,18 +70,32 @@ import {
   updateDraft,
 } from "./drafts";
 import { listFavorites, removeFavorite, saveFavorite, updateFavoriteNote } from "./favorites";
-import { createSavedSearch, listSavedSearches } from "./saved-searches";
+import {
+  deleteProfile,
+  getProfile,
+  markPasswordChanged,
+  sendPhoneOtp,
+  setLinked,
+  signOutOtherDevices,
+  updateProfile,
+  verifyPhone,
+} from "./account";
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from "./notifications";
+import { createSavedSearch, deleteSavedSearch, listSavedSearches, updateSavedSearch } from "./saved-searches";
 import { unreadCounts } from "./unread";
 import { getMockScenario } from "./scenario";
 import {
   completeOnboarding,
+  changePassword,
   currentUser,
+  deleteAccount,
   login,
   logout,
   oauthLogin,
   register,
   requestPasswordReset,
   resetPassword,
+  updateAccountNames,
   verifyEmail,
 } from "./session";
 
@@ -452,12 +471,143 @@ export const handlers = [
     if (result.kind === "limit") return errorResponse(409, `You can keep at most ${MAX_SAVED_SEARCHES} saved searches`);
     return HttpResponse.json({ data: result.search }, { status: result.kind === "created" ? 201 : 200 });
   }),
+  http.patch(endpoint("/me/saved-searches/:id"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const updated = updateSavedSearch(user.id, String(params.id), await readBody<UpdateSavedSearchRequest>(request));
+    return updated ? HttpResponse.json({ data: updated }) : errorResponse(404, "Saved search not found");
+  }),
+  http.delete(endpoint("/me/saved-searches/:id"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return deleteSavedSearch(user.id, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Saved search not found");
+  }),
+  // --- Account: profile, security, privacy ---------------------------------
+  http.get(
+    endpoint("/me/profile"),
+    withScenario(() => ({ data: getProfile(requireUser()) })),
+  ),
+  http.patch(endpoint("/me/profile"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<UpdateProfileRequest>(request);
+    const errors: string[] = [];
+    if (body.firstName !== undefined && !body.firstName.trim()) errors.push("firstName should not be empty");
+    if (body.lastName !== undefined && !body.lastName.trim()) errors.push("lastName should not be empty");
+    if (body.phone && !/^0\d{8,9}$/.test(body.phone)) errors.push("phone must be a Thai phone number");
+    if (typeof body.avatarUrl === "string" && body.avatarUrl.length > 7_000_000)
+      errors.push("avatar must be 5 MB or less");
+    if (errors.length) return errorResponse(400, errors);
+    updateAccountNames(user.id, { firstName: body.firstName?.trim(), lastName: body.lastName?.trim() });
+    updateProfile(user, body);
+    return HttpResponse.json({ data: getProfile(currentUser()!) });
+  }),
+  http.post(endpoint("/me/phone/otp"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return sendPhoneOtp(user)
+      ? new HttpResponse(null, { status: 202 })
+      : errorResponse(400, "Add a phone number first");
+  }),
+  http.post(endpoint("/me/phone/verify"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { code } = await readBody<VerifyPhoneRequest>(request);
+    if (!verifyPhone(user, String(code ?? ""))) return errorResponse(400, "Invalid or expired code");
+    return HttpResponse.json({ data: getProfile(user) });
+  }),
+  http.post(endpoint("/me/password"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<ChangePasswordRequest>(request);
+    if (!body.newPassword || body.newPassword.length < 8) return errorResponse(400, "newPassword is too short");
+    if (!changePassword(user.id, body.currentPassword ?? "", body.newPassword))
+      return errorResponse(400, "currentPassword is incorrect");
+    markPasswordChanged(user);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(endpoint("/me/linked/:provider"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const provider = String(params.provider);
+    if (provider !== "google" && provider !== "line") return errorResponse(404, "Unknown provider");
+    setLinked(user, provider, true);
+    return HttpResponse.json({ data: getProfile(user) });
+  }),
+  http.delete(endpoint("/me/linked/:provider"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const provider = String(params.provider);
+    if (provider !== "google" && provider !== "line") return errorResponse(404, "Unknown provider");
+    setLinked(user, provider, false);
+    return HttpResponse.json({ data: getProfile(user) });
+  }),
+  http.post(endpoint("/me/sessions/revoke-others"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    signOutOtherDevices(user);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(endpoint("/me/data-export"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    return currentUser() ? new HttpResponse(null, { status: 202 }) : unauthorized();
+  }),
+  http.delete(endpoint("/me"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    deleteProfile(user.id);
+    deleteAccount(user.id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  // --- Notifications -------------------------------------------------------
+  http.get(
+    endpoint("/me/notifications"),
+    withScenario((request) => {
+      const kind = new URL(request.url).searchParams.get("kind") as NotificationKind | null;
+      return { data: listNotifications(requireUser().id, kind ?? undefined) };
+    }),
+  ),
+  http.post(endpoint("/me/notifications/read-all"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    markAllNotificationsRead(user.id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.patch(endpoint("/me/notifications/:id"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return markNotificationRead(user.id, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Notification not found");
+  }),
   http.get(
     endpoint("/me/unread-counts"),
-    withScenario(() => {
-      requireUser();
-      return { data: unreadCounts() };
-    }),
+    withScenario(() => ({ data: unreadCounts(requireUser().id) })),
   ),
   // --- Post a listing ----------------------------------------------------
   http.get(

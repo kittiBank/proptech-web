@@ -187,3 +187,28 @@ export function resetMockSession({ signedIn = false } = {}) {
   sessionUserId = signedIn ? demoUser.id : null;
   resetFor = undefined;
 }
+
+/** Renames the signed-in account (profile page). */
+export function updateAccountNames(userId: string, names: { firstName?: string; lastName?: string }) {
+  const account = loadAccounts().find((a) => a.id === userId);
+  if (!account) return;
+  if (names.firstName) account.firstName = names.firstName;
+  if (names.lastName) account.lastName = names.lastName;
+  saveAccounts();
+}
+
+/** `false` when the current password is wrong. */
+export function changePassword(userId: string, current: string, next: string): boolean {
+  const account = loadAccounts().find((a) => a.id === userId);
+  if (!account || account.password !== current) return false;
+  account.password = next;
+  saveAccounts();
+  return true;
+}
+
+/** Deletes the account and signs out (PDPA "ลบบัญชี"). */
+export function deleteAccount(userId: string) {
+  accounts = loadAccounts().filter((a) => a.id !== userId);
+  saveAccounts();
+  setSession(null);
+}

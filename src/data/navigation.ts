@@ -43,6 +43,9 @@ export const routes = {
   messageTo: (recipient: string) => `/messages?to=${encodeURIComponent(recipient)}`,
   favorites: "/account/favorites",
   account: "/account",
+  profile: "/account/profile",
+  appointments: "/account/appointments",
+  dashboard: "/dashboard",
   savedSearches: "/account/saved-searches",
   notifications: "/notifications",
   /** Side-by-side table for up to 3 listing ids. */

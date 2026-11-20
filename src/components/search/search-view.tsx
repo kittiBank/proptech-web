@@ -10,17 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { CardGridSkeleton, QueryError, Skeleton } from "@/components/ui/query-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { areaRanges, bedroomOptions, priceRanges, propertyTypeLabels } from "@/data/catalog";
 import { propertyQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
-import { findStation } from "@/lib/search";
 import {
   clearSearchFilters,
   describeSearch,
+  searchCriteria,
   sortOptions,
   toListQuery,
   type SearchSort,
-  type SearchState,
   type SearchView as View,
 } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
@@ -41,29 +39,6 @@ const views: { value: View; label: string; icon: typeof LayoutGrid }[] = [
   { value: "map", label: "แผนที่", icon: MapIcon },
 ];
 
-/** One removable chip per active filter. */
-function activeChips(state: SearchState): { key: string; label: string; clear: Partial<SearchState> }[] {
-  const chips: { key: string; label: string; clear: Partial<SearchState> }[] = [];
-  if (state.keyword) chips.push({ key: "q", label: `“${state.keyword}”`, clear: { keyword: "" } });
-  if (state.type !== "all") chips.push({ key: "type", label: propertyTypeLabels[state.type], clear: { type: "all" } });
-  for (const code of state.stations) {
-    const station = findStation(code);
-    chips.push({
-      key: `station-${code}`,
-      label: station ? `${station.system} ${station.name}` : code,
-      clear: { stations: state.stations.filter((c) => c !== code) },
-    });
-  }
-  const price = priceRanges[state.mode].find((r) => r.value === state.price);
-  if (price && state.price !== "any") chips.push({ key: "price", label: price.label, clear: { price: "any" } });
-  const beds = bedroomOptions.find((o) => o.value === state.bedrooms);
-  if (beds && state.bedrooms !== "any")
-    chips.push({ key: "beds", label: `${beds.label} ห้องนอน`, clear: { bedrooms: "any" } });
-  const area = areaRanges.find((r) => r.value === state.area);
-  if (area && state.area !== "any") chips.push({ key: "area", label: area.label, clear: { area: "any" } });
-  return chips;
-}
-
 export function SearchView() {
   const { state, update, replace } = useSearchState();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -77,7 +52,7 @@ export function SearchView() {
   const total = data?.meta.total ?? 0;
   const pageCount = data?.meta.totalPages ?? 1;
   const firstIndex = data && total > 0 ? (data.meta.page - 1) * data.meta.limit + 1 : 0;
-  const chips = activeChips(state);
+  const chips = searchCriteria(state);
   const hasFilters = chips.length > 0;
   const selected = results.find((p) => p.id === selectedId);
 

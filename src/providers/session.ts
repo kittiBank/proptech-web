@@ -26,7 +26,8 @@ export function useSignOut() {
     mutationFn: () => api.logout(),
     onSuccess: () => {
       client.setQueryData(queryKeys.session, null);
-      client.removeQueries({ queryKey: queryKeys.favorites });
+      // Everything under ["me", …] belongs to the account that just left.
+      client.removeQueries({ queryKey: ["me"] });
     },
   });
 }

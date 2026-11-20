@@ -1,4 +1,11 @@
 import type {
+  ChangePasswordRequest,
+  ListNotificationsResponse,
+  NotificationKind,
+  ProfileResponse,
+  UpdateProfileRequest,
+  UpdateSavedSearchRequest,
+  VerifyPhoneRequest,
   CreateSavedSearchRequest,
   ListSavedSearchesResponse,
   SavedSearchResponse,
@@ -162,6 +169,52 @@ export const api = {
   /** POST /me/saved-searches — 201 new, 200 when that query is already saved, 409 at the limit. */
   createSavedSearch: (body: CreateSavedSearchRequest) =>
     apiSend<SavedSearchResponse>("POST", "/me/saved-searches", body),
+
+  /** PATCH /me/saved-searches/:id — rename or change alerts. */
+  updateSavedSearch: (id: string, body: UpdateSavedSearchRequest) =>
+    apiSend<SavedSearchResponse>("PATCH", `/me/saved-searches/${encodeURIComponent(id)}`, body),
+
+  /** DELETE /me/saved-searches/:id */
+  deleteSavedSearch: (id: string) => apiSend<void>("DELETE", `/me/saved-searches/${encodeURIComponent(id)}`),
+
+  /** GET /me/profile — personal info, security and settings (B7). */
+  getProfile: (signal?: AbortSignal) => apiGet<ProfileResponse>("/me/profile", undefined, { signal }),
+
+  /** PATCH /me/profile */
+  updateProfile: (body: UpdateProfileRequest) => apiSend<ProfileResponse>("PATCH", "/me/profile", body),
+
+  /** POST /me/phone/otp — texts a code to the profile phone (202). */
+  sendPhoneOtp: () => apiSend<void>("POST", "/me/phone/otp"),
+
+  /** POST /me/phone/verify — 400 on a wrong code. */
+  verifyPhone: (body: VerifyPhoneRequest) => apiSend<ProfileResponse>("POST", "/me/phone/verify", body),
+
+  /** POST /me/password — 204; 400 when the current password is wrong. */
+  changePassword: (body: ChangePasswordRequest) => apiSend<void>("POST", "/me/password", body),
+
+  /** POST or DELETE /me/linked/:provider — link or unlink a sign-in provider. */
+  setLinkedAccount: (provider: "google" | "line", linked: boolean) =>
+    apiSend<ProfileResponse>(linked ? "POST" : "DELETE", `/me/linked/${provider}`),
+
+  /** POST /me/sessions/revoke-others — signs out every other device. */
+  signOutOtherDevices: () => apiSend<void>("POST", "/me/sessions/revoke-others"),
+
+  /** POST /me/data-export — PDPA data copy, emailed later (202). */
+  requestDataExport: () => apiSend<void>("POST", "/me/data-export"),
+
+  /** DELETE /me — deletes the account and signs out. */
+  deleteAccount: () => apiSend<void>("DELETE", "/me"),
+
+  /** GET /me/notifications?kind= — newest first. */
+  listNotifications: (kind?: NotificationKind, signal?: AbortSignal) =>
+    apiGet<ListNotificationsResponse>("/me/notifications", { kind }, { signal }),
+
+  /** PATCH /me/notifications/:id — marks one read. */
+  markNotificationRead: (id: string) =>
+    apiSend<void>("PATCH", `/me/notifications/${encodeURIComponent(id)}`, { read: true }),
+
+  /** POST /me/notifications/read-all */
+  markAllNotificationsRead: () => apiSend<void>("POST", "/me/notifications/read-all"),
 
   /** GET /me/unread-counts — unread messages and notifications. */
   getUnreadCounts: (signal?: AbortSignal) => apiGet<UnreadCountsResponse>("/me/unread-counts", undefined, { signal }),

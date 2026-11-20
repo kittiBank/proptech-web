@@ -249,6 +249,88 @@ export interface GetAgentResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Account: profile, security, notification settings, privacy (B7, B20)
+// ---------------------------------------------------------------------------
+
+export type NotificationTopic = "saved_search" | "price_drop" | "message" | "listing_closed" | "new_project";
+export type NotificationChannel = "email" | "line" | "web";
+export type NotificationMatrix = Record<NotificationTopic, Record<NotificationChannel, boolean>>;
+
+export interface SignedInDevice {
+  id: string;
+  /** e.g. "MacBook Air, Chrome". */
+  name: string;
+  current: boolean;
+  /** ISO date. */
+  lastActiveAt: string;
+}
+
+/** `GET /me/profile` — everything B7 shows. Names and email mirror the session user. */
+export interface ProfileDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  emailVerified: boolean;
+  /** Thai mobile, "0812345678". */
+  phone?: string;
+  phoneVerified: boolean;
+  lineId?: string;
+  language: "th" | "en";
+  /** Data URL or CDN URL. */
+  avatarUrl?: string;
+  linked: { google?: string; line: boolean };
+  /** ISO date; undefined for SSO-only accounts. */
+  passwordChangedAt?: string;
+  devices: SignedInDevice[];
+  notifications: NotificationMatrix;
+  marketingOptIn: boolean;
+}
+
+export interface ProfileResponse {
+  data: ProfileDto;
+}
+
+/** `PATCH /me/profile` — personal info, avatar and settings. Changing `phone` clears `phoneVerified`. */
+export type UpdateProfileRequest = Partial<
+  Pick<ProfileDto, "firstName" | "lastName" | "phone" | "lineId" | "language" | "notifications" | "marketingOptIn">
+> & {
+  /** `null` removes the photo. */
+  avatarUrl?: string | null;
+};
+
+/** `POST /me/phone/otp` (202) then `POST /me/phone/verify`. The mock code is `MOCK_OTP_CODE`. */
+export interface VerifyPhoneRequest {
+  code: string;
+}
+
+/** `POST /me/password` — 204; 400 when `currentPassword` is wrong. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (B19)
+// ---------------------------------------------------------------------------
+
+export type NotificationKind = "price_drop" | "viewing" | "new_match" | "listing_closed" | "new_project";
+
+export interface NotificationDto {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  detail: string;
+  /** Where tapping it goes. */
+  href: string;
+  /** ISO date. */
+  createdAt: string;
+  read: boolean;
+}
+
+/** `GET /me/notifications?kind=` — newest first. */
+export type ListNotificationsResponse = ListResponse<NotificationDto>;
+
+// ---------------------------------------------------------------------------
 // Saved searches and unread counts (signed-in user)
 // ---------------------------------------------------------------------------
 
@@ -280,6 +362,12 @@ export interface CreateSavedSearchRequest {
 /** `POST /me/saved-searches` (201 new, 200 already saved). */
 export interface SavedSearchResponse {
   data: SavedSearchDto;
+}
+
+/** `PATCH /me/saved-searches/:id` — rename or change alerts. `DELETE` removes it (204). */
+export interface UpdateSavedSearchRequest {
+  name?: string;
+  alerts?: Partial<SavedSearchDto["alerts"]>;
 }
 
 /** `GET /me/saved-searches`, newest first. */

@@ -1,8 +1,9 @@
+import { unreadNotificationCount } from "./notifications";
+
 /**
- * Unread badges behind `GET /me/unread-counts`. Fixed demo numbers until the
- * inbox (FE-14) and notifications (FE-13) mocks exist; those will derive the
- * counts from their own stores instead.
+ * Unread badges behind `GET /me/unread-counts`. Notifications come from their
+ * store; messages stay a fixed demo number until the inbox mock (FE-14).
  */
-export function unreadCounts(): { messages: number; notifications: number } {
-  return { messages: 2, notifications: 2 };
+export function unreadCounts(userId: string): { messages: number; notifications: number } {
+  return { messages: 2, notifications: unreadNotificationCount(userId) };
 }

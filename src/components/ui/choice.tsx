@@ -117,7 +117,7 @@ export function ChoiceChip({ type = "checkbox", name, checked, onChange, childre
   return (
     <label
       className={cn(
-        "inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors",
+        "inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap transition-colors",
         focusRing,
         checked ? "border-ink bg-ink text-white" : "border-line-strong bg-white text-ink hover:border-ink",
         disabled && "cursor-not-allowed opacity-50",

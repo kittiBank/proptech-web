@@ -1,5 +1,11 @@
 import { infiniteQueryOptions, keepPreviousData, queryOptions } from "@tanstack/react-query";
-import type { AdPlacement, ListArticlesQuery, ListProjectsQuery, ListPropertiesQuery } from "@/types/api";
+import type {
+  AdPlacement,
+  NotificationKind,
+  ListArticlesQuery,
+  ListProjectsQuery,
+  ListPropertiesQuery,
+} from "@/types/api";
 import { ApiError } from "./client";
 import { api } from "./endpoints";
 
@@ -41,6 +47,11 @@ export const queryKeys = {
   listingQuota: ["me", "listing-quota"] as const,
   savedSearches: ["me", "saved-searches"] as const,
   unreadCounts: ["me", "unread-counts"] as const,
+  profile: ["me", "profile"] as const,
+  notifications: {
+    all: ["me", "notifications"] as const,
+    list: (kind?: NotificationKind) => ["me", "notifications", kind ?? "all"] as const,
+  },
   promotions: ["promotions"] as const,
   projectPlaces: (q: string) => ["places", "projects", q] as const,
   nearbyStations: (lat: number, lng: number) => ["stations", "nearby", lat, lng] as const,
@@ -216,6 +227,18 @@ export const unreadCountsQuery = queryOptions({
   staleTime: MINUTE,
   refetchInterval: MINUTE,
 });
+
+export const profileQuery = queryOptions({
+  queryKey: queryKeys.profile,
+  queryFn: async ({ signal }) => (await api.getProfile(signal)).data,
+});
+
+export const notificationsQuery = (kind?: NotificationKind) =>
+  queryOptions({
+    queryKey: queryKeys.notifications.list(kind),
+    queryFn: ({ signal }) => api.listNotifications(kind, signal),
+    placeholderData: keepPreviousData,
+  });
 
 export const listingQuotaQuery = queryOptions({
   queryKey: queryKeys.listingQuota,
