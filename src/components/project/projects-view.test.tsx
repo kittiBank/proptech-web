@@ -79,7 +79,7 @@ describe("ViewingForm", () => {
     await user.type(screen.getByLabelText("เบอร์โทร"), "081-234-5678");
     await user.type(screen.getByLabelText("วันที่สะดวก"), "2099-01-15");
     await user.click(screen.getByRole("button", { name: "ส่งคำขอนัดชม" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("ส่งคำขอนัดชมแล้ว");
+    expect((await screen.findByText(/ส่งคำขอนัดชมแล้ว/)).closest("[role=status]")).toBeInTheDocument();
   });
 
   it("asks a signed-out visitor to log in, then sends the request after sign-in", async () => {
@@ -95,6 +95,6 @@ describe("ViewingForm", () => {
     // Signing in (in the modal) resumes the request.
     resetMockSession({ signedIn: true });
     await client.invalidateQueries({ queryKey: ["auth", "session"] });
-    expect(await screen.findByRole("status")).toHaveTextContent("ส่งคำขอนัดชมแล้ว");
+    expect((await screen.findByText(/ส่งคำขอนัดชมแล้ว/)).closest("[role=status]")).toBeInTheDocument();
   });
 });

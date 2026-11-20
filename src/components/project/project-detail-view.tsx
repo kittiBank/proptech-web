@@ -13,6 +13,7 @@ import { ShareMenu } from "@/components/listing/share-menu";
 import { StationRoutes } from "@/components/listing/station-route";
 import { PropertyCard } from "@/components/property/property-card";
 import { PropertyPhoto } from "@/components/property/property-photo";
+import { BottomActionBar } from "@/components/ui/bottom-action-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CardGridSkeleton, QueryError, Skeleton } from "@/components/ui/query-state";
@@ -548,7 +549,7 @@ export function ProjectDetailView() {
 
       <NearbyProjects project={project} />
 
-      <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2.5 border-t border-line bg-white px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] lg:hidden">
+      <BottomActionBar label="ติดต่อโครงการ">
         <Button asChild variant="outline" size="lg" className="w-[52px] px-0">
           <a href={tel} aria-label={`โทรหาฝ่ายขายโครงการ ${project.salesPhone}`}>
             <Phone aria-hidden="true" />
@@ -557,7 +558,7 @@ export function ProjectDetailView() {
         <Button size="lg" className="flex-1 font-semibold" onClick={() => setSheetOpen(true)}>
           นัดชมห้องตัวอย่าง
         </Button>
-      </div>
+      </BottomActionBar>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" closeLabel="ปิด" aria-describedby="book-sheet-desc">

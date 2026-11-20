@@ -4,25 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { Heart, LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { routes } from "@/data/navigation";
-import { cn } from "@/lib/utils";
-import { displayName, initial, useSession, useSignOut } from "@/providers/session";
-
-/** Initial on a brand circle; stands in for a profile photo. */
-export function Avatar({ name, className }: { name: string; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white",
-        className,
-      )}
-    >
-      {name}
-    </span>
-  );
-}
+import { displayName, useSession, useSignOut } from "@/providers/session";
 
 const menuItem =
   "flex h-11 w-full items-center gap-2.5 rounded-sm px-3 text-left text-[15px] text-ink transition-colors hover:bg-mist";
@@ -51,7 +36,7 @@ export function AccountMenu() {
           aria-label={`เมนูบัญชี: ${displayName(user)}`}
           className="hidden h-11 items-center gap-2 rounded-full border border-line-strong py-1 pr-3.5 pl-1 text-[15px] font-medium text-ink transition-colors hover:border-ink lg:inline-flex"
         >
-          <Avatar name={initial(user)} />
+          <Avatar name={displayName(user)} className="bg-brand" />
           {user.firstName}
         </button>
       </PopoverTrigger>

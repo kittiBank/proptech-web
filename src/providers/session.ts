@@ -32,4 +32,3 @@ export function useSignOut() {
 }
 
 export const displayName = (user: Pick<UserDto, "firstName" | "lastName">) => `${user.firstName} ${user.lastName}`;
-export const initial = (user: Pick<UserDto, "firstName">) => user.firstName.charAt(0) || "?";

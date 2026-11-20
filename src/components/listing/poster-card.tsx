@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { BadgeCheck, CircleCheck, Flag, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/client";
@@ -12,31 +13,15 @@ import { formatResponseTime, toBuddhistYear } from "@/lib/listing";
 import { cn } from "@/lib/utils";
 import type { Poster, PropertyDetail } from "@/types/property";
 
-const avatarColours = ["bg-brand", "bg-ink", "bg-violet-700", "bg-mrt-blue", "bg-bts-silom"];
-
-function initials(name: string) {
-  const words = name.replace(/^(บริษัท|คุณ)\s*/, "").split(/\s+/);
-  return words[0]?.charAt(0) ?? "?";
-}
-
 /** 02-000-1101 → 02-000-11xx until the visitor asks for the number. */
 const maskPhone = (phone: string) => phone.replace(/\d{2}$/, "xx");
 
 const lineHref = (lineId: string) => `https://line.me/R/ti/p/~${encodeURIComponent(lineId)}`;
 
 function PosterHeader({ poster }: { poster: Poster }) {
-  const colour = avatarColours[poster.name.length % avatarColours.length];
   return (
     <div className="flex items-start gap-4">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "inline-flex size-14 shrink-0 items-center justify-center rounded-full text-2xl font-semibold text-white",
-          colour,
-        )}
-      >
-        {initials(poster.name)}
-      </span>
+      <Avatar name={poster.name} size="lg" />
       <div className="min-w-0">
         <p className="text-[13px] text-slate">{poster.kind === "agent" ? "นายหน้า" : "เจ้าของทรัพย์ลงประกาศเอง"}</p>
         <p className="text-lg leading-snug font-semibold text-ink">{poster.name}</p>

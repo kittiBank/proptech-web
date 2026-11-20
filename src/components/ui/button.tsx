@@ -14,9 +14,17 @@ const buttonVariants = cva(
         ghost: "text-ink hover:bg-mist",
         light: "bg-white text-ink hover:bg-violet-50",
         link: "h-auto px-0 text-brand-strong underline-offset-4 hover:underline",
+        /** Destructive but not final (remove, decline): red text on an outline. */
+        danger: "border border-danger-line bg-white text-danger hover:border-danger hover:bg-danger-soft",
+        /** Final destructive action inside a confirm dialog. */
+        "danger-solid": "bg-danger text-white hover:bg-[#9F1239]",
+        /** Approve actions (admin, confirm a viewing). */
+        success: "bg-success text-white hover:bg-[#08552E]",
       },
+      /** Heights 36 / 40 / 44 / 48 (design handoff §3). */
       size: {
         sm: "h-9 px-3 text-sm",
+        base: "h-10 px-3.5 text-sm",
         md: "h-11 px-4",
         lg: "h-12 px-6 text-base",
         icon: "size-11",

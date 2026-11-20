@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { dismissToast } from "@/components/ui/toast";
 import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
@@ -38,6 +39,7 @@ afterEach(() => {
   resetMockDrafts();
   window.sessionStorage.clear();
   resetNavigation();
+  dismissToast();
 });
 
 afterAll(() => server.close());
