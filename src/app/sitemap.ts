@@ -3,9 +3,9 @@ import { routes } from "@/data/navigation";
 import { listSitemapSlugs } from "@/lib/api/server";
 import { absoluteUrl } from "@/lib/site";
 
-/** Public pages plus every listing, project and article. */
+/** Public pages plus every listing, project, article and agent profile. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const { properties, projects, articles } = await listSitemapSlugs();
+  const { properties, projects, articles, agents } = await listSitemapSlugs();
   const page = (path: string, priority: number, lastModified?: string): MetadataRoute.Sitemap[number] => ({
     url: absoluteUrl(path),
     priority,
@@ -22,5 +22,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...properties.map((p) => page(routes.property(p.slug), 0.7, p.updatedAt)),
     ...projects.map((p) => page(routes.project(p.slug), 0.7, p.updatedAt)),
     ...articles.map((a) => page(routes.guide(a.slug), 0.6, a.updatedAt)),
+    ...agents.map((a) => page(routes.agent(a.slug), 0.5)),
   ];
 }

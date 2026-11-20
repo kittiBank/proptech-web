@@ -1,22 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { BadgeCheck, CircleCheck, Flag, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { LineMark } from "./line-mark";
+import { routes } from "@/data/navigation";
 import { api } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/client";
 import { useAuthGate, useResumeAction } from "@/lib/auth-gate";
+import { lineHref, maskPhone, telHref } from "@/lib/contact";
 import { formatNumber } from "@/lib/format";
 import { formatResponseTime, toBuddhistYear } from "@/lib/listing";
 import { cn } from "@/lib/utils";
 import type { Poster, PropertyDetail } from "@/types/property";
-
-/** 02-000-1101 → 02-000-11xx until the visitor asks for the number. */
-const maskPhone = (phone: string) => phone.replace(/\d{2}$/, "xx");
-
-const lineHref = (lineId: string) => `https://line.me/R/ti/p/~${encodeURIComponent(lineId)}`;
 
 function PosterHeader({ poster }: { poster: Poster }) {
   return (
@@ -26,6 +25,14 @@ function PosterHeader({ poster }: { poster: Poster }) {
         <p className="text-[13px] text-slate">{poster.kind === "agent" ? "นายหน้า" : "เจ้าของทรัพย์ลงประกาศเอง"}</p>
         <p className="text-lg leading-snug font-semibold text-ink">{poster.name}</p>
         {poster.company && <p className="text-sm text-slate">{poster.company}</p>}
+        {poster.profileSlug && (
+          <Link
+            href={routes.agent(poster.profileSlug)}
+            className="mt-1 inline-flex min-h-6 text-sm font-medium text-brand-strong underline-offset-4 hover:underline"
+          >
+            ดูโปรไฟล์และประกาศทั้งหมด
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -199,7 +206,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
         <div className="mt-5 flex flex-col gap-2.5">
           {showPhone ? (
             <Button asChild size="lg">
-              <a href={`tel:${poster.phone.replace(/\D/g, "")}`}>
+              <a href={telHref(poster.phone)}>
                 <Phone aria-hidden="true" />
                 โทร {poster.phone}
               </a>
@@ -213,12 +220,7 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
           {poster.lineId && (
             <Button asChild size="lg" variant="outline">
               <a href={lineHref(poster.lineId)} target="_blank" rel="noopener noreferrer">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-5 items-center justify-center rounded-full bg-[#06C755] text-[11px] font-bold text-white"
-                >
-                  L
-                </span>
+                <LineMark />
                 แชทผ่าน LINE
               </a>
             </Button>
@@ -267,7 +269,7 @@ export function MobileContactBar({ property }: { property: PropertyDetail }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-line bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
       <Button asChild className="flex-1" size="lg">
-        <a href={`tel:${property.poster.phone.replace(/\D/g, "")}`}>
+        <a href={telHref(property.poster.phone)}>
           <Phone aria-hidden="true" />
           โทร
         </a>

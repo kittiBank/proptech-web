@@ -38,6 +38,7 @@ import {
   compareListings,
   queryNearbyStations,
   searchProjectPlaces,
+  getAgentProfile,
   getProjectDetail,
   getPropertyDetail,
   queryNearbyProjects,
@@ -179,6 +180,7 @@ export function parsePropertiesQuery(params: URLSearchParams): ListPropertiesQue
   query.q = params.get("q")?.trim() || undefined;
   query.station = params.get("station")?.trim() || undefined;
   query.project = params.get("project")?.trim() || undefined;
+  query.agent = params.get("agent")?.trim() || undefined;
   query.minPrice = int("minPrice", { min: 0 });
   query.maxPrice = int("maxPrice", { min: 0 });
   query.minBedrooms = int("minBedrooms", { min: 0 });
@@ -297,6 +299,14 @@ export const handlers = [
         { status: 201 },
       );
     },
+  ),
+  http.get(
+    endpoint("/agents/:slug"),
+    withScenario((_request, params) => {
+      const profile = getAgentProfile(String(params.slug));
+      if (!profile) throw new NotFoundError(`Agent "${String(params.slug)}" not found`);
+      return { data: profile };
+    }),
   ),
   http.get(
     endpoint("/projects"),

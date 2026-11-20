@@ -8,7 +8,7 @@ import { Container } from "@/components/home/section-header";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { CardGridSkeleton, QueryError, Skeleton } from "@/components/ui/query-state";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterSelect } from "@/components/ui/select";
 import { routes } from "@/data/navigation";
 import { projectQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
@@ -46,38 +46,6 @@ function useProjectsState() {
   );
 
   return { state, update };
-}
-
-const selectTrigger =
-  "h-11 w-auto min-w-0 rounded-md border border-line-strong bg-white px-3.5 hover:border-ink data-[placeholder]:text-ink";
-
-function FilterSelect<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  className,
-}: {
-  label: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-  className?: string;
-}) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange(v as T)}>
-      <SelectTrigger aria-label={label} className={cn(selectTrigger, className)}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
 }
 
 export function ProjectsView() {

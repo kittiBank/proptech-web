@@ -28,6 +28,7 @@ import type {
   CreateEnquiryResponse,
   CreateProjectViewingRequest,
   CreateProjectViewingResponse,
+  GetAgentResponse,
   GetProjectResponse,
   GetPropertyResponse,
   ListNearbyProjectsResponse,
@@ -80,6 +81,10 @@ export const api = {
       `/projects/${encodeURIComponent(slug)}/viewings`,
       body,
     ),
+
+  /** GET /agents/:slug — public agent profile. Their listings come from `GET /properties?agent=`. */
+  getAgent: (slug: string, signal?: AbortSignal) =>
+    apiGet<GetAgentResponse>(`/agents/${encodeURIComponent(slug)}`, undefined, { signal }),
 
   /** GET /articles — guide articles, newest first. */
   listArticles: (query: ListArticlesQuery = {}, signal?: AbortSignal) =>

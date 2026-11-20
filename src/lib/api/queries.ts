@@ -22,6 +22,9 @@ export const queryKeys = {
     detail: (slug: string) => ["projects", "detail", slug] as const,
     nearby: (slug: string, limit: number) => ["projects", "nearby", slug, limit] as const,
   },
+  agents: {
+    detail: (slug: string) => ["agents", "detail", slug] as const,
+  },
   articles: {
     all: ["articles"] as const,
     list: (query: ListArticlesQuery) => ["articles", "list", query] as const,
@@ -86,6 +89,15 @@ export const projectQueries = {
     queryOptions({
       queryKey: queryKeys.projects.nearby(slug, limit),
       queryFn: ({ signal }) => api.listNearbyProjects(slug, limit, signal),
+      staleTime: 5 * MINUTE,
+    }),
+};
+
+export const agentQueries = {
+  detail: (slug: string) =>
+    queryOptions({
+      queryKey: queryKeys.agents.detail(slug),
+      queryFn: ({ signal }) => api.getAgent(slug, signal),
       staleTime: 5 * MINUTE,
     }),
 };

@@ -1,6 +1,6 @@
 import { propertyTypeLabels } from "@/data/catalog";
 import { routes } from "@/data/navigation";
-import type { ArticleDetailDto, ProjectDetailDto, PropertyDetailDto } from "@/types/api";
+import type { AgentProfileDto, ArticleDetailDto, ProjectDetailDto, PropertyDetailDto } from "@/types/api";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from "./site";
 
 /**
@@ -96,6 +96,19 @@ export function projectJsonLd(p: ProjectDetailDto): JsonLdObject {
     image: p.gallery.map((img) => img.src),
     address: address(p.location.address, p.district),
     geo: { "@type": "GeoCoordinates", latitude: p.location.point.lat, longitude: p.location.point.lng },
+  };
+}
+
+export function agentJsonLd(a: AgentProfileDto): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "RealEstateAgent",
+    name: a.name,
+    description: a.about,
+    url: absoluteUrl(routes.agent(a.slug)),
+    ...(a.company && { parentOrganization: { "@type": "Organization", name: a.company } }),
+    knowsLanguage: a.languages,
+    areaServed: a.areas.map((area) => ({ "@type": "Place", name: area.station.name })),
   };
 }
 

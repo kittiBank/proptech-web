@@ -12,6 +12,7 @@ const pages = [
   { name: "search map", path: "/search?mode=buy&view=map" },
   { name: "listing", path: "/property/listing-2012" },
   { name: "projects", path: "/projects" },
+  { name: "agent", path: "/agents/kittipat-srisuk" },
   { name: "project", path: "/projects/aster-sathorn" },
   { name: "guides", path: "/guides" },
   { name: "article", path: "/guides/resale-condo-checklist" },

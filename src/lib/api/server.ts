@@ -1,5 +1,7 @@
 import { cache } from "react";
 import type {
+  AgentProfileDto,
+  GetAgentResponse,
   ListPropertiesQuery,
   ListPropertiesResponse,
   ArticleDetailDto,
@@ -39,6 +41,11 @@ export const getProjectForSeo = cache(async (slug: string): Promise<ProjectDetai
   return (await import("@/mocks/db")).getProjectDetail(slug);
 });
 
+export const getAgentForSeo = cache(async (slug: string): Promise<AgentProfileDto | undefined> => {
+  if (API_URL) return fetchDetail<GetAgentResponse["data"]>(`/agents/${encodeURIComponent(slug)}`);
+  return (await import("@/mocks/db")).getAgentProfile(slug);
+});
+
 export const getArticleForSeo = cache(async (slug: string): Promise<ArticleDetailDto | undefined> => {
   if (API_URL) return fetchDetail<GetArticleResponse["data"]>(`/articles/${encodeURIComponent(slug)}`);
   return (await import("@/mocks/articles")).getArticle(slug);
@@ -70,9 +77,10 @@ export async function listSitemapSlugs(): Promise<{
   properties: SitemapEntry[];
   projects: SitemapEntry[];
   articles: SitemapEntry[];
+  agents: SitemapEntry[];
 }> {
-  if (API_URL) return { properties: [], projects: [], articles: [] };
-  const [{ queryProperties, queryProjects }, { articles }] = await Promise.all([
+  if (API_URL) return { properties: [], projects: [], articles: [], agents: [] };
+  const [{ queryProperties, queryProjects, agentSlugs }, { articles }] = await Promise.all([
     import("@/mocks/db"),
     import("@/data/articles"),
   ]);
@@ -86,5 +94,6 @@ export async function listSitemapSlugs(): Promise<{
     properties,
     projects: queryProjects({ limit: 50 }).data.map((p) => ({ slug: p.slug })),
     articles: articles.map((a) => ({ slug: a.slug, updatedAt: a.updatedAt })),
+    agents: agentSlugs().map((slug) => ({ slug })),
   };
 }

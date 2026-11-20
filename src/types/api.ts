@@ -21,6 +21,7 @@ import type {
   PropertyCategory,
   PropertyType,
   TransitLine,
+  TransitStation,
 } from "./property";
 
 // ---------------------------------------------------------------------------
@@ -93,6 +94,8 @@ export interface ListPropertiesQuery {
   maxArea?: number;
   /** Project slug: only listings posted inside that project. */
   project?: string;
+  /** Agent profile slug: only that agent's listings. */
+  agent?: string;
   sort?: PropertySort;
   /** 1-based. Default 1. */
   page?: number;
@@ -204,6 +207,46 @@ export const NEARBY_MAX_LIMIT = 24;
 
 export const PROPERTIES_DEFAULT_LIMIT = 20;
 export const PROPERTIES_MAX_LIMIT = 100;
+
+// ---------------------------------------------------------------------------
+// Agents (public profiles)
+// ---------------------------------------------------------------------------
+
+/** A station an agent has live listings near, for "ย่านที่ดูแล". */
+export interface AgentAreaDto {
+  station: TransitStation;
+  /** Live listings near this station. */
+  listingCount: number;
+}
+
+/** `GET /agents/:slug` — public agent profile (A7, A9). 404 for unknown slugs. */
+export interface AgentProfileDto {
+  slug: string;
+  name: string;
+  company?: string;
+  teamSize?: number;
+  about: string;
+  yearsExperience: number;
+  /** ISO date the account was created. */
+  memberSince: string;
+  /** Typical reply time in minutes. */
+  responseMinutes: number;
+  languages: string[];
+  phone: string;
+  lineId?: string;
+  phoneVerified: boolean;
+  idVerified: boolean;
+  /** e.g. "จันทร์–เสาร์ 9:00–19:00". */
+  workingHours: string;
+  /** Busiest stations first, at most 6. */
+  areas: AgentAreaDto[];
+  /** Live listings, for the listing tabs. */
+  counts: { all: number; buy: number; rent: number };
+}
+
+export interface GetAgentResponse {
+  data: AgentProfileDto;
+}
 
 // ---------------------------------------------------------------------------
 // Favorites and compare (signed-in user; the mock keeps one user's list)

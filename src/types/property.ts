@@ -246,6 +246,8 @@ export interface Poster {
   phoneVerified: boolean;
   idVerified: boolean;
   languages: string[];
+  /** Agents with a public profile page (`/agents/[slug]`). */
+  profileSlug?: string;
 }
 
 /** Everything the listing page shows. `GET /properties/:slug` */

@@ -1,4 +1,5 @@
 import { advertisements } from "@/data/ads";
+import { agentSeeds, findAgentSeed } from "@/data/agents";
 import { propertyCategories, propertyTypeLabels } from "@/data/catalog";
 import { generatedListings } from "@/data/generated-listings";
 import { photosByType } from "@/data/images";
@@ -6,12 +7,15 @@ import { transitLines } from "@/data/locations";
 import { buildProjectDetail, buildProjectListings, projectPoint } from "@/data/project-details";
 import { stationsNear } from "@/data/property-details";
 import { newProjects } from "@/data/projects";
+import { findPoster } from "@/data/posters";
 import { pinnedPropertyIds, properties } from "@/data/properties";
 import { buildPropertyDetail, listingPoint } from "@/data/property-details";
 import { distanceBetween } from "@/lib/geo";
 import {
   PROJECTS_DEFAULT_LIMIT,
   PROPERTIES_DEFAULT_LIMIT,
+  type AgentAreaDto,
+  type AgentProfileDto,
   type CompareListingsResponse,
   type NearbyStationsResponse,
   type SearchProjectPlacesResponse,
@@ -118,9 +122,11 @@ export function queryProperties(query: ListPropertiesQuery): ListPropertiesRespo
   );
 
   const projectName = query.project ? (newProjects.find((p) => p.slug === query.project)?.name ?? "\0") : undefined;
+  const agentName = query.agent ? (findAgentSeed(query.agent)?.name ?? "\0") : undefined;
 
   const filtered = source.filter((p) => {
     if (projectName !== undefined && p.projectName !== projectName) return false;
+    if (agentName !== undefined && !(p.agent.kind === "agent" && p.agent.name === agentName)) return false;
     if (query.mode && p.mode !== query.mode) return false;
     if (query.type && p.type !== query.type) return false;
     if (stations.size > 0 && !(p.station && stations.has(p.station.code))) return false;
@@ -217,8 +223,64 @@ export function queryAds(query: ListAdsQuery) {
 /** `GET /properties/:slug`. `undefined` = 404. */
 export function getPropertyDetail(slug: string): PropertyDetailDto | undefined {
   const property = allListings.find((p) => p.slug === slug);
-  return property ? buildPropertyDetail(property) : undefined;
+  if (!property) return undefined;
+  const detail = buildPropertyDetail(property);
+  // Agents with a profile page show their real live count, matching the profile.
+  const profile = detail.poster.profileSlug ? findAgentSeed(detail.poster.profileSlug) : undefined;
+  if (profile) detail.poster = { ...detail.poster, activeListings: agentListings(profile.name).length };
+  return detail;
 }
+
+/** An agent's live listings (closed ones excluded). */
+function agentListings(name: string): PropertyDto[] {
+  return allListings.filter((p) => p.agent.kind === "agent" && p.agent.name === name && !closedListingIds.has(p.id));
+}
+
+const AGENT_AREAS_MAX = 6;
+
+/** Public agent profile with counts and areas worked out from their live listings. */
+export function getAgentProfile(slug: string): AgentProfileDto | undefined {
+  const seed = findAgentSeed(slug);
+  if (!seed) return undefined;
+  const listings = agentListings(seed.name);
+  const poster = findPoster({ name: seed.name, kind: "agent" }, 0);
+
+  const areas = new Map<string, AgentAreaDto>();
+  for (const p of listings) {
+    if (!p.station) continue;
+    const area = areas.get(p.station.code) ?? { station: p.station, listingCount: 0 };
+    area.listingCount++;
+    areas.set(p.station.code, area);
+  }
+
+  return {
+    slug: seed.slug,
+    name: seed.name,
+    company: poster.company,
+    teamSize: seed.teamSize,
+    about: seed.about,
+    yearsExperience: seed.yearsExperience,
+    memberSince: poster.memberSince,
+    responseMinutes: poster.responseMinutes,
+    languages: poster.languages,
+    phone: poster.phone,
+    lineId: poster.lineId,
+    phoneVerified: poster.phoneVerified,
+    idVerified: poster.idVerified,
+    workingHours: seed.workingHours,
+    areas: [...areas.values()]
+      .sort((a, b) => b.listingCount - a.listingCount || a.station.code.localeCompare(b.station.code))
+      .slice(0, AGENT_AREAS_MAX),
+    counts: {
+      all: listings.length,
+      buy: listings.filter((p) => p.mode === "buy").length,
+      rent: listings.filter((p) => p.mode === "rent").length,
+    },
+  };
+}
+
+/** Slugs of every agent with a public profile (sitemap). */
+export const agentSlugs = () => agentSeeds.map((a) => a.slug);
 
 export const NEARBY_DEFAULT_LIMIT = 6;
 /** Listings further than this are not "nearby". */
