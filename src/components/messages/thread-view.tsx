@@ -30,7 +30,7 @@ import type { MessageDto, ThreadDetailResponse, ThreadDto, ViewingRequestDto } f
 type Detail = ThreadDetailResponse["data"];
 
 const quickReplies = ["ห้องยังว่างอยู่ไหม", "ขอดูสัญญาก่อนได้ไหม", "ต่อรองราคาได้ไหม"];
-const kindLabel = { agent: "นายหน้า", owner: "เจ้าของ", developer: "โครงการ" } as const;
+const kindLabel = { agent: "นายหน้า", owner: "เจ้าของ", developer: "โครงการ", buyer: "ผู้สนใจ" } as const;
 
 const thaiDay = new Intl.DateTimeFormat("th-TH", {
   timeZone: "Asia/Bangkok",

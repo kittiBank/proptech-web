@@ -354,3 +354,15 @@ export function listingsByPoster(name: string): PropertyDto[] {
     .filter((p) => p.agent.name === name && !closedListingIds.has(p.id))
     .sort((a, b) => b.postedAt.localeCompare(a.postedAt));
 }
+
+/**
+ * Listings the demo lister "owns" in the seller dashboard, in a fixed order so
+ * every account gets the same workspace. Stand-in until the API links listings
+ * to accounts.
+ */
+export function sellerSourceListings(count: number): PropertyDto[] {
+  return allListings
+    .filter((p) => !p.isPinned && !closedListingIds.has(p.id) && p.type !== "land")
+    .sort((a, b) => hash(a.id) - hash(b.id))
+    .slice(0, count);
+}

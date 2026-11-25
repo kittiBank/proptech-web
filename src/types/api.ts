@@ -360,11 +360,14 @@ export interface ThreadListingDto {
 
 export interface ThreadCounterpartDto {
   name: string;
-  kind: "agent" | "owner" | "developer";
+  /** `buyer` = the person asking about one of my listings (lister threads). */
+  kind: "agent" | "owner" | "developer" | "buyer";
   /** Public agent profile, when there is one. */
   profileSlug?: string;
   phone: string;
   idVerified: boolean;
+  /** Buyers: verified their phone number (C10 "ยืนยันเบอร์แล้ว"). */
+  phoneVerified?: boolean;
   responseMinutes: number;
 }
 
@@ -451,7 +454,8 @@ export interface CreateViewingRequest {
 
 /**
  * `PATCH /me/viewings/:id`. Buyer: `cancel`, or `accept` a counter-proposal.
- * Lister: `confirm`, `decline`, or `propose` with `slot`.
+ * Lister: `confirm` (optionally with `slot` = the backup slot to confirm that one),
+ * `decline`, or `propose` with `slot`.
  */
 export interface UpdateViewingRequest {
   action: "cancel" | "accept" | "confirm" | "decline" | "propose";
@@ -876,3 +880,217 @@ export interface GetArticleResponse {
 
 export const ARTICLES_DEFAULT_LIMIT = 9;
 export const ARTICLES_MAX_LIMIT = 30;
+
+// ---------------------------------------------------------------------------
+// Seller dashboard (C8–C11, C14)
+// ---------------------------------------------------------------------------
+
+export type SellerPlan = "free" | "agent_pro" | "agency";
+export type SellerKycStatus = "not_started" | "in_progress" | "submitted" | "needs_info" | "approved" | "rejected";
+
+export interface QuotaUsage {
+  used: number;
+  limit: number;
+}
+
+/** `GET /me/seller` — the lister's package, credit and badges for the SellerShell. */
+export interface SellerAccountDto {
+  plan: SellerPlan;
+  /** "นายหน้า Pro". */
+  planName: string;
+  kycStatus: SellerKycStatus;
+  /** ISO date the package renews (auto-renew) or ends. */
+  renewsAt: string;
+  autoRenew: boolean;
+  /** Prepaid credit, THB. */
+  credit: number;
+  usage: { listings: QuotaUsage; bumps: QuotaUsage; featured: QuotaUsage };
+  /** Viewing requests waiting for my answer. */
+  pendingViewings: number;
+}
+
+export interface SellerAccountResponse {
+  data: SellerAccountDto;
+}
+
+/** Listing statuses a lister sees (design handoff §4). Sold and rented listings show as `closed`. */
+export type SellerListingStatus = "draft" | "pending_review" | "published" | "rejected" | "expired" | "closed";
+
+/** A promotion currently running on a listing. */
+export interface ActivePromotionDto {
+  kind: Exclude<PromotionId, "none">;
+  /** ISO date it ends. */
+  endsAt: string;
+}
+
+/** One row of "ประกาศของฉัน" (C9, C11). Drafts and listings under review have no stats yet. */
+export interface SellerListingDto {
+  id: string;
+  /** "PH-1008"; drafts have none. */
+  code?: string;
+  /** Public page slug, for published listings. */
+  slug?: string;
+  title: string;
+  mode: ListingMode;
+  price?: number;
+  image?: { src: string; alt: string };
+  status: SellerListingStatus;
+  views7d: number;
+  leads: number;
+  /** Contact rate over the last 7 days, 0–1 (views → leads). */
+  contactRate: number;
+  /** ISO date a live listing expires. */
+  expiresAt?: string;
+  promotion?: ActivePromotionDto;
+  lastBumpedAt?: string;
+  /** Why review failed (rejected). */
+  rejectReason?: string;
+  /** When it was sent for review (pending_review). */
+  submittedAt?: string;
+  /** Drafts: the wizard draft and the step to resume at. */
+  draftId?: string;
+  draftStep?: PostStep;
+  /** Drafts: steps finished, out of 5. */
+  draftProgress?: number;
+  updatedAt: string;
+}
+
+export type SellerListingSort = "-views" | "-leads" | "-updatedAt" | "expiresAt";
+export type SellerListingTab = SellerListingStatus | "all";
+
+/** `GET /me/listings` query string. */
+export interface ListSellerListingsQuery {
+  status?: SellerListingTab;
+  /** Title or code. */
+  q?: string;
+  mode?: ListingMode;
+  sort?: SellerListingSort;
+  page?: number;
+  /** Default 10, max 50. */
+  limit?: number;
+  /** Only these ids (the boost dialog). Comma-separated. */
+  ids?: string;
+}
+
+/** `GET /me/listings` — `counts` per status tab for the other filters, and the 7-day totals for C11. */
+export type ListSellerListingsResponse = PaginatedResponse<SellerListingDto> & {
+  counts: Record<SellerListingTab, number>;
+  totals: { views7d: number; leads: number };
+};
+
+export const SELLER_LISTINGS_DEFAULT_LIMIT = 10;
+export const SELLER_LISTINGS_MAX_LIMIT = 50;
+
+/**
+ * `POST /me/listings/bulk` — `renew` extends live or expired listings by 60 days,
+ * `close` takes them down (they stop counting against the quota). Ids that do not
+ * allow the action are skipped and listed in `skipped`.
+ */
+export interface BulkListingsRequest {
+  ids: string[];
+  action: "renew" | "close";
+}
+
+export interface BulkListingsResponse {
+  data: { updated: string[]; skipped: string[] };
+}
+
+export type BoostKind = "bump" | "auto_bump" | "featured" | "homepage_pin";
+
+/** One option in the boost dialog (C14), with what the package still covers. */
+export interface BoostOptionDto {
+  kind: BoostKind;
+  title: string;
+  description: string;
+  /** THB per listing, VAT included. */
+  price: number;
+  days?: number;
+  /** Listings the package can still cover for free (bumps quota, featured slots). */
+  packageLeft?: number;
+  /** Homepage pins left this week. */
+  slotsLeft?: number;
+  /** Line under the option, e.g. "ประกาศแนะนำในย่านนี้ได้ยอดเข้าชมเพิ่ม 2.6 เท่า". */
+  estimate?: string;
+}
+
+/** `GET /me/boost-options` */
+export type ListBoostOptionsResponse = ListResponse<BoostOptionDto>;
+
+/**
+ * `POST /me/listings/promote` — only published listings. The package covers what it can;
+ * the rest is taken from credit. 402 `insufficient_credit` when credit is short,
+ * 409 when a listing is not published or homepage pins are sold out.
+ */
+export interface PromoteListingsRequest {
+  ids: string[];
+  kind: BoostKind;
+}
+
+export interface PromoteListingsResponse {
+  data: { promoted: string[]; coveredByPackage: number; charged: number; creditLeft: number };
+}
+
+/** `GET /me/seller/overview?days=` (C8). */
+export interface SellerOverviewDto {
+  /** ISO time the stats were computed. */
+  updatedAt: string;
+  views7d: number;
+  viewsPrev7d: number;
+  newLeads: number;
+  leadsByChannel: { call: number; chat: number; line: number };
+  viewingsThisWeek: number;
+  /** Share of leads answered within an hour, 0–1. */
+  responseRate: number;
+  responseMinutes: number;
+  /** Daily views across all listings, oldest first, `days` long. */
+  dailyViews: { date: string; views: number }[];
+  /** A note under the chart, e.g. when a promotion started. */
+  chartNote?: string;
+  todo: {
+    pendingViewings: number;
+    /** When the first pending request lapses. */
+    firstExpiresAt?: string;
+    rejected: number;
+    rejectReason?: string;
+    expiringSoon: number;
+    drafts: number;
+    latestDraftTitle?: string;
+  };
+}
+
+export type OverviewRange = 14 | 30 | 90;
+
+export interface SellerOverviewResponse {
+  data: SellerOverviewDto;
+}
+
+export type LeadChannel = "call" | "chat" | "line";
+
+/** Anyone who contacted me about a listing (C10 "ผู้สนใจทั้งหมด"). */
+export interface LeadDto {
+  id: string;
+  name: string;
+  channel: LeadChannel;
+  listingTitle: string;
+  listingId: string;
+  createdAt: string;
+  phoneVerified: boolean;
+  /** The chat, for chat leads. */
+  threadId?: string;
+}
+
+/** `GET /me/leads` — newest first. */
+export type ListLeadsResponse = ListResponse<LeadDto>;
+
+/** Hours a lister takes viewings (C10 "เวลารับนัด"). `null` = closed those days. */
+export interface AvailabilityDto {
+  weekdays: { start: string; end: string } | null;
+  weekend: { start: string; end: string } | null;
+  /** Minutes kept free between viewings. */
+  gapMinutes: number;
+}
+
+/** `GET /me/availability`, `PUT /me/availability` (400 when start is not before end). */
+export interface AvailabilityResponse {
+  data: AvailabilityDto;
+}

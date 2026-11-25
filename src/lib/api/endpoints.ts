@@ -1,4 +1,17 @@
 import type {
+  AvailabilityDto,
+  AvailabilityResponse,
+  BulkListingsRequest,
+  BulkListingsResponse,
+  ListBoostOptionsResponse,
+  ListLeadsResponse,
+  ListSellerListingsQuery,
+  ListSellerListingsResponse,
+  OverviewRange,
+  PromoteListingsRequest,
+  PromoteListingsResponse,
+  SellerAccountResponse,
+  SellerOverviewResponse,
   CreateViewingRequest,
   ListAppointmentsResponse,
   ListThreadsResponse,
@@ -261,6 +274,37 @@ export const api = {
 
   /** GET /me/unread-counts — unread messages and notifications. */
   getUnreadCounts: (signal?: AbortSignal) => apiGet<UnreadCountsResponse>("/me/unread-counts", undefined, { signal }),
+
+  /** GET /me/seller — package, credit and badges for the seller dashboard. */
+  getSellerAccount: (signal?: AbortSignal) => apiGet<SellerAccountResponse>("/me/seller", undefined, { signal }),
+
+  /** GET /me/seller/overview?days= — KPIs, daily views and the to-do list (C8). */
+  getSellerOverview: (days: OverviewRange, signal?: AbortSignal) =>
+    apiGet<SellerOverviewResponse>("/me/seller/overview", { days }, { signal }),
+
+  /** GET /me/listings — my listings with per-status counts (C9, C11). */
+  listSellerListings: (query: ListSellerListingsQuery = {}, signal?: AbortSignal) =>
+    apiGet<ListSellerListingsResponse>("/me/listings", { ...query }, { signal }),
+
+  /** POST /me/listings/bulk — renew or close several listings. */
+  bulkUpdateListings: (body: BulkListingsRequest) => apiSend<BulkListingsResponse>("POST", "/me/listings/bulk", body),
+
+  /** GET /me/boost-options — boost products with what the package still covers (C14). */
+  listBoostOptions: (signal?: AbortSignal) =>
+    apiGet<ListBoostOptionsResponse>("/me/boost-options", undefined, { signal }),
+
+  /** POST /me/listings/promote — 402 when credit is short. */
+  promoteListings: (body: PromoteListingsRequest) =>
+    apiSend<PromoteListingsResponse>("POST", "/me/listings/promote", body),
+
+  /** GET /me/leads — everyone who contacted me, newest first. */
+  listLeads: (signal?: AbortSignal) => apiGet<ListLeadsResponse>("/me/leads", undefined, { signal }),
+
+  /** GET /me/availability — the hours buyers may book viewings. */
+  getAvailability: (signal?: AbortSignal) => apiGet<AvailabilityResponse>("/me/availability", undefined, { signal }),
+
+  /** PUT /me/availability */
+  updateAvailability: (body: AvailabilityDto) => apiSend<AvailabilityResponse>("PUT", "/me/availability", body),
 
   /** GET /me/drafts — unfinished listing drafts, newest first. */
   listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),

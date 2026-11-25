@@ -205,6 +205,18 @@ export function getSubmissionForDraft(userId: string, draftId: string): Submitte
   return copy as SubmittedListingDto;
 }
 
+/** Listings this user sent for review, newest first (seller dashboard). */
+export function listSubmissions(userId: string): SubmittedListingDto[] {
+  return load()
+    .submissions.filter((s) => s.userId === userId)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    .map((found) => {
+      const copy: Partial<Submission> = { ...found };
+      delete copy.userId;
+      return copy as SubmittedListingDto;
+    });
+}
+
 /** Tests: start empty. */
 export function resetMockDrafts() {
   store = { drafts: [], submissions: [] };

@@ -47,6 +47,11 @@ export const routes = {
   profile: "/account/profile",
   appointments: "/account/appointments",
   dashboard: "/dashboard",
+  dashboardListings: "/dashboard/listings",
+  dashboardLeads: "/dashboard/leads",
+  billing: "/dashboard/billing",
+  verify: "/dashboard/verify",
+  pricing: "/pricing",
   savedSearches: "/account/saved-searches",
   notifications: "/notifications",
   /** Side-by-side table for up to 3 listing ids. */

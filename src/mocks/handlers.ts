@@ -12,6 +12,14 @@ import {
   type CreateEnquiryRequest,
   type ChangePasswordRequest,
   type CreateViewingRequest,
+  type AvailabilityDto,
+  type BulkListingsRequest,
+  type ListSellerListingsQuery,
+  type OverviewRange,
+  type PromoteListingsRequest,
+  type SellerListingSort,
+  type SellerListingTab,
+  SELLER_LISTINGS_MAX_LIMIT,
   type SendMessageRequest,
   type StartThreadRequest,
   type ThreadFilter,
@@ -100,6 +108,17 @@ import {
   type ViewingError,
 } from "./inbox";
 import { unreadCounts } from "./unread";
+import {
+  boostOptions,
+  bulkUpdateListings,
+  getAvailability,
+  listLeads,
+  listSellerListings,
+  promoteListings,
+  sellerAccount,
+  sellerOverview,
+  setAvailability,
+} from "./seller";
 import { getMockScenario } from "./scenario";
 import {
   completeOnboarding,
@@ -133,6 +152,7 @@ const statusText: Record<number, string> = {
   401: "Unauthorized",
   404: "Not Found",
   403: "Forbidden",
+  402: "Payment Required",
   409: "Conflict",
   422: "Unprocessable Entity",
   500: "Internal Server Error",
@@ -255,6 +275,25 @@ export function parseProjectsQuery(params: URLSearchParams): ListProjectsQuery {
     sort: oneOf("sort", projectSorts),
     page: int("page", { min: 1 }),
     limit: int("limit", { min: 1, max: PROJECTS_MAX_LIMIT }),
+  };
+  done();
+  return query;
+}
+
+const sellerTabs: SellerListingTab[] = ["all", "published", "pending_review", "rejected", "draft", "expired", "closed"];
+const sellerSorts: SellerListingSort[] = ["-views", "-leads", "-updatedAt", "expiresAt"];
+
+/** Parses and validates the `GET /me/listings` query. */
+export function parseSellerListingsQuery(params: URLSearchParams): ListSellerListingsQuery {
+  const { oneOf, int, done } = queryReader(params);
+  const query: ListSellerListingsQuery = {
+    status: oneOf("status", sellerTabs),
+    q: params.get("q")?.trim() || undefined,
+    mode: oneOf("mode", listingModes),
+    sort: oneOf("sort", sellerSorts),
+    page: int("page", { min: 1 }),
+    limit: int("limit", { min: 1, max: SELLER_LISTINGS_MAX_LIMIT }),
+    ids: params.get("ids")?.trim() || undefined,
   };
   done();
   return query;
@@ -687,6 +726,67 @@ export const handlers = [
       (await readBody<UpdateViewingRequest>(request)) as UpdateViewingRequest,
     );
     return typeof result === "string" ? viewingError(result) : HttpResponse.json({ data: result });
+  }),
+  // --- Seller dashboard ----------------------------------------------------
+  http.get(
+    endpoint("/me/seller"),
+    withScenario(() => ({ data: sellerAccount(requireUser().id) })),
+  ),
+  http.get(
+    endpoint("/me/seller/overview"),
+    withScenario((request) => {
+      const { oneOf, done } = queryReader(new URL(request.url).searchParams);
+      const days = oneOf("days", ["14", "30", "90"]);
+      done();
+      return { data: sellerOverview(requireUser().id, Number(days ?? 14) as OverviewRange) };
+    }),
+  ),
+  http.get(
+    endpoint("/me/listings"),
+    withScenario((request) =>
+      listSellerListings(requireUser().id, parseSellerListingsQuery(new URL(request.url).searchParams)),
+    ),
+  ),
+  http.post(endpoint("/me/listings/bulk"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<BulkListingsRequest>(request);
+    if (!Array.isArray(body.ids) || !body.ids.length || (body.action !== "renew" && body.action !== "close"))
+      return errorResponse(400, ["ids should not be empty", "action must be one of: renew, close"]);
+    return HttpResponse.json({ data: bulkUpdateListings(user.id, body as BulkListingsRequest) });
+  }),
+  http.get(
+    endpoint("/me/boost-options"),
+    withScenario(() => ({ data: boostOptions(requireUser().id) })),
+  ),
+  http.post(endpoint("/me/listings/promote"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = promoteListings(
+      user.id,
+      (await readBody<PromoteListingsRequest>(request)) as PromoteListingsRequest,
+    );
+    return result.ok ? HttpResponse.json({ data: result.data }) : errorResponse(result.status, result.message);
+  }),
+  http.get(
+    endpoint("/me/leads"),
+    withScenario(() => ({ data: listLeads(requireUser().id) })),
+  ),
+  http.get(
+    endpoint("/me/availability"),
+    withScenario(() => ({ data: getAvailability(requireUser().id) })),
+  ),
+  http.put(endpoint("/me/availability"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const saved = setAvailability(user.id, await readBody<AvailabilityDto>(request));
+    return saved ? HttpResponse.json({ data: saved }) : errorResponse(400, "start must be before end");
   }),
   // --- Notifications -------------------------------------------------------
   http.get(

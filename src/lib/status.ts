@@ -11,7 +11,7 @@ interface StatusInfo {
 }
 
 export const listingStatuses = {
-  draft: { label: "ฉบับร่าง", tone: "neutral" },
+  draft: { label: "แบบร่าง", tone: "neutral" },
   pending_review: { label: "รอตรวจสอบ", tone: "warning" },
   published: { label: "เผยแพร่แล้ว", tone: "success" },
   rejected: { label: "ไม่ผ่านการตรวจ", tone: "danger" },

@@ -9,6 +9,7 @@ import { resetMockFavorites } from "@/mocks/favorites";
 import { server } from "@/mocks/node";
 import { resetMockNotifications } from "@/mocks/notifications";
 import { resetMockSavedSearches } from "@/mocks/saved-searches";
+import { resetMockSeller } from "@/mocks/seller";
 import { resetMockSession } from "@/mocks/session";
 import { setMockScenario } from "@/mocks/scenario";
 import { resetNavigation } from "@/test/next-navigation";
@@ -45,6 +46,7 @@ afterEach(() => {
   resetMockAccount();
   resetMockNotifications();
   resetMockInbox();
+  resetMockSeller();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();

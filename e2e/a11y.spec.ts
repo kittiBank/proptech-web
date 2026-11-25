@@ -20,6 +20,7 @@ const pages = [
   { name: "mortgage calculator", path: "/tools/mortgage" },
   { name: "login", path: "/login" },
   { name: "register", path: "/register" },
+  { name: "seller dashboard (signed out)", path: "/dashboard" },
   { name: "not found", path: "/this-page-does-not-exist" },
 ];
 
