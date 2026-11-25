@@ -12,6 +12,7 @@ import { resetMockSavedSearches } from "@/mocks/saved-searches";
 import { resetMockSeller } from "@/mocks/seller";
 import { resetMockBilling } from "@/mocks/billing";
 import { resetMockKyc } from "@/mocks/kyc";
+import { resetMockReports } from "@/mocks/reports";
 import { resetMockSession } from "@/mocks/session";
 import { setMockScenario } from "@/mocks/scenario";
 import { resetNavigation } from "@/test/next-navigation";
@@ -51,6 +52,7 @@ afterEach(() => {
   resetMockSeller();
   resetMockBilling();
   resetMockKyc();
+  resetMockReports();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();

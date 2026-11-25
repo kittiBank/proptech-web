@@ -7,6 +7,7 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 | Date done  | Issue | Ticket | Summary                                                                                                                              | Branch / PR                            | Status | Note                                                                                                                      |
 | ---------- | ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-25 | #22   | FE-18  | Help `/help` (D4), legal `/legal/[doc]` (D5), report dialog `?report=1` (D6), global cookie banner + preferences (D7)                | `feat/fe15-fe18`                       | done   | Mock `POST /properties/:slug/reports`, support chat `?to=support`; e2e pre-accepts cookies; legal text needs review       |
 | 2026-11-25 | #21   | FE-17  | Agent verification `/dashboard/verify` (C16): 5-step vertical stepper, uploads + phone QR placeholder, review states, publish gate   | `feat/fe15-fe18`                       | done   | Mock `/me/kyc`; review ~8s after submit; file names with `blur` → needs info, `reject` → rejected                         |
 | 2026-11-25 | #20   | FE-16  | Pricing `/pricing` (C12), checkout `/checkout/[orderId]` (C13), billing `/dashboard/billing` (C15)                                   | `feat/fe15-fe18`                       | done   | Mock `/me/orders`, `/me/billing`, `/me/cards`; PromptPay confirms ~6s after QR; card 4000…0002 declines; code `WELCOME10` |
 | 2026-11-25 | #19   | FE-15  | Seller dashboard `/dashboard` (C8), `/dashboard/listings` + `?boost=` dialog (C9, C11, C14), `/dashboard/leads` (C10)                | `feat/fe15-fe18`                       | done   | Mock `/me/seller`, `/me/listings`, `/me/leads`, `/me/availability`; 8 lister chats seeded in the inbox                    |
@@ -33,5 +34,5 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 ## Up next
 
-Open issues, in planned order: FE-18 (#22) on `feat/fe15-fe18`, then FE-19 (#23) … FE-22 (#26).
+Open issues, in planned order: FE-19 (#23) … FE-22 (#26). FE-15…FE-18 are on `feat/fe15-fe18`, ready for a PR.
 Run `gh issue list` for the current list.

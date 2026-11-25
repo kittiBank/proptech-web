@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { BadgeCheck, ChevronRight, Eye, MapPin, Pin, SearchX } from "lucide-react";
 import { Container } from "@/components/home/section-header";
 import { FavoriteButton } from "@/components/property/favorite-button";
@@ -26,6 +26,7 @@ import { MortgageCalculator } from "./mortgage-calculator";
 import { NearbyListings } from "./nearby-listings";
 import { PropertyDetailSkeleton } from "./property-detail-skeleton";
 import { MobileContactBar, PosterCard } from "./poster-card";
+import { ReportListing } from "./report-dialog";
 import { listingIconButton, ShareMenu } from "./share-menu";
 import { StationRoutes } from "./station-route";
 
@@ -267,6 +268,10 @@ export function PropertyDetailView() {
 
           <div className="lg:sticky lg:top-[88px] lg:self-start">
             <PosterCard property={property} />
+            {/* Reads `?report=1`; search params need their own Suspense boundary. */}
+            <Suspense>
+              <ReportListing slug={property.slug} code={property.code} />
+            </Suspense>
           </div>
         </div>
       </Container>

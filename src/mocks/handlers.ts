@@ -14,6 +14,8 @@ import {
   type CreateViewingRequest,
   type AvailabilityDto,
   type AddCardRequest,
+  type CreateReportRequest,
+  REPORT_DETAILS_MAX,
   type UpdateKycRequest,
   type UploadKycDocumentRequest,
   type CreateOrderRequest,
@@ -114,6 +116,7 @@ import {
   type ViewingError,
 } from "./inbox";
 import { unreadCounts } from "./unread";
+import { createReport, reportReasons } from "./reports";
 import { getKyc, removeKycDocument, restartKyc, submitKyc, updateKyc, uploadKycDocument, type KycError } from "./kyc";
 import {
   addCard,
@@ -838,6 +841,23 @@ export const handlers = [
     if (!user) return unauthorized();
     const saved = setAvailability(user.id, await readBody<AvailabilityDto>(request));
     return saved ? HttpResponse.json({ data: saved }) : errorResponse(400, "start must be before end");
+  }),
+  // --- Reports -----------------------------------------------------------------
+  http.post(endpoint("/properties/:slug/reports"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const slug = String(params.slug);
+    if (!getPropertyDetail(slug)) return errorResponse(404, `Listing "${slug}" not found`);
+    const body = await readBody<CreateReportRequest>(request);
+    const details = typeof body.details === "string" ? body.details.trim() : "";
+    const errors = [
+      ...(reportReasons.includes(body.reason as never) ? [] : [`reason must be one of: ${reportReasons.join(", ")}`]),
+      ...(body.reason === "other" && !details ? ["details should not be empty for reason other"] : []),
+      ...(details.length > REPORT_DETAILS_MAX ? [`details must be ${REPORT_DETAILS_MAX} characters or less`] : []),
+    ];
+    if (errors.length) return errorResponse(400, errors);
+    const report = createReport(slug, { reason: body.reason!, details });
+    return HttpResponse.json({ data: { id: report.id, createdAt: report.createdAt } }, { status: 201 });
   }),
   // --- Agent verification (KYC) ----------------------------------------------
   http.get(

@@ -1,3 +1,4 @@
+import { contact } from "@/data/navigation";
 import { newProjects } from "@/data/projects";
 import { formatListingPrice, formatPrice } from "@/lib/format";
 import { effectiveStatus, expiryFor, isOpenViewing, slotIso, slotParts } from "@/lib/viewing";
@@ -549,6 +550,17 @@ export function startThread(userId: string, to: string): ThreadDto | undefined {
     if (detail) base = { counterpart: posterOf(detail), listing: propertyListing(detail) };
   } else if (kind === "project") {
     base = projectThread(slug);
+  } else if (kind === "support") {
+    // Help center (D4) "แชตกับทีมงาน".
+    base = {
+      counterpart: {
+        name: "ทีมงาน PropertyHub",
+        kind: "support",
+        phone: contact.phone.replace(/\s/g, ""),
+        idVerified: true,
+        responseMinutes: 5,
+      },
+    };
   }
   if (!base) return undefined;
 

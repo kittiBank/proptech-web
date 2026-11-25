@@ -1,4 +1,6 @@
 import type {
+  CreateReportRequest,
+  CreateReportResponse,
   KycDocumentDto,
   KycResponse,
   UpdateKycRequest,
@@ -108,6 +110,10 @@ export const api = {
   /** POST /properties/:slug/enquiries — message to the poster. */
   createEnquiry: (slug: string, body: CreateEnquiryRequest) =>
     apiPost<CreateEnquiryResponse, CreateEnquiryRequest>(`/properties/${encodeURIComponent(slug)}/enquiries`, body),
+
+  /** POST /properties/:slug/reports — report a listing (anonymous to the poster). */
+  reportListing: (slug: string, body: CreateReportRequest) =>
+    apiSend<CreateReportResponse>("POST", `/properties/${encodeURIComponent(slug)}/reports`, body),
 
   /** GET /projects — paginated, filterable developer projects with per-status counts. */
   listProjects: (query: ListProjectsQuery = {}, signal?: AbortSignal) =>

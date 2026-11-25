@@ -22,6 +22,9 @@ const pages = [
   { name: "register", path: "/register" },
   { name: "seller dashboard (signed out)", path: "/dashboard" },
   { name: "pricing", path: "/pricing" },
+  { name: "help", path: "/help" },
+  { name: "legal privacy", path: "/legal/privacy" },
+  { name: "legal listing rules", path: "/legal/listing-rules" },
   { name: "not found", path: "/this-page-does-not-exist" },
 ];
 

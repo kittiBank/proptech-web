@@ -360,8 +360,8 @@ export interface ThreadListingDto {
 
 export interface ThreadCounterpartDto {
   name: string;
-  /** `buyer` = the person asking about one of my listings (lister threads). */
-  kind: "agent" | "owner" | "developer" | "buyer";
+  /** `buyer` = the person asking about one of my listings (lister threads); `support` = PropertyHub's team. */
+  kind: "agent" | "owner" | "developer" | "buyer" | "support";
   /** Public agent profile, when there is one. */
   profileSlug?: string;
   phone: string;
@@ -422,7 +422,7 @@ export interface ThreadDetailResponse {
   data: { thread: ThreadDto; messages: MessageDto[]; viewings: ViewingRequestDto[] };
 }
 
-/** `POST /me/threads` — opens the existing thread with that recipient or starts one. `to`: "agent:<slug>" or "property:<slug>". */
+/** `POST /me/threads` — opens the existing thread with that recipient or starts one. `to`: "agent:<slug>", "property:<slug>", "project:<slug>" or "support". */
 export interface StartThreadRequest {
   to: string;
 }
@@ -1305,3 +1305,21 @@ export interface UploadKycDocumentRequest {
 
 /** Most bytes for one verification file. */
 export const KYC_MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+// ---------------------------------------------------------------------------
+// Report a listing (D6)
+// ---------------------------------------------------------------------------
+
+export type ReportReason = "scam" | "inaccurate" | "unavailable" | "duplicate" | "other";
+
+export const REPORT_DETAILS_MAX = 1000;
+
+/** `POST /properties/:slug/reports` — anonymous to the poster. `details` is required for `other`. 404 for unknown listings. */
+export interface CreateReportRequest {
+  reason: ReportReason;
+  details?: string;
+}
+
+export interface CreateReportResponse {
+  data: { id: string; createdAt: string };
+}

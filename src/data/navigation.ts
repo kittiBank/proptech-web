@@ -52,6 +52,9 @@ export const routes = {
   billing: "/dashboard/billing",
   verify: "/dashboard/verify",
   pricing: "/pricing",
+  help: "/help",
+  /** `privacy`, `terms`, `listing-rules` or `cookies`. */
+  legal: (doc: string) => `/legal/${doc}`,
   savedSearches: "/account/saved-searches",
   notifications: "/notifications",
   /** Side-by-side table for up to 3 listing ids. */
@@ -96,11 +99,13 @@ export const footerNav: { title: string; links: { label: string; href: string }[
   {
     title: "ช่วยเหลือ",
     links: [
-      { label: "ศูนย์ช่วยเหลือ", href: "/help" },
+      { label: "ศูนย์ช่วยเหลือ", href: routes.help },
       { label: "คู่มือผู้ซื้อบ้าน", href: routes.guides },
-      { label: "แจ้งประกาศไม่เหมาะสม", href: "/help/report" },
-      { label: "ข้อกำหนดการใช้งาน", href: "/terms" },
-      { label: "นโยบายความเป็นส่วนตัว", href: "/privacy" },
+      { label: "แจ้งประกาศไม่เหมาะสม", href: "/help?topic=safety" },
+      { label: "แพ็กเกจและราคา", href: routes.pricing },
+      { label: "ข้อกำหนดการใช้งาน", href: routes.legal("terms") },
+      { label: "นโยบายความเป็นส่วนตัว", href: routes.legal("privacy") },
+      { label: "กฎการลงประกาศ", href: routes.legal("listing-rules") },
     ],
   },
 ];
