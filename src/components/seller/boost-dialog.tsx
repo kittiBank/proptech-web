@@ -14,6 +14,7 @@ import { sellerQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
 import { canPromote, coverage } from "@/lib/seller";
 import type { BoostKind, BoostOptionDto } from "@/types/api";
+import { useCreateOrder } from "@/components/billing/use-billing-actions";
 import { promoteErrorMessage, usePromoteListings } from "./use-seller-actions";
 
 interface BoostDialogProps {
@@ -43,6 +44,8 @@ export function BoostDialog({ ids, onClose, onDone }: BoostDialogProps) {
   const options = useQuery({ ...sellerQueries.boostOptions, enabled: open });
   const account = useQuery({ ...sellerQueries.account, enabled: open });
   const promote = usePromoteListings();
+  // Credit short: pay the rest by PromptPay or card at checkout.
+  const checkout = useCreateOrder();
   const [kind, setKind] = useState<BoostKind>("featured");
 
   const rows = listings.data?.data ?? [];
@@ -138,7 +141,7 @@ export function BoostDialog({ ids, onClose, onDone }: BoostDialogProps) {
               )}
               {short && (
                 <Callout tone="warning" className="mt-3" role="alert">
-                  เครดิตคงเหลือ ฿{formatNumber(credit)} ไม่พอ{" "}
+                  เครดิตคงเหลือ ฿{formatNumber(credit)} ไม่พอ ชำระส่วนนี้ด้วย PromptPay หรือบัตรได้เลย หรือ{" "}
                   <Link href={routes.billing} className="font-semibold underline underline-offset-4">
                     เติมเครดิต
                   </Link>
@@ -173,20 +176,34 @@ export function BoostDialog({ ids, onClose, onDone }: BoostDialogProps) {
                   <span className="sr-only">จากราคาเต็ม </span>฿{formatNumber(cost.fullPrice)}
                 </s>
               )}
-              {cost.charge > 0 && <span className="block text-xs text-slate">หักจากเครดิต</span>}
+              {cost.charge > 0 && (
+                <span className="block text-xs text-slate">{short ? "ชำระที่หน้าชำระเงิน" : "หักจากเครดิต"}</span>
+              )}
             </p>
           )}
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="base" onClick={close}>
               ยกเลิก
             </Button>
-            <Button
-              size="base"
-              onClick={submit}
-              disabled={!targets.length || !option || short || soldOut || promote.isPending}
-            >
-              {promote.isPending ? "กำลังเริ่ม…" : "เริ่มโปรโมต"}
-            </Button>
+            {short ? (
+              <Button
+                size="base"
+                disabled={!targets.length || soldOut || checkout.isPending}
+                onClick={() =>
+                  checkout.mutate({ kind: "promotion", promotion: kind, listingIds: targets.map((l) => l.id) })
+                }
+              >
+                {checkout.isPending ? "กำลังสร้างรายการ…" : "ไปชำระเงิน"}
+              </Button>
+            ) : (
+              <Button
+                size="base"
+                onClick={submit}
+                disabled={!targets.length || !option || soldOut || promote.isPending}
+              >
+                {promote.isPending ? "กำลังเริ่ม…" : "เริ่มโปรโมต"}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

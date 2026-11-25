@@ -13,6 +13,10 @@ import {
   type ChangePasswordRequest,
   type CreateViewingRequest,
   type AvailabilityDto,
+  type AddCardRequest,
+  type CreateOrderRequest,
+  type PayOrderRequest,
+  type UpdateBillingRequest,
   type BulkListingsRequest,
   type ListSellerListingsQuery,
   type OverviewRange,
@@ -109,6 +113,21 @@ import {
 } from "./inbox";
 import { unreadCounts } from "./unread";
 import {
+  addCard,
+  applyOrderCoupon,
+  createOrder,
+  createWizardOrder,
+  getBilling,
+  getOrder,
+  listOrders,
+  payOrder,
+  removeCard,
+  requestRefund,
+  setPrimaryCard,
+  updateBilling,
+  type OrderError,
+} from "./billing";
+import {
   boostOptions,
   bulkUpdateListings,
   getAvailability,
@@ -184,6 +203,21 @@ function viewingError(error: ViewingError) {
   } as const;
   return errorResponse(map[error][0], map[error][1]);
 }
+
+function orderError(error: OrderError) {
+  const map = {
+    not_found: [404, "Order not found"],
+    invalid: [400, "Invalid request"],
+    conflict: [409, "Order cannot change in this state"],
+    insufficient_credit: [402, "insufficient_credit"],
+    not_published: [409, "not_published"],
+  } as const;
+  return errorResponse(map[error][0], map[error][1]);
+}
+
+/** Shorthand for write handlers that return `{ data }` or an `OrderError`. */
+const orderResult = <T>(result: T | OrderError, status = 200) =>
+  typeof result === "string" ? orderError(result as OrderError) : HttpResponse.json({ data: result }, { status });
 
 function requireUser() {
   const user = currentUser();
@@ -788,6 +822,80 @@ export const handlers = [
     const saved = setAvailability(user.id, await readBody<AvailabilityDto>(request));
     return saved ? HttpResponse.json({ data: saved }) : errorResponse(400, "start must be before end");
   }),
+  // --- Orders and billing --------------------------------------------------
+  http.post(endpoint("/me/orders"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(createOrder(user, (await readBody<CreateOrderRequest>(request)) as CreateOrderRequest), 201);
+  }),
+  http.get(
+    endpoint("/me/orders"),
+    withScenario(() => ({ data: listOrders(requireUser()) })),
+  ),
+  http.get(
+    endpoint("/me/orders/:id"),
+    withScenario((_request, params) => {
+      const order = getOrder(requireUser(), String(params.id));
+      if (!order) throw new NotFoundError("Order not found");
+      return { data: order };
+    }),
+  ),
+  http.post(endpoint("/me/orders/:id/pay"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(
+      payOrder(user, String(params.id), (await readBody<PayOrderRequest>(request)) as PayOrderRequest),
+    );
+  }),
+  http.post(endpoint("/me/orders/:id/coupon"), async ({ request, params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { code } = await readBody<{ code: string }>(request);
+    return orderResult(applyOrderCoupon(user, String(params.id), String(code ?? "")));
+  }),
+  http.post(endpoint("/me/orders/:id/refund"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(requestRefund(user, String(params.id)));
+  }),
+  http.get(
+    endpoint("/me/billing"),
+    withScenario(() => ({ data: getBilling(requireUser()) })),
+  ),
+  http.patch(endpoint("/me/billing"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(updateBilling(user, await readBody<UpdateBillingRequest>(request)));
+  }),
+  http.post(endpoint("/me/cards"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(addCard(user, (await readBody<AddCardRequest>(request)) as AddCardRequest), 201);
+  }),
+  http.delete(endpoint("/me/cards/:id"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return removeCard(user, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Card not found");
+  }),
+  http.post(endpoint("/me/cards/:id/primary"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return setPrimaryCard(user, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Card not found");
+  }),
   // --- Notifications -------------------------------------------------------
   http.get(
     endpoint("/me/notifications"),
@@ -870,7 +978,19 @@ export const handlers = [
     const user = currentUser();
     if (!user) return unauthorized();
     const result = publishDraft(user.id, String(params.id));
-    return result.ok ? HttpResponse.json(result.body, { status: 201 }) : errorResponse(result.status, result.message);
+    if (!result.ok) return errorResponse(result.status, result.message);
+    const order = result.body.data.order;
+    if (order) {
+      // The paid promotion becomes an order to pay at /checkout/:id.
+      const submission = getSubmissionForDraft(user.id, String(params.id));
+      createWizardOrder(user, {
+        id: order.id,
+        promotion: order.promotion,
+        listingTitle: submission?.values.title ?? result.body.data.listing.code,
+        draftId: String(params.id),
+      });
+    }
+    return HttpResponse.json(result.body, { status: 201 });
   }),
   http.get(
     endpoint("/me/drafts/:id/submission"),

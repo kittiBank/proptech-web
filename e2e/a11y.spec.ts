@@ -21,6 +21,7 @@ const pages = [
   { name: "login", path: "/login" },
   { name: "register", path: "/register" },
   { name: "seller dashboard (signed out)", path: "/dashboard" },
+  { name: "pricing", path: "/pricing" },
   { name: "not found", path: "/this-page-does-not-exist" },
 ];
 

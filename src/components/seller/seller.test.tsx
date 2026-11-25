@@ -114,7 +114,7 @@ describe("ListingsView (C9, C11, C14)", () => {
     // Two renders plus a mutation: slow under a loaded full-suite run.
   }, 15_000);
 
-  it("warns when credit does not cover the boost", async () => {
+  it("sends the boost to checkout when credit does not cover it", async () => {
     const user = userEvent.setup();
     const [first] = listSellerListings(me(), { status: "published" }).data;
     setSearchParams(`boost=${first.id}`);
@@ -122,7 +122,9 @@ describe("ListingsView (C9, C11, C14)", () => {
     const dialog = await screen.findByRole("dialog", { name: "โปรโมต 1 ประกาศ" });
     await user.click(within(dialog).getByRole("radio", { name: /ปักหมุดหน้าแรก/ }));
     expect(within(dialog).getByRole("alert")).toHaveTextContent("เครดิตคงเหลือ ฿1,250 ไม่พอ");
-    expect(within(dialog).getByRole("button", { name: "เริ่มโปรโมต" })).toBeDisabled();
+    expect(within(dialog).queryByRole("button", { name: "เริ่มโปรโมต" })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "ไปชำระเงิน" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(expect.stringMatching(/^\/checkout\/o-/)));
   });
 
   it("closes listings after confirming", async () => {

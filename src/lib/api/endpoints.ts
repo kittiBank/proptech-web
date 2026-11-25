@@ -1,4 +1,12 @@
 import type {
+  AddCardRequest,
+  BillingResponse,
+  CreateOrderRequest,
+  ListOrdersResponse,
+  OrderResponse,
+  PayOrderRequest,
+  SavedCardDto,
+  UpdateBillingRequest,
   AvailabilityDto,
   AvailabilityResponse,
   BulkListingsRequest,
@@ -305,6 +313,42 @@ export const api = {
 
   /** PUT /me/availability */
   updateAvailability: (body: AvailabilityDto) => apiSend<AvailabilityResponse>("PUT", "/me/availability", body),
+
+  /** POST /me/orders — a pending order to pay at `/checkout/:id`. */
+  createOrder: (body: CreateOrderRequest) => apiSend<OrderResponse>("POST", "/me/orders", body),
+
+  /** GET /me/orders/:id */
+  getOrder: (id: string, signal?: AbortSignal) =>
+    apiGet<OrderResponse>(`/me/orders/${encodeURIComponent(id)}`, undefined, { signal }),
+
+  /** GET /me/orders — payment history. */
+  listOrders: (signal?: AbortSignal) => apiGet<ListOrdersResponse>("/me/orders", undefined, { signal }),
+
+  /** POST /me/orders/:id/pay — PromptPay returns a QR; card and credit settle at once (402 when credit is short). */
+  payOrder: (id: string, body: PayOrderRequest) =>
+    apiSend<OrderResponse>("POST", `/me/orders/${encodeURIComponent(id)}/pay`, body),
+
+  /** POST /me/orders/:id/coupon — 400 for an unknown code. */
+  applyCoupon: (id: string, code: string) =>
+    apiSend<OrderResponse>("POST", `/me/orders/${encodeURIComponent(id)}/coupon`, { code }),
+
+  /** POST /me/orders/:id/refund */
+  requestRefund: (id: string) => apiSend<OrderResponse>("POST", `/me/orders/${encodeURIComponent(id)}/refund`),
+
+  /** GET /me/billing — credit, plan, saved cards and invoice details (C15). */
+  getBilling: (signal?: AbortSignal) => apiGet<BillingResponse>("/me/billing", undefined, { signal }),
+
+  /** PATCH /me/billing */
+  updateBilling: (body: UpdateBillingRequest) => apiSend<BillingResponse>("PATCH", "/me/billing", body),
+
+  /** POST /me/cards — 400 when the card fails the checks. */
+  addCard: (body: AddCardRequest) => apiSend<{ data: SavedCardDto }>("POST", "/me/cards", body),
+
+  /** DELETE /me/cards/:id */
+  removeCard: (id: string) => apiSend<void>("DELETE", `/me/cards/${encodeURIComponent(id)}`),
+
+  /** POST /me/cards/:id/primary — the card plan renewals charge. */
+  setPrimaryCard: (id: string) => apiSend<void>("POST", `/me/cards/${encodeURIComponent(id)}/primary`),
 
   /** GET /me/drafts — unfinished listing drafts, newest first. */
   listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),

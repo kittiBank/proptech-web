@@ -58,6 +58,12 @@ export const queryKeys = {
     slots: (id: string) => ["me", "threads", "slots", id] as const,
   },
   appointments: ["me", "viewings"] as const,
+  billing: {
+    all: ["me", "billing"] as const,
+    summary: ["me", "billing", "summary"] as const,
+    orders: ["me", "billing", "orders"] as const,
+    order: (id: string) => ["me", "billing", "order", id] as const,
+  },
   seller: {
     all: ["me", "seller"] as const,
     account: ["me", "seller", "account"] as const,
@@ -321,6 +327,27 @@ export const sellerQueries = {
     queryKey: queryKeys.seller.availability,
     queryFn: async ({ signal }) => (await api.getAvailability(signal)).data,
   }),
+};
+
+/** Billing (C13, C15). A pending PromptPay order polls until the bank confirms. */
+export const billingQueries = {
+  summary: queryOptions({
+    queryKey: queryKeys.billing.summary,
+    queryFn: async ({ signal }) => (await api.getBilling(signal)).data,
+  }),
+  orders: queryOptions({
+    queryKey: queryKeys.billing.orders,
+    queryFn: async ({ signal }) => (await api.listOrders(signal)).data,
+  }),
+  order: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.billing.order(id),
+      queryFn: async ({ signal }) => (await api.getOrder(id, signal)).data,
+      refetchInterval: (query) => {
+        const o = query.state.data;
+        return o?.status === "pending" && o.method === "promptpay" ? 2_000 : false;
+      },
+    }),
 };
 
 export const listingQuotaQuery = queryOptions({

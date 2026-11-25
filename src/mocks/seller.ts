@@ -4,6 +4,9 @@ import { slotParts } from "@/lib/viewing";
 import {
   SELLER_LISTINGS_DEFAULT_LIMIT,
   type AvailabilityDto,
+  type BillingCycle,
+  type BoostKind,
+  type SellerPlan,
   type BoostOptionDto,
   type BulkListingsRequest,
   type LeadChannel,
@@ -40,6 +43,18 @@ interface Workspace {
   bumpsUsed: number;
   availability: AvailabilityDto;
   seededAt: number;
+  plan: SellerPlan;
+  cycle: BillingCycle;
+  autoRenew: boolean;
+  /** Next charge, or the end of the plan once auto-renew is off. */
+  renewsAt: string;
+}
+
+/** End of the current Bangkok month, 10:00. */
+function endOfMonth(now: number) {
+  const { date } = slotParts(new Date(now).toISOString());
+  const [y, m] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0, 3)).toISOString();
 }
 
 const KEY = "propertyhub:mock:seller";
@@ -134,13 +149,28 @@ function seed(now: number): Workspace {
     return row;
   });
 
-  return { listings, credit: 1250, bumpsUsed: 82, availability: DEFAULT_AVAILABILITY, seededAt: now };
+  return {
+    listings,
+    credit: 1250,
+    bumpsUsed: 82,
+    availability: DEFAULT_AVAILABILITY,
+    seededAt: now,
+    plan: "agent_pro",
+    cycle: "monthly",
+    autoRenew: true,
+    renewsAt: endOfMonth(now),
+  };
 }
 
 function workspace(userId: string, now = Date.now()): Workspace {
   const all = load();
   all[userId] ??= seed(now);
   const ws = all[userId];
+  // Workspaces saved before billing existed (FE-15) lack the plan fields.
+  ws.plan ??= "agent_pro";
+  ws.cycle ??= "monthly";
+  ws.autoRenew ??= true;
+  ws.renewsAt ??= endOfMonth(now);
   // Time moves on: live listings past their date expire, promotions end.
   for (const l of ws.listings) {
     if (l.status === "published" && l.expiresAt && Date.parse(l.expiresAt) <= now) l.status = "expired";
@@ -196,19 +226,15 @@ const listerViewings = (userId: string) => listAppointments(userId).filter((a) =
 
 export function sellerAccount(userId: string, now = Date.now()): SellerAccountDto {
   const ws = workspace(userId, now);
-  const plan = PLANS.agent_pro;
+  const plan = PLANS[ws.plan];
   const live = ws.listings.filter((l) => l.status === "published").length;
   const featuredUsed = ws.listings.filter((l) => l.promotion?.kind === "featured").length;
-  // Renews at the end of the current month.
-  const { date } = slotParts(new Date(now).toISOString());
-  const [y, m] = date.split("-").map(Number);
-  const renewsAt = new Date(Date.UTC(y, m, 0, 3)).toISOString();
   return {
-    plan: "agent_pro",
+    plan: ws.plan,
     planName: plan.name,
     kycStatus: "approved",
-    renewsAt,
-    autoRenew: true,
+    renewsAt: ws.renewsAt,
+    autoRenew: ws.autoRenew,
     credit: ws.credit,
     usage: {
       listings: { used: live, limit: plan.listings },
@@ -217,6 +243,57 @@ export function sellerAccount(userId: string, now = Date.now()): SellerAccountDt
     },
     pendingViewings: listerViewings(userId).filter((v) => v.status === "requested").length,
   };
+}
+
+/** Billing: the plan, its cycle and renewal. */
+export function planState(userId: string, now = Date.now()) {
+  const ws = workspace(userId, now);
+  return { plan: ws.plan, cycle: ws.cycle, autoRenew: ws.autoRenew, renewsAt: ws.renewsAt, credit: ws.credit };
+}
+
+/** A paid plan order: switch plan and start a new period from now. */
+export function startPlan(userId: string, plan: SellerPlan, cycle: BillingCycle, now = Date.now()) {
+  const ws = workspace(userId, now);
+  const end = new Date(now);
+  if (cycle === "yearly") end.setUTCFullYear(end.getUTCFullYear() + 1);
+  else end.setUTCMonth(end.getUTCMonth() + 1);
+  Object.assign(ws, { plan, cycle, autoRenew: true, renewsAt: end.toISOString() });
+  persist();
+}
+
+export function setAutoRenew(userId: string, autoRenew: boolean) {
+  workspace(userId).autoRenew = autoRenew;
+  persist();
+}
+
+/** Adds (top-up, refund) or takes (payment) credit; `false` when there is not enough. */
+export function changeCredit(userId: string, delta: number): boolean {
+  const ws = workspace(userId);
+  if (ws.credit + delta < 0) return false;
+  ws.credit = Math.round((ws.credit + delta) * 100) / 100;
+  persist();
+  return true;
+}
+
+/** A paid promotion order: run it on the listings that are still live. */
+export function applyPaidPromotion(userId: string, ids: string[], kind: BoostKind, now = Date.now()) {
+  const ws = workspace(userId, now);
+  const option = BOOST_CATALOG.find((o) => o.kind === kind);
+  const at = new Date(now).toISOString();
+  for (const l of ws.listings) {
+    if (!ids.includes(l.id) || l.status !== "published") continue;
+    if (kind === "bump") l.lastBumpedAt = at;
+    else l.promotion = { kind, endsAt: new Date(now + (option?.days ?? 7) * DAY).toISOString() };
+    l.updatedAt = at;
+  }
+  persist();
+}
+
+/** Titles for an order line, e.g. a promotion's listings. */
+export function listingTitles(userId: string, ids: string[]) {
+  return workspace(userId)
+    .listings.filter((l) => ids.includes(l.id))
+    .map((l) => l.title);
 }
 
 // --- Listings ----------------------------------------------------------------

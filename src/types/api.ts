@@ -1094,3 +1094,140 @@ export interface AvailabilityDto {
 export interface AvailabilityResponse {
   data: AvailabilityDto;
 }
+
+// ---------------------------------------------------------------------------
+// Pricing, checkout and billing (C12, C13, C15)
+// ---------------------------------------------------------------------------
+
+export type BillingCycle = "monthly" | "yearly";
+export type PaymentStatusDto = "pending" | "paid" | "failed" | "refund_requested" | "refunded";
+export type PaymentMethod = "promptpay" | "card" | "credit";
+export type OrderKind = "plan" | "credit" | "promotion";
+
+/** VAT rate included in every price (handoff §6). */
+export const VAT_RATE = 0.07;
+
+/** Something to pay for. Amounts are THB with VAT included. */
+export interface OrderDto {
+  id: string;
+  kind: OrderKind;
+  /** "ประกาศแนะนำ 14 วัน", "แพ็กเกจนายหน้า Pro รายปี", "เติมเครดิต". */
+  title: string;
+  /** Listing title(s), billing period… */
+  detail?: string;
+  /** Before discount. */
+  listPrice: number;
+  discount: number;
+  coupon?: string;
+  /** To pay, VAT included. */
+  amount: number;
+  /** `amount` split into the pre-VAT price and VAT, 2 decimals. */
+  subtotal: number;
+  vat: number;
+  status: PaymentStatusDto;
+  method?: PaymentMethod;
+  /** Card used, e.g. "4242". */
+  cardLast4?: string;
+  /** Why the last attempt failed. */
+  failureReason?: string;
+  /** PromptPay: the QR shown and when it stops working. */
+  qrPayload?: string;
+  qrExpiresAt?: string;
+  createdAt: string;
+  paidAt?: string;
+  /** "INV-2569-000123" once paid. */
+  invoiceNo?: string;
+  /** Promotions start after review; shown under the summary. */
+  note?: string;
+  /** Where "back" and "done" go from checkout. */
+  backHref: string;
+  doneHref: string;
+}
+
+export interface OrderResponse {
+  data: OrderDto;
+}
+
+/** `POST /me/orders` — a pending order to pay at `/checkout/:id`. */
+export type CreateOrderRequest =
+  | { kind: "plan"; plan: "agent_pro" | "agency"; cycle: BillingCycle }
+  | { kind: "credit"; amount: number }
+  | { kind: "promotion"; promotion: BoostKind; listingIds: string[] };
+
+/**
+ * `POST /me/orders/:id/pay`. PromptPay returns the QR (still `pending`; it turns
+ * `paid` by itself once the bank confirms). Card and credit settle at once:
+ * 402 when credit is short; a declined card returns the order as `failed`.
+ */
+export interface PayOrderRequest {
+  method: PaymentMethod;
+  /** Saved card to charge (card only). */
+  cardId?: string;
+}
+
+/** `POST /me/orders/:id/coupon` — 400 for an unknown code. */
+export interface ApplyCouponRequest {
+  code: string;
+}
+
+/** `GET /me/orders` — payment history, newest first (orders never paid for are left out). */
+export type ListOrdersResponse = ListResponse<OrderDto>;
+
+export interface SavedCardDto {
+  id: string;
+  brand: "visa" | "mastercard" | "jcb";
+  last4: string;
+  /** "08/29" */
+  expiry: string;
+  primary: boolean;
+}
+
+export interface TaxProfileDto {
+  type: "personal" | "company";
+  /** Person or company name on the invoice. */
+  name: string;
+  /** 13 digits. */
+  taxId?: string;
+  /** "สำนักงานใหญ่" or a branch number. */
+  branch?: string;
+  address?: string;
+  email: string;
+}
+
+/** `GET /me/billing` (C15). */
+export interface BillingDto {
+  credit: number;
+  autoTopUp: boolean;
+  plan: SellerPlan;
+  planName: string;
+  cycle: BillingCycle;
+  /** THB per cycle. */
+  planPrice: number;
+  autoRenew: boolean;
+  /** Next charge, or when the plan ends once auto-renew is off. */
+  renewsAt: string;
+  cards: SavedCardDto[];
+  taxProfile: TaxProfileDto;
+}
+
+export interface BillingResponse {
+  data: BillingDto;
+}
+
+/** `PATCH /me/billing` */
+export interface UpdateBillingRequest {
+  autoRenew?: boolean;
+  autoTopUp?: boolean;
+  taxProfile?: TaxProfileDto;
+}
+
+/** `POST /me/cards` — 400 when the number fails the check. The test number 4000 0000 0000 0002 is always declined. */
+export interface AddCardRequest {
+  number: string;
+  /** "MM/YY" */
+  expiry: string;
+  name: string;
+}
+
+/** Credit top-up amounts offered (THB). */
+export const CREDIT_TOP_UPS = [500, 1000, 2000, 5000] as const;
