@@ -1,6 +1,8 @@
 import { infiniteQueryOptions, keepPreviousData, queryOptions } from "@tanstack/react-query";
 import type {
   AdPlacement,
+  ListSellerListingsQuery,
+  OverviewRange,
   ThreadFilter,
   NotificationKind,
   ListArticlesQuery,
@@ -56,6 +58,22 @@ export const queryKeys = {
     slots: (id: string) => ["me", "threads", "slots", id] as const,
   },
   appointments: ["me", "viewings"] as const,
+  kyc: ["me", "kyc"] as const,
+  billing: {
+    all: ["me", "billing"] as const,
+    summary: ["me", "billing", "summary"] as const,
+    orders: ["me", "billing", "orders"] as const,
+    order: (id: string) => ["me", "billing", "order", id] as const,
+  },
+  seller: {
+    all: ["me", "seller"] as const,
+    account: ["me", "seller", "account"] as const,
+    overview: (days: OverviewRange) => ["me", "seller", "overview", days] as const,
+    listings: (query: ListSellerListingsQuery) => ["me", "seller", "listings", query] as const,
+    boostOptions: ["me", "seller", "boost-options"] as const,
+    leads: ["me", "seller", "leads"] as const,
+    availability: ["me", "seller", "availability"] as const,
+  },
   notifications: {
     all: ["me", "notifications"] as const,
     list: (kind?: NotificationKind) => ["me", "notifications", kind ?? "all"] as const,
@@ -275,6 +293,69 @@ export const appointmentsQuery = queryOptions({
   queryKey: queryKeys.appointments,
   queryFn: ({ signal }) => api.listAppointments(signal),
   refetchInterval: 30_000,
+});
+
+/** Seller dashboard (C8–C14). Every key sits under `queryKeys.seller.all`, so one invalidation refreshes it all. */
+export const sellerQueries = {
+  account: queryOptions({
+    queryKey: queryKeys.seller.account,
+    queryFn: async ({ signal }) => (await api.getSellerAccount(signal)).data,
+    staleTime: MINUTE,
+  }),
+  overview: (days: OverviewRange) =>
+    queryOptions({
+      queryKey: queryKeys.seller.overview(days),
+      queryFn: async ({ signal }) => (await api.getSellerOverview(days, signal)).data,
+      staleTime: MINUTE,
+      placeholderData: keepPreviousData,
+    }),
+  listings: (query: ListSellerListingsQuery) =>
+    queryOptions({
+      queryKey: queryKeys.seller.listings(query),
+      queryFn: ({ signal }) => api.listSellerListings(query, signal),
+      placeholderData: keepPreviousData,
+    }),
+  boostOptions: queryOptions({
+    queryKey: queryKeys.seller.boostOptions,
+    queryFn: async ({ signal }) => (await api.listBoostOptions(signal)).data,
+  }),
+  leads: queryOptions({
+    queryKey: queryKeys.seller.leads,
+    queryFn: async ({ signal }) => (await api.listLeads(signal)).data,
+    staleTime: MINUTE,
+  }),
+  availability: queryOptions({
+    queryKey: queryKeys.seller.availability,
+    queryFn: async ({ signal }) => (await api.getAvailability(signal)).data,
+  }),
+};
+
+/** Billing (C13, C15). A pending PromptPay order polls until the bank confirms. */
+export const billingQueries = {
+  summary: queryOptions({
+    queryKey: queryKeys.billing.summary,
+    queryFn: async ({ signal }) => (await api.getBilling(signal)).data,
+  }),
+  orders: queryOptions({
+    queryKey: queryKeys.billing.orders,
+    queryFn: async ({ signal }) => (await api.listOrders(signal)).data,
+  }),
+  order: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.billing.order(id),
+      queryFn: async ({ signal }) => (await api.getOrder(id, signal)).data,
+      refetchInterval: (query) => {
+        const o = query.state.data;
+        return o?.status === "pending" && o.method === "promptpay" ? 2_000 : false;
+      },
+    }),
+};
+
+/** Agent verification. Polls while submitted so the review result shows up by itself. */
+export const kycQuery = queryOptions({
+  queryKey: queryKeys.kyc,
+  queryFn: async ({ signal }) => (await api.getKyc(signal)).data,
+  refetchInterval: (query) => (query.state.data?.status === "submitted" ? 3_000 : false),
 });
 
 export const listingQuotaQuery = queryOptions({

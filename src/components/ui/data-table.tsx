@@ -105,7 +105,8 @@ export function DataTable<T>({
         </div>
       )}
 
-      <div className={cn("overflow-auto", scrollClassName)}>
+      {/* `relative` keeps absolutely positioned sr-only text inside the scroller, so it cannot widen the page. */}
+      <div className={cn("relative overflow-auto", scrollClassName)}>
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="sticky top-0 z-10 bg-mist">

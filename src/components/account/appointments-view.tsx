@@ -28,7 +28,13 @@ const tabs: { value: AppointmentTab; label: string; empty: string }[] = [
   { value: "cancelled", label: "ยกเลิกแล้ว", empty: "ไม่มีนัดที่ยกเลิก" },
 ];
 
-const kindLabel = { agent: "นายหน้า", owner: "เจ้าของ", developer: "ฝ่ายขาย" } as const;
+const kindLabel = {
+  agent: "นายหน้า",
+  owner: "เจ้าของ",
+  developer: "ฝ่ายขาย",
+  buyer: "ผู้สนใจ",
+  support: "ทีมงาน",
+} as const;
 
 function AppointmentCard({ a }: { a: AppointmentDto }) {
   const update = useUpdateViewing();

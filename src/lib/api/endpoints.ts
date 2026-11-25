@@ -1,4 +1,31 @@
 import type {
+  CreateReportRequest,
+  CreateReportResponse,
+  KycDocumentDto,
+  KycResponse,
+  UpdateKycRequest,
+  UploadKycDocumentRequest,
+  AddCardRequest,
+  BillingResponse,
+  CreateOrderRequest,
+  ListOrdersResponse,
+  OrderResponse,
+  PayOrderRequest,
+  SavedCardDto,
+  UpdateBillingRequest,
+  AvailabilityDto,
+  AvailabilityResponse,
+  BulkListingsRequest,
+  BulkListingsResponse,
+  ListBoostOptionsResponse,
+  ListLeadsResponse,
+  ListSellerListingsQuery,
+  ListSellerListingsResponse,
+  OverviewRange,
+  PromoteListingsRequest,
+  PromoteListingsResponse,
+  SellerAccountResponse,
+  SellerOverviewResponse,
   CreateViewingRequest,
   ListAppointmentsResponse,
   ListThreadsResponse,
@@ -83,6 +110,10 @@ export const api = {
   /** POST /properties/:slug/enquiries — message to the poster. */
   createEnquiry: (slug: string, body: CreateEnquiryRequest) =>
     apiPost<CreateEnquiryResponse, CreateEnquiryRequest>(`/properties/${encodeURIComponent(slug)}/enquiries`, body),
+
+  /** POST /properties/:slug/reports — report a listing (anonymous to the poster). */
+  reportListing: (slug: string, body: CreateReportRequest) =>
+    apiSend<CreateReportResponse>("POST", `/properties/${encodeURIComponent(slug)}/reports`, body),
 
   /** GET /projects — paginated, filterable developer projects with per-status counts. */
   listProjects: (query: ListProjectsQuery = {}, signal?: AbortSignal) =>
@@ -261,6 +292,92 @@ export const api = {
 
   /** GET /me/unread-counts — unread messages and notifications. */
   getUnreadCounts: (signal?: AbortSignal) => apiGet<UnreadCountsResponse>("/me/unread-counts", undefined, { signal }),
+
+  /** GET /me/seller — package, credit and badges for the seller dashboard. */
+  getSellerAccount: (signal?: AbortSignal) => apiGet<SellerAccountResponse>("/me/seller", undefined, { signal }),
+
+  /** GET /me/seller/overview?days= — KPIs, daily views and the to-do list (C8). */
+  getSellerOverview: (days: OverviewRange, signal?: AbortSignal) =>
+    apiGet<SellerOverviewResponse>("/me/seller/overview", { days }, { signal }),
+
+  /** GET /me/listings — my listings with per-status counts (C9, C11). */
+  listSellerListings: (query: ListSellerListingsQuery = {}, signal?: AbortSignal) =>
+    apiGet<ListSellerListingsResponse>("/me/listings", { ...query }, { signal }),
+
+  /** POST /me/listings/bulk — renew or close several listings. */
+  bulkUpdateListings: (body: BulkListingsRequest) => apiSend<BulkListingsResponse>("POST", "/me/listings/bulk", body),
+
+  /** GET /me/boost-options — boost products with what the package still covers (C14). */
+  listBoostOptions: (signal?: AbortSignal) =>
+    apiGet<ListBoostOptionsResponse>("/me/boost-options", undefined, { signal }),
+
+  /** POST /me/listings/promote — 402 when credit is short. */
+  promoteListings: (body: PromoteListingsRequest) =>
+    apiSend<PromoteListingsResponse>("POST", "/me/listings/promote", body),
+
+  /** GET /me/leads — everyone who contacted me, newest first. */
+  listLeads: (signal?: AbortSignal) => apiGet<ListLeadsResponse>("/me/leads", undefined, { signal }),
+
+  /** GET /me/availability — the hours buyers may book viewings. */
+  getAvailability: (signal?: AbortSignal) => apiGet<AvailabilityResponse>("/me/availability", undefined, { signal }),
+
+  /** PUT /me/availability */
+  updateAvailability: (body: AvailabilityDto) => apiSend<AvailabilityResponse>("PUT", "/me/availability", body),
+
+  /** POST /me/orders — a pending order to pay at `/checkout/:id`. */
+  createOrder: (body: CreateOrderRequest) => apiSend<OrderResponse>("POST", "/me/orders", body),
+
+  /** GET /me/orders/:id */
+  getOrder: (id: string, signal?: AbortSignal) =>
+    apiGet<OrderResponse>(`/me/orders/${encodeURIComponent(id)}`, undefined, { signal }),
+
+  /** GET /me/orders — payment history. */
+  listOrders: (signal?: AbortSignal) => apiGet<ListOrdersResponse>("/me/orders", undefined, { signal }),
+
+  /** POST /me/orders/:id/pay — PromptPay returns a QR; card and credit settle at once (402 when credit is short). */
+  payOrder: (id: string, body: PayOrderRequest) =>
+    apiSend<OrderResponse>("POST", `/me/orders/${encodeURIComponent(id)}/pay`, body),
+
+  /** POST /me/orders/:id/coupon — 400 for an unknown code. */
+  applyCoupon: (id: string, code: string) =>
+    apiSend<OrderResponse>("POST", `/me/orders/${encodeURIComponent(id)}/coupon`, { code }),
+
+  /** POST /me/orders/:id/refund */
+  requestRefund: (id: string) => apiSend<OrderResponse>("POST", `/me/orders/${encodeURIComponent(id)}/refund`),
+
+  /** GET /me/billing — credit, plan, saved cards and invoice details (C15). */
+  getBilling: (signal?: AbortSignal) => apiGet<BillingResponse>("/me/billing", undefined, { signal }),
+
+  /** PATCH /me/billing */
+  updateBilling: (body: UpdateBillingRequest) => apiSend<BillingResponse>("PATCH", "/me/billing", body),
+
+  /** POST /me/cards — 400 when the card fails the checks. */
+  addCard: (body: AddCardRequest) => apiSend<{ data: SavedCardDto }>("POST", "/me/cards", body),
+
+  /** DELETE /me/cards/:id */
+  removeCard: (id: string) => apiSend<void>("DELETE", `/me/cards/${encodeURIComponent(id)}`),
+
+  /** POST /me/cards/:id/primary — the card plan renewals charge. */
+  setPrimaryCard: (id: string) => apiSend<void>("POST", `/me/cards/${encodeURIComponent(id)}/primary`),
+
+  /** GET /me/kyc — the agent's verification (C16). */
+  getKyc: (signal?: AbortSignal) => apiGet<KycResponse>("/me/kyc", undefined, { signal }),
+
+  /** PATCH /me/kyc — save a step; 400 with field messages, 409 while locked. */
+  updateKyc: (body: UpdateKycRequest) => apiSend<KycResponse>("PATCH", "/me/kyc", body),
+
+  /** POST /me/kyc/documents — 400 for a wrong type or size. */
+  uploadKycDocument: (body: UploadKycDocumentRequest) =>
+    apiSend<{ data: KycDocumentDto }>("POST", "/me/kyc/documents", body),
+
+  /** DELETE /me/kyc/documents/:slot */
+  removeKycDocument: (slot: string) => apiSend<KycResponse>("DELETE", `/me/kyc/documents/${encodeURIComponent(slot)}`),
+
+  /** POST /me/kyc/submit — 422 while a step is missing. */
+  submitKyc: () => apiSend<KycResponse>("POST", "/me/kyc/submit"),
+
+  /** POST /me/kyc/restart — after a rejection. */
+  restartKyc: () => apiSend<KycResponse>("POST", "/me/kyc/restart"),
 
   /** GET /me/drafts — unfinished listing drafts, newest first. */
   listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),

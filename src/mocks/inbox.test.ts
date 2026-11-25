@@ -20,13 +20,44 @@ const future = (days: number) => new Date(Date.now() + days * DAY).toISOString()
 describe("mock inbox", () => {
   it("seeds a demo inbox with two unread chats and viewings in every state", () => {
     const threads = listThreads(U);
-    expect(threads.length).toBe(5);
+    expect(threads.filter((t) => t.role === "buyer")).toHaveLength(5);
+    // Buyers asking about the demo lister's own listings (seller dashboard).
+    expect(threads.filter((t) => t.role === "lister")).toHaveLength(8);
     expect(unreadMessageCount(U)).toBe(2);
     expect(listThreads(U, "unread")).toHaveLength(2);
-    const statuses = listAppointments(U)
-      .map((a) => a.status)
-      .sort();
-    expect(statuses).toEqual(["completed", "confirmed", "confirmed", "expired", "requested"]);
+    const statuses = (role: "buyer" | "lister") =>
+      listAppointments(U)
+        .filter((a) => a.role === role)
+        .map((a) => a.status)
+        .sort();
+    expect(statuses("buyer")).toEqual(["completed", "confirmed", "confirmed", "expired", "requested"]);
+    expect(statuses("lister")).toEqual([
+      "completed",
+      "confirmed",
+      "confirmed",
+      "confirmed",
+      "confirmed",
+      "requested",
+      "requested",
+      "requested",
+    ]);
+  });
+
+  it("lets the lister confirm the backup time, decline or propose another", () => {
+    const pending = listAppointments(U).filter((a) => a.role === "lister" && a.status === "requested");
+    const withBackup = pending.find((a) => a.backupSlot)!;
+    const backup = withBackup.backupSlot!;
+    expect(updateViewing(U, withBackup.id, { action: "confirm", slot: future(9) })).toBe("invalid");
+    const confirmed = updateViewing(U, withBackup.id, { action: "confirm", slot: backup });
+    expect(confirmed).toMatchObject({ status: "confirmed", slot: backup, backupSlot: undefined });
+
+    const [next, last] = pending.filter((a) => a.id !== withBackup.id);
+    expect(updateViewing(U, next.id, { action: "propose", slot: future(2) })).toMatchObject({
+      status: "counter_proposed",
+    });
+    expect(updateViewing(U, last.id, { action: "decline" })).toMatchObject({ status: "declined" });
+    // Buyer-only actions stay closed to the lister.
+    expect(updateViewing(U, next.id, { action: "accept" })).toBe("forbidden");
   });
 
   it("reads, sends and reopens threads", () => {

@@ -12,6 +12,22 @@ import {
   type CreateEnquiryRequest,
   type ChangePasswordRequest,
   type CreateViewingRequest,
+  type AvailabilityDto,
+  type AddCardRequest,
+  type CreateReportRequest,
+  REPORT_DETAILS_MAX,
+  type UpdateKycRequest,
+  type UploadKycDocumentRequest,
+  type CreateOrderRequest,
+  type PayOrderRequest,
+  type UpdateBillingRequest,
+  type BulkListingsRequest,
+  type ListSellerListingsQuery,
+  type OverviewRange,
+  type PromoteListingsRequest,
+  type SellerListingSort,
+  type SellerListingTab,
+  SELLER_LISTINGS_MAX_LIMIT,
   type SendMessageRequest,
   type StartThreadRequest,
   type ThreadFilter,
@@ -100,6 +116,34 @@ import {
   type ViewingError,
 } from "./inbox";
 import { unreadCounts } from "./unread";
+import { createReport, reportReasons } from "./reports";
+import { getKyc, removeKycDocument, restartKyc, submitKyc, updateKyc, uploadKycDocument, type KycError } from "./kyc";
+import {
+  addCard,
+  applyOrderCoupon,
+  createOrder,
+  createWizardOrder,
+  getBilling,
+  getOrder,
+  listOrders,
+  payOrder,
+  removeCard,
+  requestRefund,
+  setPrimaryCard,
+  updateBilling,
+  type OrderError,
+} from "./billing";
+import {
+  boostOptions,
+  bulkUpdateListings,
+  getAvailability,
+  listLeads,
+  listSellerListings,
+  promoteListings,
+  sellerAccount,
+  sellerOverview,
+  setAvailability,
+} from "./seller";
 import { getMockScenario } from "./scenario";
 import {
   completeOnboarding,
@@ -133,6 +177,7 @@ const statusText: Record<number, string> = {
   401: "Unauthorized",
   404: "Not Found",
   403: "Forbidden",
+  402: "Payment Required",
   409: "Conflict",
   422: "Unprocessable Entity",
   500: "Internal Server Error",
@@ -163,6 +208,35 @@ function viewingError(error: ViewingError) {
     invalid: [400, "Invalid slot or party size"],
   } as const;
   return errorResponse(map[error][0], map[error][1]);
+}
+
+function orderError(error: OrderError) {
+  const map = {
+    not_found: [404, "Order not found"],
+    invalid: [400, "Invalid request"],
+    conflict: [409, "Order cannot change in this state"],
+    insufficient_credit: [402, "insufficient_credit"],
+    not_published: [409, "not_published"],
+  } as const;
+  return errorResponse(map[error][0], map[error][1]);
+}
+
+/** Shorthand for write handlers that return `{ data }` or an `OrderError`. */
+const orderResult = <T>(result: T | OrderError, status = 200) =>
+  typeof result === "string" ? orderError(result as OrderError) : HttpResponse.json({ data: result }, { status });
+
+function kycResult<T>(result: T | KycError, status = 200) {
+  if (result === "locked") return errorResponse(409, "Verification is locked while it is reviewed or approved");
+  if (result === "incomplete") return errorResponse(422, "Every required step must be complete");
+  if (result === "invalid") return errorResponse(400, "Invalid request");
+  if (typeof result === "object" && result !== null && "fields" in result) {
+    const fields = (result as { fields: Record<string, string> }).fields;
+    return errorResponse(
+      400,
+      Object.entries(fields).map(([k, v]) => `${k}: ${v}`),
+    );
+  }
+  return HttpResponse.json({ data: result }, { status });
 }
 
 function requireUser() {
@@ -255,6 +329,25 @@ export function parseProjectsQuery(params: URLSearchParams): ListProjectsQuery {
     sort: oneOf("sort", projectSorts),
     page: int("page", { min: 1 }),
     limit: int("limit", { min: 1, max: PROJECTS_MAX_LIMIT }),
+  };
+  done();
+  return query;
+}
+
+const sellerTabs: SellerListingTab[] = ["all", "published", "pending_review", "rejected", "draft", "expired", "closed"];
+const sellerSorts: SellerListingSort[] = ["-views", "-leads", "-updatedAt", "expiresAt"];
+
+/** Parses and validates the `GET /me/listings` query. */
+export function parseSellerListingsQuery(params: URLSearchParams): ListSellerListingsQuery {
+  const { oneOf, int, done } = queryReader(params);
+  const query: ListSellerListingsQuery = {
+    status: oneOf("status", sellerTabs),
+    q: params.get("q")?.trim() || undefined,
+    mode: oneOf("mode", listingModes),
+    sort: oneOf("sort", sellerSorts),
+    page: int("page", { min: 1 }),
+    limit: int("limit", { min: 1, max: SELLER_LISTINGS_MAX_LIMIT }),
+    ids: params.get("ids")?.trim() || undefined,
   };
   done();
   return query;
@@ -688,6 +781,196 @@ export const handlers = [
     );
     return typeof result === "string" ? viewingError(result) : HttpResponse.json({ data: result });
   }),
+  // --- Seller dashboard ----------------------------------------------------
+  http.get(
+    endpoint("/me/seller"),
+    withScenario(() => ({ data: sellerAccount(requireUser().id) })),
+  ),
+  http.get(
+    endpoint("/me/seller/overview"),
+    withScenario((request) => {
+      const { oneOf, done } = queryReader(new URL(request.url).searchParams);
+      const days = oneOf("days", ["14", "30", "90"]);
+      done();
+      return { data: sellerOverview(requireUser().id, Number(days ?? 14) as OverviewRange) };
+    }),
+  ),
+  http.get(
+    endpoint("/me/listings"),
+    withScenario((request) =>
+      listSellerListings(requireUser().id, parseSellerListingsQuery(new URL(request.url).searchParams)),
+    ),
+  ),
+  http.post(endpoint("/me/listings/bulk"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = await readBody<BulkListingsRequest>(request);
+    if (!Array.isArray(body.ids) || !body.ids.length || (body.action !== "renew" && body.action !== "close"))
+      return errorResponse(400, ["ids should not be empty", "action must be one of: renew, close"]);
+    return HttpResponse.json({ data: bulkUpdateListings(user.id, body as BulkListingsRequest) });
+  }),
+  http.get(
+    endpoint("/me/boost-options"),
+    withScenario(() => ({ data: boostOptions(requireUser().id) })),
+  ),
+  http.post(endpoint("/me/listings/promote"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const result = promoteListings(
+      user.id,
+      (await readBody<PromoteListingsRequest>(request)) as PromoteListingsRequest,
+    );
+    return result.ok ? HttpResponse.json({ data: result.data }) : errorResponse(result.status, result.message);
+  }),
+  http.get(
+    endpoint("/me/leads"),
+    withScenario(() => ({ data: listLeads(requireUser().id) })),
+  ),
+  http.get(
+    endpoint("/me/availability"),
+    withScenario(() => ({ data: getAvailability(requireUser().id) })),
+  ),
+  http.put(endpoint("/me/availability"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const saved = setAvailability(user.id, await readBody<AvailabilityDto>(request));
+    return saved ? HttpResponse.json({ data: saved }) : errorResponse(400, "start must be before end");
+  }),
+  // --- Reports -----------------------------------------------------------------
+  http.post(endpoint("/properties/:slug/reports"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const slug = String(params.slug);
+    if (!getPropertyDetail(slug)) return errorResponse(404, `Listing "${slug}" not found`);
+    const body = await readBody<CreateReportRequest>(request);
+    const details = typeof body.details === "string" ? body.details.trim() : "";
+    const errors = [
+      ...(reportReasons.includes(body.reason as never) ? [] : [`reason must be one of: ${reportReasons.join(", ")}`]),
+      ...(body.reason === "other" && !details ? ["details should not be empty for reason other"] : []),
+      ...(details.length > REPORT_DETAILS_MAX ? [`details must be ${REPORT_DETAILS_MAX} characters or less`] : []),
+    ];
+    if (errors.length) return errorResponse(400, errors);
+    const report = createReport(slug, { reason: body.reason!, details });
+    return HttpResponse.json({ data: { id: report.id, createdAt: report.createdAt } }, { status: 201 });
+  }),
+  // --- Agent verification (KYC) ----------------------------------------------
+  http.get(
+    endpoint("/me/kyc"),
+    withScenario(() => ({ data: getKyc(requireUser().id) })),
+  ),
+  http.patch(endpoint("/me/kyc"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(updateKyc(user.id, await readBody<UpdateKycRequest>(request)));
+  }),
+  http.post(endpoint("/me/kyc/documents"), async ({ request }) => {
+    // Uploads take a moment; the UI shows progress meanwhile.
+    await delay(500);
+    if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = (await readBody<UploadKycDocumentRequest>(request)) as UploadKycDocumentRequest;
+    return kycResult(uploadKycDocument(user.id, body), 201);
+  }),
+  http.delete(endpoint("/me/kyc/documents/:slot"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(removeKycDocument(user.id, String(params.slot)));
+  }),
+  http.post(endpoint("/me/kyc/submit"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(submitKyc(user.id));
+  }),
+  http.post(endpoint("/me/kyc/restart"), async () => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(restartKyc(user.id));
+  }),
+  // --- Orders and billing --------------------------------------------------
+  http.post(endpoint("/me/orders"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(createOrder(user, (await readBody<CreateOrderRequest>(request)) as CreateOrderRequest), 201);
+  }),
+  http.get(
+    endpoint("/me/orders"),
+    withScenario(() => ({ data: listOrders(requireUser()) })),
+  ),
+  http.get(
+    endpoint("/me/orders/:id"),
+    withScenario((_request, params) => {
+      const order = getOrder(requireUser(), String(params.id));
+      if (!order) throw new NotFoundError("Order not found");
+      return { data: order };
+    }),
+  ),
+  http.post(endpoint("/me/orders/:id/pay"), async ({ request, params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(
+      payOrder(user, String(params.id), (await readBody<PayOrderRequest>(request)) as PayOrderRequest),
+    );
+  }),
+  http.post(endpoint("/me/orders/:id/coupon"), async ({ request, params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const { code } = await readBody<{ code: string }>(request);
+    return orderResult(applyOrderCoupon(user, String(params.id), String(code ?? "")));
+  }),
+  http.post(endpoint("/me/orders/:id/refund"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(requestRefund(user, String(params.id)));
+  }),
+  http.get(
+    endpoint("/me/billing"),
+    withScenario(() => ({ data: getBilling(requireUser()) })),
+  ),
+  http.patch(endpoint("/me/billing"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(updateBilling(user, await readBody<UpdateBillingRequest>(request)));
+  }),
+  http.post(endpoint("/me/cards"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return orderResult(addCard(user, (await readBody<AddCardRequest>(request)) as AddCardRequest), 201);
+  }),
+  http.delete(endpoint("/me/cards/:id"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return removeCard(user, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Card not found");
+  }),
+  http.post(endpoint("/me/cards/:id/primary"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return setPrimaryCard(user, String(params.id))
+      ? new HttpResponse(null, { status: 204 })
+      : errorResponse(404, "Card not found");
+  }),
   // --- Notifications -------------------------------------------------------
   http.get(
     endpoint("/me/notifications"),
@@ -770,7 +1053,19 @@ export const handlers = [
     const user = currentUser();
     if (!user) return unauthorized();
     const result = publishDraft(user.id, String(params.id));
-    return result.ok ? HttpResponse.json(result.body, { status: 201 }) : errorResponse(result.status, result.message);
+    if (!result.ok) return errorResponse(result.status, result.message);
+    const order = result.body.data.order;
+    if (order) {
+      // The paid promotion becomes an order to pay at /checkout/:id.
+      const submission = getSubmissionForDraft(user.id, String(params.id));
+      createWizardOrder(user, {
+        id: order.id,
+        promotion: order.promotion,
+        listingTitle: submission?.values.title ?? result.body.data.listing.code,
+        draftId: String(params.id),
+      });
+    }
+    return HttpResponse.json(result.body, { status: 201 });
   }),
   http.get(
     endpoint("/me/drafts/:id/submission"),

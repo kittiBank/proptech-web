@@ -7,6 +7,7 @@ import {
   promotionCatalog,
   stepErrors,
 } from "@/lib/post-wizard";
+import { kycStatus } from "./kyc";
 import type {
   DraftDto,
   DraftPhoto,
@@ -150,8 +151,10 @@ export function publishDraft(userId: string, id: string): PublishResult {
     .filter((step) => Object.keys(stepErrors(step.id, draft.values)).length > 0)
     .map((st) => st.id);
   if (failing.length) return { ok: false, status: 422, message: failing.map((st) => `step ${st} is incomplete`) };
-  // Agent verification (KYC) arrives with #21; until then no mock agent is verified.
-  if (draft.values.posterKind === "agent") return { ok: false, status: 403, message: "kyc_required" };
+  // Agents publish only once their verification is approved (C16).
+  if (draft.values.posterKind === "agent" && kycStatus(userId) !== "approved") {
+    return { ok: false, status: 403, message: "kyc_required" };
+  }
   if (
     draft.values.posterKind === "owner" &&
     quota(userId).used >= FREE_LISTING_LIMIT &&
@@ -203,6 +206,18 @@ export function getSubmissionForDraft(userId: string, draftId: string): Submitte
   const copy: Partial<Submission> = { ...found };
   delete copy.userId;
   return copy as SubmittedListingDto;
+}
+
+/** Listings this user sent for review, newest first (seller dashboard). */
+export function listSubmissions(userId: string): SubmittedListingDto[] {
+  return load()
+    .submissions.filter((s) => s.userId === userId)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    .map((found) => {
+      const copy: Partial<Submission> = { ...found };
+      delete copy.userId;
+      return copy as SubmittedListingDto;
+    });
 }
 
 /** Tests: start empty. */

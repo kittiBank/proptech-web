@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { contact, footerNav } from "@/data/navigation";
+import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 import { Logo } from "./logo";
 
 const socialLinks = [
@@ -64,7 +65,10 @@ export function SiteFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-4 py-6 text-sm text-white/60 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <p>© 2026 PropertyHub Co., Ltd. สงวนลิขสิทธิ์</p>
+          <p className="flex flex-wrap items-center gap-x-5">
+            <span>© 2026 PropertyHub Co., Ltd. สงวนลิขสิทธิ์</span>
+            <CookieSettingsButton className="text-white/70 hover:text-white" />
+          </p>
           <ul className="flex flex-wrap gap-x-5 gap-y-2" aria-label="โซเชียลมีเดีย">
             {socialLinks.map((s) => (
               <li key={s.label}>

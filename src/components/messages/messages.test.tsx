@@ -26,7 +26,8 @@ describe("ThreadList (B14, B15)", () => {
     const user = userEvent.setup();
     renderWithClient(<ThreadList />);
     const list = await screen.findByRole("list", { name: "รายการแชต" });
-    expect(within(list).getAllByRole("link")).toHaveLength(5);
+    // 5 chats as a buyer plus 8 about the demo lister's own listings.
+    expect(within(list).getAllByRole("link")).toHaveLength(13);
     expect(within(list).getAllByText("ข้อความใหม่")).toHaveLength(2);
 
     await user.click(await screen.findByRole("radio", { name: /ยังไม่อ่าน 2/ }));

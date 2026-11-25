@@ -1,3 +1,4 @@
+import { contact } from "@/data/navigation";
 import { newProjects } from "@/data/projects";
 import { formatListingPrice, formatPrice } from "@/lib/format";
 import { effectiveStatus, expiryFor, isOpenViewing, slotIso, slotParts } from "@/lib/viewing";
@@ -14,7 +15,7 @@ import type {
   ViewingRequestDto,
   ViewingSlotsResponse,
 } from "@/types/api";
-import { getAgentProfile, getPropertyDetail, listingsByPoster } from "./db";
+import { getAgentProfile, getPropertyDetail, listingsByPoster, sellerSourceListings } from "./db";
 import { pushNotification } from "./notifications";
 
 /**
@@ -243,7 +244,125 @@ function seed(now = Date.now()): Inbox {
     view(t, { slot: at(24 * 2), partySize: 1, status: "requested", createdAt: at(24 * 4 - 0.1) });
   }
 
+  seedListerThreads(inbox, now, saturday, sunday);
   return inbox;
+}
+
+/** Buyers asking about the demo lister's own listings (seller dashboard C10). */
+function seedListerThreads(inbox: Inbox, now: number, saturday: string, sunday: string) {
+  const mine = sellerSourceListings(4);
+  if (mine.length < 4) return;
+  const at = (hoursAgo: number) => new Date(now - hoursAgo * HOUR).toISOString();
+  const tomorrow = slotParts(new Date(now + DAY).toISOString()).date;
+  const buyer = (name: string, phone: string, phoneVerified = true): ThreadCounterpartDto => ({
+    name,
+    kind: "buyer",
+    phone,
+    idVerified: false,
+    phoneVerified,
+    responseMinutes: 30,
+  });
+
+  const thread = (key: string, counterpart: ThreadCounterpartDto, listing: PropertyDto) => {
+    const t: StoredThread = {
+      id: `t-${inbox.threads.length + 1}`,
+      key,
+      role: "lister",
+      counterpart,
+      listing: propertyListing(listing),
+      unreadCount: 0,
+    };
+    inbox.threads.push(t);
+    return t;
+  };
+  const ask = (t: StoredThread, text: string, hoursAgo: number) =>
+    inbox.messages.push({
+      id: `m-${inbox.messages.length + 1}`,
+      threadId: t.id,
+      from: "them",
+      kind: "text",
+      text,
+      createdAt: at(hoursAgo),
+    });
+  const request = (t: StoredThread, v: Omit<ViewingRequestDto, "id" | "threadId" | "expiresAt">) => {
+    const viewing = { ...v, id: `v-${inbox.viewings.length + 1}`, threadId: t.id, expiresAt: expiryFor(v.createdAt) };
+    inbox.viewings.push(viewing);
+    inbox.messages.push({
+      id: `m-${inbox.messages.length + 1}`,
+      threadId: t.id,
+      from: "them",
+      kind: "viewing",
+      text: "ขอนัดดูทรัพย์",
+      viewingId: viewing.id,
+      createdAt: v.createdAt,
+    });
+  };
+
+  const [a, b, c, d] = mine;
+  // Confirmed first, so the third request below clashes with it.
+  const t1 = thread("buyer:naree", buyer("นารี ทองดี", "0891112233"), a);
+  ask(t1, "สนใจห้องนี้ค่ะ ขอดูวันเสาร์ได้ไหมคะ", 30);
+  request(t1, {
+    slot: slotIso(saturday, "10:00"),
+    partySize: 2,
+    status: "confirmed",
+    createdAt: at(29),
+    respondedAt: at(27),
+  });
+  const t2 = thread("buyer:somchai", buyer("สมชาย พงษ์ไพร", "0812223344"), c);
+  request(t2, {
+    slot: slotIso(tomorrow, "18:00"),
+    partySize: 1,
+    status: "confirmed",
+    createdAt: at(40),
+    respondedAt: at(38),
+  });
+  const t3 = thread("buyer:kanya", buyer("กัญญา รัตนพร", "0823334455"), d);
+  request(t3, {
+    slot: slotIso(saturday, "14:00"),
+    partySize: 2,
+    status: "confirmed",
+    createdAt: at(50),
+    respondedAt: at(49),
+  });
+  const t4 = thread("buyer:wichai", buyer("วิชัย สุขสันต์", "0834445566"), b);
+  request(t4, {
+    slot: slotIso(sunday, "16:00"),
+    partySize: 3,
+    status: "confirmed",
+    createdAt: at(20),
+    respondedAt: at(18),
+  });
+  const t5 = thread("buyer:pranee", buyer("ปราณี ศรีงาม", "0845556677"), c);
+  request(t5, { slot: at(24 * 6), partySize: 1, status: "confirmed", createdAt: at(24 * 8), respondedAt: at(24 * 7) });
+
+  // Waiting for my answer: soonest expiry first.
+  const t6 = thread("buyer:siriporn", buyer("ศิริพร มีสุข", "0856667788"), a);
+  ask(t6, "อยากดูห้องจริงกับส่วนกลาง และขอดูสัญญาด้วยค่ะ", 19.2);
+  request(t6, {
+    slot: slotIso(saturday, "11:00"),
+    backupSlot: slotIso(sunday, "14:00"),
+    partySize: 2,
+    note: "อยากดูห้องจริงกับส่วนกลาง และขอดูสัญญาด้วยค่ะ",
+    status: "requested",
+    createdAt: at(19),
+  });
+  const t7 = thread("buyer:theeraphat", buyer("ธีรภัทร วงศ์ใหญ่", "0867778899"), b);
+  request(t7, {
+    slot: slotIso(sunday, "11:00"),
+    partySize: 1,
+    note: "ย้ายเข้าได้ต้นเดือนหน้าไหมครับ",
+    status: "requested",
+    createdAt: at(5),
+  });
+  const t8 = thread("buyer:pimchanok", buyer("พิมพ์ชนก แสงทอง", "0878889900", false), a);
+  request(t8, {
+    slot: slotIso(saturday, "10:00"),
+    backupSlot: slotIso(saturday, "15:00"),
+    partySize: 3,
+    status: "requested",
+    createdAt: at(2),
+  });
 }
 
 function inboxFor(userId: string): Inbox {
@@ -431,6 +550,17 @@ export function startThread(userId: string, to: string): ThreadDto | undefined {
     if (detail) base = { counterpart: posterOf(detail), listing: propertyListing(detail) };
   } else if (kind === "project") {
     base = projectThread(slug);
+  } else if (kind === "support") {
+    // Help center (D4) "แชตกับทีมงาน".
+    base = {
+      counterpart: {
+        name: "ทีมงาน PropertyHub",
+        kind: "support",
+        phone: contact.phone.replace(/\s/g, ""),
+        idVerified: true,
+        responseMinutes: 5,
+      },
+    };
   }
   if (!base) return undefined;
 
@@ -562,6 +692,12 @@ export function updateViewing(
       v.status = "confirmed";
       break;
     case "confirm":
+      if (body.slot && body.slot !== v.slot) {
+        // Confirming the backup time instead of the first choice.
+        if (!v.backupSlot || Date.parse(body.slot) !== Date.parse(v.backupSlot)) return "invalid";
+        v.slot = v.backupSlot;
+        v.backupSlot = undefined;
+      }
       v.status = "confirmed";
       break;
     case "decline":

@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { CalendarDays, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DomainStatus } from "@/components/ui/status-pill";
+import { routes } from "@/data/navigation";
 import { formatResponseTime } from "@/lib/listing";
 import { viewingStatuses } from "@/lib/status";
 import { formatSlot, icsHref, slotParts, viewingIcs } from "@/lib/viewing";
@@ -60,7 +62,7 @@ export function CalendarLink({
 /**
  * B14/B16 viewing request in a chat: requested time, backup, party size,
  * status, and the actions the viewer's role allows. Buyer actions are here;
- * the lister's confirm / propose / decline live in the seller dashboard.
+ * the lister's confirm / propose / decline live in the seller dashboard (C10), linked from the card.
  */
 export function ViewingRequestCard({
   viewing,
@@ -135,6 +137,14 @@ export function ViewingRequestCard({
           {status === "completed" && "ดูทรัพย์เรียบร้อย"}
           {status === "counter_proposed" && "รอคุณตอบเวลาใหม่"}
         </p>
+        {!mine && (status === "requested" || status === "counter_proposed") && (
+          <Link
+            href={routes.dashboardLeads}
+            className="inline-flex min-h-9 items-center text-sm font-medium text-brand-strong underline-offset-4 hover:underline"
+          >
+            ตอบคำขอ
+          </Link>
+        )}
         {mine && (
           <div className="flex flex-wrap items-center gap-x-3">
             {status === "confirmed" && <CalendarLink viewing={viewing} title={listingTitle} />}

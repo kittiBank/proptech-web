@@ -6,13 +6,15 @@ import { api } from "@/lib/api/endpoints";
 import { queryKeys } from "@/lib/api/queries";
 import type { UpdateViewingRequest } from "@/types/api";
 
-/** Refreshes everything that shows viewings: chats, appointments and badges. */
+/** Refreshes everything that shows viewings: chats, appointments, badges and the seller dashboard. */
 export function useRefreshViewings() {
   const client = useQueryClient();
   return () => {
     client.invalidateQueries({ queryKey: queryKeys.threads.all });
     client.invalidateQueries({ queryKey: queryKeys.appointments });
     client.invalidateQueries({ queryKey: queryKeys.unreadCounts });
+    // Seller dashboard badges and the overview's to-do list.
+    client.invalidateQueries({ queryKey: queryKeys.seller.all });
   };
 }
 
