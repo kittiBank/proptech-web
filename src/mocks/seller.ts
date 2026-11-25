@@ -25,6 +25,7 @@ import {
 import { sellerSourceListings } from "./db";
 import { listDrafts, listSubmissions } from "./drafts";
 import { listAppointments, listThreads } from "./inbox";
+import { kycStatus } from "./kyc";
 
 /**
  * The lister workspace behind `/me/seller`, `/me/listings`, `/me/leads` and
@@ -232,7 +233,7 @@ export function sellerAccount(userId: string, now = Date.now()): SellerAccountDt
   return {
     plan: ws.plan,
     planName: plan.name,
-    kycStatus: "approved",
+    kycStatus: kycStatus(userId),
     renewsAt: ws.renewsAt,
     autoRenew: ws.autoRenew,
     credit: ws.credit,

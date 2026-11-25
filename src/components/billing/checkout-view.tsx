@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { inputClass } from "@/components/ui/field";
+import { QrCode } from "@/components/ui/qr-code";
 import { QueryError, Skeleton } from "@/components/ui/query-state";
 import { routes } from "@/data/navigation";
 import { ApiError } from "@/lib/api/client";
@@ -18,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/providers/session";
 import type { OrderDto, PaymentMethod } from "@/types/api";
 import { AddCardDialog } from "./card-dialog";
-import { PromptPayQr } from "./promptpay-qr";
 import { payErrorMessage, useApplyCoupon, usePayOrder } from "./use-billing-actions";
 
 /** Current time, ticking every second while `active` (QR countdown). */
@@ -230,7 +230,7 @@ function PayPanel({ order }: { order: OrderDto }) {
         {option("promptpay", "PromptPay QR", "สแกนด้วยแอปธนาคารใดก็ได้ ยืนยันทันที")}
         {method === "promptpay" && qrLive && (
           <div className="flex flex-col items-center gap-4 rounded-lg bg-mist p-4 sm:ml-8 sm:flex-row sm:items-center sm:gap-5">
-            <PromptPayQr
+            <QrCode
               payload={order.qrPayload ?? order.id}
               label={`QR PromptPay สำหรับชำระ ${formatBaht(order.amount, true)} (ตัวอย่าง)`}
               className={cn("border-8 border-white", qrExpired && "opacity-30")}

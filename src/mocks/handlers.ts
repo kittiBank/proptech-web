@@ -14,6 +14,8 @@ import {
   type CreateViewingRequest,
   type AvailabilityDto,
   type AddCardRequest,
+  type UpdateKycRequest,
+  type UploadKycDocumentRequest,
   type CreateOrderRequest,
   type PayOrderRequest,
   type UpdateBillingRequest,
@@ -112,6 +114,7 @@ import {
   type ViewingError,
 } from "./inbox";
 import { unreadCounts } from "./unread";
+import { getKyc, removeKycDocument, restartKyc, submitKyc, updateKyc, uploadKycDocument, type KycError } from "./kyc";
 import {
   addCard,
   applyOrderCoupon,
@@ -218,6 +221,20 @@ function orderError(error: OrderError) {
 /** Shorthand for write handlers that return `{ data }` or an `OrderError`. */
 const orderResult = <T>(result: T | OrderError, status = 200) =>
   typeof result === "string" ? orderError(result as OrderError) : HttpResponse.json({ data: result }, { status });
+
+function kycResult<T>(result: T | KycError, status = 200) {
+  if (result === "locked") return errorResponse(409, "Verification is locked while it is reviewed or approved");
+  if (result === "incomplete") return errorResponse(422, "Every required step must be complete");
+  if (result === "invalid") return errorResponse(400, "Invalid request");
+  if (typeof result === "object" && result !== null && "fields" in result) {
+    const fields = (result as { fields: Record<string, string> }).fields;
+    return errorResponse(
+      400,
+      Object.entries(fields).map(([k, v]) => `${k}: ${v}`),
+    );
+  }
+  return HttpResponse.json({ data: result }, { status });
+}
 
 function requireUser() {
   const user = currentUser();
@@ -821,6 +838,44 @@ export const handlers = [
     if (!user) return unauthorized();
     const saved = setAvailability(user.id, await readBody<AvailabilityDto>(request));
     return saved ? HttpResponse.json({ data: saved }) : errorResponse(400, "start must be before end");
+  }),
+  // --- Agent verification (KYC) ----------------------------------------------
+  http.get(
+    endpoint("/me/kyc"),
+    withScenario(() => ({ data: getKyc(requireUser().id) })),
+  ),
+  http.patch(endpoint("/me/kyc"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(updateKyc(user.id, await readBody<UpdateKycRequest>(request)));
+  }),
+  http.post(endpoint("/me/kyc/documents"), async ({ request }) => {
+    // Uploads take a moment; the UI shows progress meanwhile.
+    await delay(500);
+    if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+    const user = currentUser();
+    if (!user) return unauthorized();
+    const body = (await readBody<UploadKycDocumentRequest>(request)) as UploadKycDocumentRequest;
+    return kycResult(uploadKycDocument(user.id, body), 201);
+  }),
+  http.delete(endpoint("/me/kyc/documents/:slot"), async ({ params }) => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(removeKycDocument(user.id, String(params.slot)));
+  }),
+  http.post(endpoint("/me/kyc/submit"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(submitKyc(user.id));
+  }),
+  http.post(endpoint("/me/kyc/restart"), async () => {
+    const user = currentUser();
+    if (!user) return unauthorized();
+    return kycResult(restartKyc(user.id));
   }),
   // --- Orders and billing --------------------------------------------------
   http.post(endpoint("/me/orders"), async ({ request }) => {

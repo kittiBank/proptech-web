@@ -1,8 +1,8 @@
 import { qrMatrix } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 
-/** Mock PromptPay QR drawn as an SVG grid (the real image comes from the payment provider). */
-export function PromptPayQr({ payload, label, className }: { payload: string; label: string; className?: string }) {
+/** Placeholder QR drawn as an SVG grid (PromptPay at checkout, phone hand-off in KYC). Not scannable; real codes come from the provider. */
+export function QrCode({ payload, label, className }: { payload: string; label: string; className?: string }) {
   const grid = qrMatrix(payload);
   const size = grid.length;
   return (

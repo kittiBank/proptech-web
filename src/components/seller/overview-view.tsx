@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { ProgressBar } from "@/components/account/progress-bar";
 import { BarChart } from "@/components/ui/bar-chart";
+import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/choice";
 import { DataTable, type DataColumn } from "@/components/ui/data-table";
@@ -188,6 +189,29 @@ function PackageUsage() {
   );
 }
 
+/** Until the agent is verified, a nudge to `/dashboard/verify` (agents cannot publish before approval). */
+function VerifyBanner() {
+  const { data } = useQuery(sellerQueries.account);
+  if (!data || data.kycStatus === "approved") return null;
+  const text = {
+    not_started: "ยืนยันตัวตนก่อน เพื่อเผยแพร่ประกาศในนามนายหน้า ใช้เวลาประมาณ 5 นาที",
+    in_progress: "ยืนยันตัวตนยังไม่เสร็จ ทำต่อให้ครบเพื่อเผยแพร่ประกาศในนามนายหน้า",
+    submitted: "ส่งเอกสารยืนยันตัวตนแล้ว ทีมงานกำลังตรวจ ภายใน 1 วันทำการ",
+    needs_info: "ทีมงานขอข้อมูลยืนยันตัวตนเพิ่ม แก้ไขแล้วส่งอีกครั้ง",
+    rejected: "ยืนยันตัวตนไม่ผ่าน ดูเหตุผลและเริ่มใหม่ได้",
+  }[data.kycStatus];
+  return (
+    <Callout tone={data.kycStatus === "submitted" ? "info" : "warning"} title="ยืนยันตัวตนนายหน้า">
+      {text}{" "}
+      {data.kycStatus !== "submitted" && (
+        <Link href={routes.verify} className="font-semibold underline underline-offset-4">
+          {data.kycStatus === "not_started" ? "เริ่มยืนยันตัวตน" : "ไปที่การยืนยันตัวตน"}
+        </Link>
+      )}
+    </Callout>
+  );
+}
+
 /** `/dashboard` (C8): this week at a glance, then what needs doing. */
 export function OverviewView() {
   const { user } = useSession();
@@ -202,6 +226,8 @@ export function OverviewView() {
         </h1>
         <p className="mt-1 text-slate">ภาพรวม 7 วันล่าสุด{data && ` อัปเดต ${slotParts(data.updatedAt).time}`}</p>
       </div>
+
+      <VerifyBanner />
 
       {isPending ? (
         <div role="status" aria-label="กำลังโหลดภาพรวม" className="flex flex-col gap-5">

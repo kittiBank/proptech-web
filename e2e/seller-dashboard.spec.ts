@@ -55,3 +55,21 @@ test.describe("seller dashboard (signed in)", () => {
     await expect(page.getByRole("article", { name: /^ธีรภัทร วงศ์ใหญ่/ })).toBeVisible();
   });
 });
+
+test.describe("agent verification (signed in)", () => {
+  test.beforeEach(async ({ page }) => signIn(page));
+
+  test("verify page passes axe and saves the first step", async ({ page }) => {
+    await page.goto("/dashboard/verify");
+    await expect(page.getByRole("heading", { level: 1, name: "ยืนยันตัวตนนายหน้า" })).toBeVisible();
+    await waitForData(page);
+    await expectNoViolations(page);
+    await page.getByLabel("เลขบัตรประชาชน").fill("1103702345679");
+    await page.getByLabel("วันเกิด").fill("1990-04-12");
+    await page.getByRole("button", { name: "บันทึกและไปต่อ" }).click();
+    await expect(page).toHaveURL(/step=id_card/);
+    await expect(page.getByRole("heading", { name: "บัตรประชาชน" })).toBeVisible();
+    await waitForData(page);
+    await expectNoViolations(page);
+  });
+});

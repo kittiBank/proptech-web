@@ -58,6 +58,7 @@ export const queryKeys = {
     slots: (id: string) => ["me", "threads", "slots", id] as const,
   },
   appointments: ["me", "viewings"] as const,
+  kyc: ["me", "kyc"] as const,
   billing: {
     all: ["me", "billing"] as const,
     summary: ["me", "billing", "summary"] as const,
@@ -349,6 +350,13 @@ export const billingQueries = {
       },
     }),
 };
+
+/** Agent verification. Polls while submitted so the review result shows up by itself. */
+export const kycQuery = queryOptions({
+  queryKey: queryKeys.kyc,
+  queryFn: async ({ signal }) => (await api.getKyc(signal)).data,
+  refetchInterval: (query) => (query.state.data?.status === "submitted" ? 3_000 : false),
+});
 
 export const listingQuotaQuery = queryOptions({
   queryKey: queryKeys.listingQuota,

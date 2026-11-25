@@ -1,4 +1,8 @@
 import type {
+  KycDocumentDto,
+  KycResponse,
+  UpdateKycRequest,
+  UploadKycDocumentRequest,
   AddCardRequest,
   BillingResponse,
   CreateOrderRequest,
@@ -349,6 +353,25 @@ export const api = {
 
   /** POST /me/cards/:id/primary — the card plan renewals charge. */
   setPrimaryCard: (id: string) => apiSend<void>("POST", `/me/cards/${encodeURIComponent(id)}/primary`),
+
+  /** GET /me/kyc — the agent's verification (C16). */
+  getKyc: (signal?: AbortSignal) => apiGet<KycResponse>("/me/kyc", undefined, { signal }),
+
+  /** PATCH /me/kyc — save a step; 400 with field messages, 409 while locked. */
+  updateKyc: (body: UpdateKycRequest) => apiSend<KycResponse>("PATCH", "/me/kyc", body),
+
+  /** POST /me/kyc/documents — 400 for a wrong type or size. */
+  uploadKycDocument: (body: UploadKycDocumentRequest) =>
+    apiSend<{ data: KycDocumentDto }>("POST", "/me/kyc/documents", body),
+
+  /** DELETE /me/kyc/documents/:slot */
+  removeKycDocument: (slot: string) => apiSend<KycResponse>("DELETE", `/me/kyc/documents/${encodeURIComponent(slot)}`),
+
+  /** POST /me/kyc/submit — 422 while a step is missing. */
+  submitKyc: () => apiSend<KycResponse>("POST", "/me/kyc/submit"),
+
+  /** POST /me/kyc/restart — after a rejection. */
+  restartKyc: () => apiSend<KycResponse>("POST", "/me/kyc/restart"),
 
   /** GET /me/drafts — unfinished listing drafts, newest first. */
   listDrafts: (signal?: AbortSignal) => apiGet<ListDraftsResponse>("/me/drafts", undefined, { signal }),

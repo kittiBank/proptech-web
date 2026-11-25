@@ -11,6 +11,7 @@ import { resetMockNotifications } from "@/mocks/notifications";
 import { resetMockSavedSearches } from "@/mocks/saved-searches";
 import { resetMockSeller } from "@/mocks/seller";
 import { resetMockBilling } from "@/mocks/billing";
+import { resetMockKyc } from "@/mocks/kyc";
 import { resetMockSession } from "@/mocks/session";
 import { setMockScenario } from "@/mocks/scenario";
 import { resetNavigation } from "@/test/next-navigation";
@@ -49,6 +50,7 @@ afterEach(() => {
   resetMockInbox();
   resetMockSeller();
   resetMockBilling();
+  resetMockKyc();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();

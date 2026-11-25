@@ -1231,3 +1231,77 @@ export interface AddCardRequest {
 
 /** Credit top-up amounts offered (THB). */
 export const CREDIT_TOP_UPS = [500, 1000, 2000, 5000] as const;
+
+// ---------------------------------------------------------------------------
+// Agent verification, KYC (C16)
+// ---------------------------------------------------------------------------
+
+export type KycStep = "personal" | "id_card" | "selfie" | "company" | "review";
+export type KycDocSlot = "id_front" | "id_back" | "selfie" | "company";
+
+export interface KycDocumentDto {
+  slot: KycDocSlot;
+  name: string;
+  /** Small preview the mock keeps as the stored file. PDFs have none. */
+  preview?: string;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+export interface KycPersonalDto {
+  firstName: string;
+  lastName: string;
+  /** 13-digit Thai ID number. */
+  idNumber: string;
+  /** ISO date. */
+  birthDate: string;
+  phone: string;
+}
+
+export interface KycCompanyDto {
+  name: string;
+  /** Broker licence or company registration number, optional. */
+  registrationNo?: string;
+}
+
+/** `GET /me/kyc` — the agent's verification. Files are only used to verify and never shown on listings. */
+export interface KycDto {
+  status: SellerKycStatus;
+  personal?: KycPersonalDto;
+  documents: KycDocumentDto[];
+  company?: KycCompanyDto;
+  /** The optional company step was skipped on purpose. */
+  companySkipped: boolean;
+  /** Steps whose data is complete, in order. */
+  completedSteps: KycStep[];
+  submittedAt?: string;
+  reviewedAt?: string;
+  /** Reviewer's message for `needs_info` and `rejected`. */
+  reviewNote?: string;
+  /** `needs_info`: the steps to redo. */
+  fixSteps?: KycStep[];
+}
+
+export interface KycResponse {
+  data: KycDto;
+}
+
+/** `PATCH /me/kyc` — save a step. 400 with field messages when a value is invalid. Locked (409) while submitted or approved. */
+export interface UpdateKycRequest {
+  personal?: KycPersonalDto;
+  company?: KycCompanyDto | null;
+  companySkipped?: boolean;
+}
+
+/** `POST /me/kyc/documents` — the file's metadata and a preview (like listing photos). 400 for a wrong type or size. */
+export interface UploadKycDocumentRequest {
+  slot: KycDocSlot;
+  name: string;
+  mimeType: string;
+  /** Bytes. */
+  size: number;
+  preview?: string;
+}
+
+/** Most bytes for one verification file. */
+export const KYC_MAX_FILE_BYTES = 10 * 1024 * 1024;

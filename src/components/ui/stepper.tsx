@@ -10,21 +10,83 @@ export interface StepItem {
   state: StepState;
   /** Where a done step goes back to. Without it the step is shown but not clickable. */
   href?: string;
+  /** Second line in the vertical stepper, e.g. "อัปโหลดแล้ว 14 พ.ย.". */
+  description?: string;
+  /** Flags a step that needs fixing (the description turns amber). */
+  attention?: boolean;
 }
 
 interface StepperProps {
   steps: StepItem[];
   /** Names the list, e.g. "ขั้นตอนการลงประกาศ". */
   label: string;
+  /** `vertical` (C16) stacks the steps with a description under each label. */
+  orientation?: "horizontal" | "vertical";
   className?: string;
 }
 
+function StepDot({ step, index }: { step: StepItem; index: number }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex size-8 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-white text-sm font-semibold",
+        step.state === "done" && "border-brand bg-brand text-white",
+        step.state === "current" && "border-2 border-brand text-violet-700 ring-4 ring-violet-100",
+        step.state === "upcoming" && "border-line-strong text-slate",
+      )}
+    >
+      {step.state === "done" ? <Check className="size-4" strokeWidth={3} aria-hidden="true" /> : index + 1}
+    </span>
+  );
+}
+
+/** Vertical list: dot, label and description; done steps link back. */
+function VerticalStepper({ steps, label, className }: Omit<StepperProps, "orientation">) {
+  return (
+    <ol aria-label={label} className={cn("flex flex-col", className)}>
+      {steps.map((s, i) => {
+        const current = s.state === "current";
+        const content = (
+          <>
+            <StepDot step={s} index={i} />
+            <span className="flex min-w-0 flex-col text-sm leading-snug">
+              <span className={cn("text-ink", current || s.state === "done" ? "font-semibold" : "font-medium")}>
+                {s.label}
+              </span>
+              {s.description && (
+                <span className={cn("text-[13px]", s.attention ? "font-medium text-warning" : "text-slate")}>
+                  {s.description}
+                </span>
+              )}
+              {s.state === "done" && <span className="sr-only">(เสร็จแล้ว)</span>}
+            </span>
+          </>
+        );
+        return (
+          <li key={s.id}>
+            {s.href && !current ? (
+              <Link href={s.href} className="flex gap-3 rounded-md py-2.5 hover:bg-mist">
+                {content}
+              </Link>
+            ) : (
+              <span aria-current={current ? "step" : undefined} className="flex gap-3 py-2.5">
+                {content}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /**
- * Horizontal stepper (C1–C5, C6, C16): done steps show a check and link back,
+ * Stepper (C1–C5, C6 horizontal; C16 vertical): done steps show a check and link back,
  * the current one has a ring and halo, upcoming ones are inert. The current
  * step carries `aria-current="step"`.
  */
-export function Stepper({ steps, label, className }: StepperProps) {
+export function Stepper({ steps, label, orientation = "horizontal", className }: StepperProps) {
+  if (orientation === "vertical") return <VerticalStepper steps={steps} label={label} className={className} />;
   return (
     <ol aria-label={label} className={cn("flex items-center gap-3", className)}>
       {steps.map((s, i) => {
