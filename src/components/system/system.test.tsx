@@ -9,7 +9,6 @@ import { listSavedSearches } from "@/mocks/saved-searches";
 import { resetMockSession } from "@/mocks/session";
 import { setParams, setPathname } from "@/test/next-navigation";
 import { renderWithClient } from "@/test/render";
-import { MaintenanceView } from "./maintenance-view";
 import { NotFoundView } from "./not-found-view";
 import { OfflineBanner } from "./offline-banner";
 
@@ -60,24 +59,6 @@ describe("Listing page system states", () => {
     setParams({ slug: "no-such-listing" });
     renderWithClient(<PropertyDetailView />);
     expect(await screen.findByRole("heading", { level: 1, name: "ไม่พบประกาศนี้" })).toBeInTheDocument();
-  });
-});
-
-describe("MaintenanceView (D10)", () => {
-  const schedule = { startsAt: "2026-11-29T02:00:00+07:00", endsAt: "2026-11-29T04:00:00+07:00" };
-
-  it("counts down to the end of the window", () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-29T02:36:00+07:00") });
-    renderWithClient(<MaintenanceView schedule={schedule} />);
-    expect(screen.getByText("วันอาทิตย์ที่ 29 พ.ย. 02:00 ถึง 04:00 น.", { exact: false })).toBeInTheDocument();
-    expect(screen.getByRole("timer")).toHaveTextContent("กลับมาใช้งานได้ในอีกประมาณ1 ชม. 24 นาที");
-  });
-
-  it("links home once the window is over", () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-29T05:00:00+07:00") });
-    renderWithClient(<MaintenanceView schedule={schedule} />);
-    expect(screen.getByRole("timer")).toHaveTextContent("ระบบกลับมาใช้งานได้แล้ว");
-    expect(screen.getByRole("link", { name: "กลับหน้าแรก" })).toHaveAttribute("href", "/");
   });
 });
 

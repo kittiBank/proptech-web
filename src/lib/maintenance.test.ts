@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatCountdown,
   formatMaintenanceWindow,
+  maintenancePageHtml,
   isMaintenanceMode,
   maintenancePhase,
   maintenanceWindow,
@@ -52,5 +53,20 @@ describe("maintenance", () => {
 
   it("describes the window in Bangkok time", () => {
     expect(formatMaintenanceWindow(window)).toBe("วันอาทิตย์ที่ 29 พ.ย. 02:00 ถึง 04:00 น.");
+  });
+});
+
+describe("maintenancePageHtml", () => {
+  it("renders a standalone page with the countdown for the current phase", () => {
+    const active = maintenancePageHtml(window, at("2026-11-29T02:36:00+07:00"), "@propertyhub");
+    expect(active).toContain("<!doctype html>");
+    expect(active).toContain("กลับมาใช้งานได้ในอีกประมาณ");
+    expect(active).toContain(">1 ชม. 24 นาที<");
+    expect(active).toContain("วันอาทิตย์ที่ 29 พ.ย. 02:00 ถึง 04:00 น.");
+    expect(active).toContain('name="robots" content="noindex"');
+
+    const over = maintenancePageHtml(window, at("2026-11-29T05:00:00+07:00"), "@propertyhub");
+    expect(over).toContain("ระบบกลับมาใช้งานได้แล้ว");
+    expect(over).not.toContain("<script>");
   });
 });

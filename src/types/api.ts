@@ -1323,3 +1323,143 @@ export interface CreateReportRequest {
 export interface CreateReportResponse {
   data: { id: string; createdAt: string };
 }
+
+// ---------------------------------------------------------------------------
+// Admin (admin subdomain, its own session; routes under `/admin`)
+// ---------------------------------------------------------------------------
+
+export type AdminRoleId = "super_admin" | "moderator" | "kyc_reviewer" | "finance" | "revenue" | "editor";
+
+/** Areas of the admin app; roles grant access per area (see `lib/admin.ts`). */
+export type AdminSection =
+  "dashboard" | "moderation" | "reports" | "kyc" | "users" | "revenue" | "promo-slots" | "cms" | "roles";
+
+export interface AdminUserDto {
+  id: string;
+  name: string;
+  email: string;
+  role: AdminRoleId;
+  /** Job title shown under the name, e.g. "Moderator lead". */
+  title: string;
+}
+
+/** `POST /admin/auth/login` body. Step 1 of 2: the password. */
+export interface AdminLoginRequest {
+  email: string;
+  password: string;
+}
+
+/** Step 1 passed: a 2FA challenge, valid for 5 minutes. 401 on a wrong email or password. */
+export interface AdminLoginResponse {
+  data: { challengeId: string; method: "totp"; name: string; email: string; expiresAt: string };
+}
+
+/** `POST /admin/auth/2fa` body. 401 on a wrong code, 429 after 5 wrong codes, 410 when the challenge expired. */
+export interface AdminVerifyRequest {
+  challengeId: string;
+  /** 6 digits from the authenticator app. */
+  code: string;
+}
+
+export interface AdminSessionResponse {
+  data: AdminUserDto;
+}
+
+/** `GET /admin/auth/me` — `null` when signed out or idle for 30 minutes. */
+export interface GetAdminSessionResponse {
+  data: AdminUserDto | null;
+}
+
+export const ADMIN_IDLE_MINUTES = 30;
+
+/** `GET /admin/queue-counts` — badges in the admin sidebar. */
+export interface AdminQueueCountsResponse {
+  data: { moderation: number; reports: number; kyc: number };
+}
+
+export type AdminAlertSeverity = "high" | "medium" | "low";
+
+export interface AdminAlertDto {
+  id: string;
+  severity: AdminAlertSeverity;
+  title: string;
+  detail: string;
+  /** Where the alert is handled. */
+  section: AdminSection;
+}
+
+export interface AdminReviewerStatDto {
+  adminId: string;
+  name: string;
+  reviewed: number;
+  /** Average minutes per review. */
+  avgMinutes: number;
+  /** Share of decisions appealed by the lister, 0–100. */
+  disputedPct: number;
+}
+
+/** `GET /admin/dashboard` (E1). Refreshed every 5 minutes. */
+export interface AdminDashboardDto {
+  /** ISO date-time the figures were computed. */
+  updatedAt: string;
+  kpis: {
+    pendingListings: { count: number; overSla: number };
+    openReports: { count: number; scam: number };
+    pendingKyc: { count: number; oldestHours: number };
+    revenueToday: { amount: number; changePct: number; comparedTo: string };
+    newListings: { count: number; autoApprovedPct: number };
+    newUsers: { count: number; agents: number };
+  };
+  /** 24 hours, Bangkok time. `count` is null for hours still to come. */
+  hourly: { hour: number; count: number | null; average: number }[];
+  alerts: AdminAlertDto[];
+  team: AdminReviewerStatDto[];
+  /** Automated listing review, last 7 days, percentages. */
+  automation: {
+    autoApprovedPct: number;
+    spotCheckPct: number;
+    toReviewerPct: number;
+    autoRejectedPct: number;
+    autoRejectReasons: string[];
+    accuracyPct: number;
+  };
+}
+
+export interface GetAdminDashboardResponse {
+  data: AdminDashboardDto;
+}
+
+export interface AdminRoleDto {
+  id: AdminRoleId;
+  name: string;
+  /** What the role can do, in one line. */
+  description: string;
+  members: number;
+  sections: AdminSection[];
+}
+
+/** `GET /admin/roles` (E10). */
+export type ListAdminRolesResponse = ListResponse<AdminRoleDto>;
+
+export interface AuditEntryDto {
+  id: string;
+  /** ISO date-time. */
+  at: string;
+  actor: { name: string; role: AdminRoleId };
+  action: string;
+  /** Ticket or reason, empty when none. */
+  note: string;
+}
+
+/** `GET /admin/audit-log?date=YYYY-MM-DD` — newest first, Bangkok day. Read-only: there is no write endpoint. */
+export type ListAuditLogResponse = ListResponse<AuditEntryDto>;
+
+/** `POST /admin/invites` — super admins only (403 otherwise). 409 when the email is already an admin. */
+export interface CreateAdminInviteRequest {
+  email: string;
+  role: AdminRoleId;
+}
+
+export interface CreateAdminInviteResponse {
+  data: { email: string; role: AdminRoleId; expiresAt: string };
+}

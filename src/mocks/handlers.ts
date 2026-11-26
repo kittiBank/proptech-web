@@ -1,7 +1,8 @@
 import type { DefaultBodyType, PathParams } from "msw";
 import { http, HttpResponse, type HttpResponseResolver } from "msw/http";
 import { delay } from "msw/utils/delay";
-import { MOCK_API_BASE_PATH } from "@/lib/api/client";
+import { endpoint, errorResponse, readBody, writeScenario } from "./http";
+import { adminHandlers } from "./admin-handlers";
 import {
   ARTICLES_MAX_LIMIT,
   MAX_SAVED_SEARCHES,
@@ -160,9 +161,6 @@ import {
   verifyEmail,
 } from "./session";
 
-/** Matches the mock base path on any origin (browser page, jsdom, Node). */
-const endpoint = (path: string) => `*${MOCK_API_BASE_PATH}${path}`;
-
 const listingModes: ListingMode[] = ["buy", "rent"];
 const propertyTypes: PropertyType[] = ["condo", "house", "townhouse", "land", "commercial"];
 const propertySorts: PropertySort[] = ["-postedAt", "postedAt", "-price", "price", "stationDistance"];
@@ -171,26 +169,6 @@ const projectTypes: ProjectType[] = ["condo", "house", "townhouse"];
 const projectSorts: ProjectSort[] = ["-launchedAt", "startingPrice", "-startingPrice", "completionYear"];
 const transitLineIds: TransitLineId[] = ["bts-sukhumvit", "bts-silom", "mrt-blue"];
 const articleCategoryIds: ArticleCategory[] = ["buying", "renting", "selling", "finance", "location", "new-projects"];
-
-const statusText: Record<number, string> = {
-  400: "Bad Request",
-  401: "Unauthorized",
-  404: "Not Found",
-  403: "Forbidden",
-  402: "Payment Required",
-  409: "Conflict",
-  422: "Unprocessable Entity",
-  500: "Internal Server Error",
-  503: "Service Unavailable",
-};
-
-/** Error response in the NestJS `HttpException` shape. */
-export function errorResponse(statusCode: number, message: string | string[]) {
-  return HttpResponse.json<ApiErrorBody>(
-    { statusCode, message, error: statusText[statusCode] ?? "Error" },
-    { status: statusCode },
-  );
-}
 
 class NotFoundError extends Error {}
 
@@ -246,17 +224,6 @@ function requireUser() {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Reads a JSON body; `{}` when it is missing or malformed so field checks report it. */
-async function readBody<T>(request: Request): Promise<Partial<T>> {
-  return ((await request.json().catch(() => null)) ?? {}) as Partial<T>;
-}
-
-/** Simulated latency plus the `error` scenario, for write endpoints. */
-async function writeScenario() {
-  await delay(200);
-  return getMockScenario() === "error" ? errorResponse(500, "Mock server error") : undefined;
-}
 
 class ValidationError extends Error {
   constructor(readonly messages: string[]) {
@@ -399,6 +366,7 @@ function withScenario(
 }
 
 export const handlers = [
+  ...adminHandlers,
   http.get(
     endpoint("/properties"),
     withScenario((request) => queryProperties(parsePropertiesQuery(new URL(request.url).searchParams))),

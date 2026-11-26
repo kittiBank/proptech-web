@@ -1,3 +1,4 @@
+import { toCsv } from "@/lib/csv";
 import { listingStatuses } from "@/lib/status";
 import { slotIso, slotParts } from "@/lib/viewing";
 import type {
@@ -127,16 +128,11 @@ export const canPromote = (l: Pick<SellerListingDto, "status">) => l.status === 
 export const canRenew = (l: Pick<SellerListingDto, "status">) => l.status === "published" || l.status === "expired";
 export const canClose = (l: Pick<SellerListingDto, "status" | "draftId">) => l.status !== "closed" && !l.draftId;
 
-const csvCell = (v: string | number | undefined) => {
-  const text = v === undefined ? "" : String(v);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
-
 /** "ส่งออก CSV": one row per listing; a BOM so Excel reads the Thai text as UTF-8. */
 export function listingsCsv(rows: SellerListingDto[]): string {
-  const header = ["รหัส", "ชื่อประกาศ", "ประเภท", "สถานะ", "ราคา", "เข้าชม 7 วัน", "ผู้สนใจ", "หมดอายุ"];
-  const lines = rows.map((l) =>
-    [
+  return toCsv(
+    ["รหัส", "ชื่อประกาศ", "ประเภท", "สถานะ", "ราคา", "เข้าชม 7 วัน", "ผู้สนใจ", "หมดอายุ"],
+    rows.map((l) => [
       l.code,
       l.title,
       l.mode === "rent" ? "เช่า" : "ขาย",
@@ -145,11 +141,8 @@ export function listingsCsv(rows: SellerListingDto[]): string {
       l.views7d,
       l.leads,
       l.expiresAt ? slotParts(l.expiresAt).date : undefined,
-    ]
-      .map(csvCell)
-      .join(","),
+    ]),
   );
-  return `\uFEFF${[header.join(","), ...lines].join("\r\n")}`;
 }
 
 // --- URL state of /dashboard/listings -------------------------------------------
