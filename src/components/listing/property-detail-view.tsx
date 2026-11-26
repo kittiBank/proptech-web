@@ -4,21 +4,22 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { BadgeCheck, ChevronRight, Eye, MapPin, Pin, SearchX } from "lucide-react";
+import { BadgeCheck, ChevronRight, Eye, MapPin, Pin } from "lucide-react";
 import { Container } from "@/components/home/section-header";
 import { FavoriteButton } from "@/components/property/favorite-button";
 import { PropertyTags } from "@/components/property/property-tags";
-import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { propertyTypeLabels } from "@/data/catalog";
 import { routes } from "@/data/navigation";
 import { ApiError } from "@/lib/api/client";
 import { propertyQueries } from "@/lib/api/queries";
 import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
-import { formatThaiDate } from "@/lib/listing";
+import { closureCopy, formatThaiDate } from "@/lib/listing";
 import { cn } from "@/lib/utils";
 import type { PropertyDetail } from "@/types/property";
+import { NotFoundView } from "@/components/system/not-found-view";
 import { AmenityList } from "./amenity-list";
+import { ClosedListing } from "./closed-listing";
 import { ListingGallery } from "./listing-gallery";
 import { KeyFacts, SpecSheet } from "./listing-facts";
 import { LocationMap } from "./location-map";
@@ -180,34 +181,26 @@ function ListingHeader({ property: p }: { property: PropertyDetail }) {
   );
 }
 
-function NotFoundPanel() {
-  return (
-    <Container className="flex min-h-[60vh] flex-col items-start justify-center gap-5 py-20">
-      <SearchX className="size-10 text-brand" aria-hidden="true" />
-      <div>
-        <h1 className="text-[28px] font-semibold text-ink">ไม่พบประกาศนี้</h1>
-        <p className="mt-2 max-w-[52ch] text-[16px] text-slate">
-          ประกาศอาจถูกปิดไปแล้วหรือลิงก์ไม่ถูกต้อง ลองค้นหาทรัพย์ในย่านเดียวกันจากหน้าแรก
-        </p>
-      </div>
-      <Button asChild size="lg">
-        <Link href={routes.home}>กลับไปค้นหาประกาศ</Link>
-      </Button>
-    </Container>
-  );
-}
-
 export function PropertyDetailView() {
   const { slug } = useParams<{ slug: string }>();
   const { data, isPending, isError, error, refetch, isFetching } = useQuery(propertyQueries.detail(slug));
   const property = data?.data;
 
   useEffect(() => {
-    if (property) document.title = `${property.title} | PropertyHub`;
+    if (!property) return;
+    const prefix = property.closed ? `${closureCopy[property.closed.reason].title}: ` : "";
+    document.title = `${prefix}${property.title} | PropertyHub`;
   }, [property]);
 
   if (isPending) return <PropertyDetailSkeleton />;
-  if (isError && error instanceof ApiError && error.status === 404) return <NotFoundPanel />;
+  if (isError && error instanceof ApiError && error.status === 404) {
+    return (
+      <NotFoundView
+        title="ไม่พบประกาศนี้"
+        description="ลิงก์อาจไม่ถูกต้อง หรือประกาศถูกลบไปแล้ว ลองค้นหาจากชื่อโครงการ ย่าน หรือสถานี"
+      />
+    );
+  }
   if (isError || !property) {
     return (
       <Container className="py-16">
@@ -215,6 +208,8 @@ export function PropertyDetailView() {
       </Container>
     );
   }
+
+  if (property.closed) return <ClosedListing property={property} closure={property.closed} />;
 
   const gallery = property.gallery?.length ? property.gallery : [property.image];
 

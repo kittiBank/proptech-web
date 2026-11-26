@@ -36,6 +36,17 @@ export const getPropertyForSeo = cache(async (slug: string): Promise<PropertyDet
   return (await import("@/mocks/db")).getPropertyDetail(slug);
 });
 
+/**
+ * `missing` (404), `closed` (sold, rented or taken down) or `live`, for `proxy.ts`.
+ * No `cache` here: proxy runs outside React.
+ */
+export async function listingAvailability(slug: string): Promise<"live" | "closed" | "missing"> {
+  const item = API_URL
+    ? await fetchDetail<GetPropertyResponse["data"]>(`/properties/${encodeURIComponent(slug)}`)
+    : (await import("@/mocks/db")).getPropertyDetail(slug);
+  return !item ? "missing" : item.closed ? "closed" : "live";
+}
+
 export const getProjectForSeo = cache(async (slug: string): Promise<ProjectDetailDto | undefined> => {
   if (API_URL) return fetchDetail<GetProjectResponse["data"]>(`/projects/${encodeURIComponent(slug)}`);
   return (await import("@/mocks/db")).getProjectDetail(slug);

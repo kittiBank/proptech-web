@@ -6,6 +6,7 @@ import "@fontsource/ibm-plex-sans-thai/thai-500.css";
 import "@fontsource/ibm-plex-sans-thai/thai-600.css";
 import "./globals.css";
 import { CookieConsent } from "@/components/consent/cookie-consent";
+import { OfflineBanner } from "@/components/system/offline-banner";
 import { Toaster } from "@/components/ui/toast";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -34,6 +35,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="th" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
+        {/* D14: global, above every shell. */}
+        <OfflineBanner />
         {children}
         <Toaster />
         {/* D7: global, on every page including the dashboard and checkout. */}

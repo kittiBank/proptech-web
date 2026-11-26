@@ -1,4 +1,4 @@
-import type { ListingMode, PriceRangeOption, PropertyCategory, PropertyType } from "@/types/property";
+import type { ListingMode, PriceRangeOption, PropertyCategory, PropertyType, TransitStation } from "@/types/property";
 
 export const propertyTypeLabels: Record<PropertyType, string> = {
   condo: "คอนโด",
@@ -45,6 +45,15 @@ export const popularSearches: {
   { label: "เช่าใกล้ BTS อารีย์", mode: "rent", station: "N5" },
   { label: "เช่าใกล้ MRT พระราม 9", mode: "rent", station: "BL20" },
   { label: "บ้านเดี่ยวขาย", mode: "buy", type: "house" },
+];
+
+/** Busiest stations, offered as starting points on the 404 page (D8). */
+export const popularStations: TransitStation[] = [
+  { line: "bts-sukhumvit", code: "E5", name: "พร้อมพงษ์" },
+  { line: "bts-sukhumvit", code: "E6", name: "ทองหล่อ" },
+  { line: "bts-sukhumvit", code: "N8", name: "หมอชิต" },
+  { line: "mrt-blue", code: "BL22", name: "สุขุมวิท" },
+  { line: "bts-silom", code: "S2", name: "ศาลาแดง" },
 ];
 
 /** Usable-area brackets in square metres, for the search page. */

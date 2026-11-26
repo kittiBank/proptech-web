@@ -11,6 +11,7 @@ import { findPoster } from "@/data/posters";
 import { pinnedPropertyIds, properties } from "@/data/properties";
 import { buildPropertyDetail, listingPoint } from "@/data/property-details";
 import { distanceBetween } from "@/lib/geo";
+import type { ListingClosure } from "@/types/property";
 import {
   PROJECTS_DEFAULT_LIMIT,
   PROPERTIES_DEFAULT_LIMIT,
@@ -70,7 +71,17 @@ const allListings: PropertyDto[] = [...properties, ...generatedListings, ...buil
  * Listings that were taken down, sold or rented. They drop out of search but
  * stay readable by id so saved copies in favorites can show the closed state.
  */
-export const closedListingIds = new Set(["g-2010", "g-2031"]);
+const closures: Record<string, ListingClosure> = {
+  "g-2010": { reason: "sold", closedAt: "2026-11-10T09:00:00+07:00" },
+  "g-2031": { reason: "removed", closedAt: "2026-11-03T14:30:00+07:00" },
+};
+export const closedListingIds = new Set(Object.keys(closures));
+
+/** The closure for a closed listing's slug, or undefined while it is live (or unknown). */
+export function listingClosure(slug: string): ListingClosure | undefined {
+  const property = allListings.find((p) => p.slug === slug);
+  return property && closures[property.id];
+}
 
 export function findListingById(id: string): PropertyDto | undefined {
   return allListings.find((p) => p.id === id);
@@ -225,6 +236,8 @@ export function getPropertyDetail(slug: string): PropertyDetailDto | undefined {
   const property = allListings.find((p) => p.slug === slug);
   if (!property) return undefined;
   const detail = buildPropertyDetail(property);
+  const closed = closures[property.id];
+  if (closed) detail.closed = closed;
   // Agents with a profile page show their real live count, matching the profile.
   const profile = detail.poster.profileSlug ? findAgentSeed(detail.poster.profileSlug) : undefined;
   if (profile) detail.poster = { ...detail.poster, activeListings: agentListings(profile.name).length };

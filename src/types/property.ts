@@ -282,6 +282,17 @@ export interface PropertyDetail extends Property {
     places: NearbyPlace[];
   };
   poster: Poster;
+  /** Set when the listing was taken down: the page shows D9 instead of the full listing. */
+  closed?: ListingClosure;
+}
+
+export type ListingClosedReason = "sold" | "rented" | "removed";
+
+/** Why and when a listing stopped being live. */
+export interface ListingClosure {
+  reason: ListingClosedReason;
+  /** ISO date-time the listing was closed. */
+  closedAt: string;
 }
 
 /** A listing near another one, with the straight-line distance between them. */

@@ -63,6 +63,8 @@ component → useQuery(lib/api/queries.ts) → lib/api/endpoints.ts → apiGet (
 
 To use the real API, copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL`. The value is inlined at build time, and MSW is left out of builds that set it.
 
+For planned maintenance, set `MAINTENANCE_MODE=on` (and the window in `MAINTENANCE_STARTS_AT` / `MAINTENANCE_ENDS_AT`). `src/proxy.ts` then serves `/maintenance` with HTTP 503 for every page. It also answers 404 for unknown listings.
+
 To check loading and error states by hand, add `?mock=<scenario>` to the page URL while the mock API is active:
 
 | Scenario | Behaviour                                         |
