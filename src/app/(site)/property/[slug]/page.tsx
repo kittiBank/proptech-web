@@ -8,6 +8,7 @@ import { PropertyDetailView } from "@/components/listing/property-detail-view";
 import { routes } from "@/data/navigation";
 import { queryKeys } from "@/lib/api/queries";
 import { getPropertyForSeo } from "@/lib/api/server";
+import { closureCopy } from "@/lib/listing";
 import { metaDescription } from "@/lib/site";
 import { breadcrumbJsonLd, listingJsonLd } from "@/lib/structured-data";
 
@@ -17,6 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const item = await getPropertyForSeo(slug);
   if (!item) return { title: "ไม่พบประกาศ", robots: { index: false } };
+  if (item.closed)
+    return { title: `${closureCopy[item.closed.reason].title}: ${item.title}`, robots: { index: false } };
   return {
     title: item.title,
     description: metaDescription(item.description),
@@ -35,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 async function StructuredData({ params }: Props) {
   const { slug } = await params;
   const item = await getPropertyForSeo(slug);
-  if (!item) return null;
+  if (!item || item.closed) return null;
   return (
     <JsonLd
       data={[

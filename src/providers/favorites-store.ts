@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/endpoints";
 import { favoritesQuery, queryKeys } from "@/lib/api/queries";
+import { readOfflineSnapshot, saveOfflineSnapshot } from "@/lib/offline-snapshot";
+import { useOnline } from "@/lib/use-online";
 import type { FavoriteDto, ListFavoritesResponse } from "@/types/api";
 import { useSession } from "./session";
 import type { Property } from "@/types/property";
@@ -13,6 +15,8 @@ import type { Property } from "@/types/property";
  * list straight away (hearts and counts react instantly), roll back if the
  * request fails, and refetch afterwards to pick up the server's copy.
  */
+
+const SNAPSHOT = "favorites";
 
 type Change = { kind: "save"; property: Property } | { kind: "remove"; propertyId: string };
 
@@ -41,8 +45,22 @@ async function mutate(client: QueryClient, change: Change) {
 export function useFavorites() {
   const client = useQueryClient();
   const { user } = useSession();
+  const userId = user?.id;
+  const online = useOnline();
+  // Offline, the last copy on this device stands in (D14) until the connection returns.
+  // The session cannot load offline either (`undefined`); `null` means known to be signed out.
+  const snapshot = useMemo(
+    () => (user !== null && !online ? readOfflineSnapshot<ListFavoritesResponse>(SNAPSHOT, userId) : undefined),
+    [user, userId, online],
+  );
   // Favorites belong to an account; signed-out visitors have none.
-  const { data, isPending, isError, refetch, isFetching } = useQuery({ ...favoritesQuery, enabled: Boolean(user) });
+  const query = useQuery({ ...favoritesQuery, enabled: Boolean(userId), placeholderData: snapshot?.data });
+  const { data, isPlaceholderData, isPending, isError, refetch, isFetching } = query;
+  const dataUpdatedAt = isPlaceholderData ? (snapshot?.savedAt ?? 0) : query.dataUpdatedAt;
+
+  useEffect(() => {
+    if (userId && data && !isPlaceholderData) saveOfflineSnapshot(SNAPSHOT, { userId, savedAt: dataUpdatedAt, data });
+  }, [userId, data, isPlaceholderData, dataUpdatedAt]);
   const favorites = useMemo(() => data?.data ?? [], [data]);
   const ids = useMemo(() => favorites.map((f) => f.property.id), [favorites]);
 
@@ -74,6 +92,8 @@ export function useFavorites() {
     toggle,
     save,
     remove,
+    /** Epoch ms of the copy on screen; older than the visit when it came from the offline snapshot. */
+    dataUpdatedAt,
     isPending,
     isError,
     isFetching,

@@ -826,7 +826,12 @@ export type ArticleBlock =
   | { type: "list"; items: string[] }
   | { type: "callout"; tone: "warning" | "tip"; title: string; text: string }
   /** Inline mortgage estimate, prefilled with these values. */
-  | { type: "calculator"; price: number; downPaymentPct: number; annualRatePct: number; years: number };
+  | { type: "calculator"; price: number; downPaymentPct: number; annualRatePct: number; years: number }
+  /** Smaller heading inside a section (H3); not in the table of contents. */
+  | { type: "subheading"; text: string }
+  | { type: "image"; src: string; alt: string; caption?: string }
+  /** Live listing cards from a `GET /properties` filter (E9 "การ์ดประกาศ"). */
+  | { type: "listings"; title: string; query: ArticleRelatedListings["query"]; limit: number };
 
 /** Listings shown beside an article: a ready-made `GET /properties` filter and its heading. */
 export interface ArticleRelatedListings {
@@ -1322,4 +1327,597 @@ export interface CreateReportRequest {
 
 export interface CreateReportResponse {
   data: { id: string; createdAt: string };
+}
+
+// ---------------------------------------------------------------------------
+// Admin (admin subdomain, its own session; routes under `/admin`)
+// ---------------------------------------------------------------------------
+
+export type AdminRoleId = "super_admin" | "moderator" | "kyc_reviewer" | "finance" | "revenue" | "editor";
+
+/** Areas of the admin app; roles grant access per area (see `lib/admin.ts`). */
+export type AdminSection =
+  "dashboard" | "moderation" | "reports" | "kyc" | "users" | "revenue" | "promo-slots" | "cms" | "roles";
+
+export interface AdminUserDto {
+  id: string;
+  name: string;
+  email: string;
+  role: AdminRoleId;
+  /** Job title shown under the name, e.g. "Moderator lead". */
+  title: string;
+}
+
+/** `POST /admin/auth/login` body. Step 1 of 2: the password. */
+export interface AdminLoginRequest {
+  email: string;
+  password: string;
+}
+
+/** Step 1 passed: a 2FA challenge, valid for 5 minutes. 401 on a wrong email or password. */
+export interface AdminLoginResponse {
+  data: { challengeId: string; method: "totp"; name: string; email: string; expiresAt: string };
+}
+
+/** `POST /admin/auth/2fa` body. 401 on a wrong code, 429 after 5 wrong codes, 410 when the challenge expired. */
+export interface AdminVerifyRequest {
+  challengeId: string;
+  /** 6 digits from the authenticator app. */
+  code: string;
+}
+
+export interface AdminSessionResponse {
+  data: AdminUserDto;
+}
+
+/** `GET /admin/auth/me` — `null` when signed out or idle for 30 minutes. */
+export interface GetAdminSessionResponse {
+  data: AdminUserDto | null;
+}
+
+export const ADMIN_IDLE_MINUTES = 30;
+
+/** `GET /admin/queue-counts` — badges in the admin sidebar. */
+export interface AdminQueueCountsResponse {
+  data: { moderation: number; reports: number; kyc: number };
+}
+
+export type AdminAlertSeverity = "high" | "medium" | "low";
+
+export interface AdminAlertDto {
+  id: string;
+  severity: AdminAlertSeverity;
+  title: string;
+  detail: string;
+  /** Where the alert is handled. */
+  section: AdminSection;
+}
+
+export interface AdminReviewerStatDto {
+  adminId: string;
+  name: string;
+  reviewed: number;
+  /** Average minutes per review. */
+  avgMinutes: number;
+  /** Share of decisions appealed by the lister, 0–100. */
+  disputedPct: number;
+}
+
+/** `GET /admin/dashboard` (E1). Refreshed every 5 minutes. */
+export interface AdminDashboardDto {
+  /** ISO date-time the figures were computed. */
+  updatedAt: string;
+  kpis: {
+    pendingListings: { count: number; overSla: number };
+    openReports: { count: number; scam: number };
+    pendingKyc: { count: number; oldestHours: number };
+    revenueToday: { amount: number; changePct: number; comparedTo: string };
+    newListings: { count: number; autoApprovedPct: number };
+    newUsers: { count: number; agents: number };
+  };
+  /** 24 hours, Bangkok time. `count` is null for hours still to come. */
+  hourly: { hour: number; count: number | null; average: number }[];
+  alerts: AdminAlertDto[];
+  team: AdminReviewerStatDto[];
+  /** Automated listing review, last 7 days, percentages. */
+  automation: {
+    autoApprovedPct: number;
+    spotCheckPct: number;
+    toReviewerPct: number;
+    autoRejectedPct: number;
+    autoRejectReasons: string[];
+    accuracyPct: number;
+  };
+}
+
+export interface GetAdminDashboardResponse {
+  data: AdminDashboardDto;
+}
+
+export interface AdminRoleDto {
+  id: AdminRoleId;
+  name: string;
+  /** What the role can do, in one line. */
+  description: string;
+  members: number;
+  sections: AdminSection[];
+}
+
+/** `GET /admin/roles` (E10). */
+export type ListAdminRolesResponse = ListResponse<AdminRoleDto>;
+
+export interface AuditEntryDto {
+  id: string;
+  /** ISO date-time. */
+  at: string;
+  actor: { name: string; role: AdminRoleId };
+  action: string;
+  /** Ticket or reason, empty when none. */
+  note: string;
+}
+
+/** `GET /admin/audit-log?date=YYYY-MM-DD` — newest first, Bangkok day. Read-only: there is no write endpoint. */
+export type ListAuditLogResponse = ListResponse<AuditEntryDto>;
+
+/** `POST /admin/invites` — super admins only (403 otherwise). 409 when the email is already an admin. */
+export interface CreateAdminInviteRequest {
+  email: string;
+  role: AdminRoleId;
+}
+
+export interface CreateAdminInviteResponse {
+  data: { email: string; role: AdminRoleId; expiresAt: string };
+}
+
+// --- Admin: listing moderation (E2, E3) ---------------------------------------
+
+export type ModerationTab = "pending" | "returned" | "spot_check" | "done";
+
+export type ModerationFlagCode =
+  "phone_in_photo" | "price_below_market" | "duplicate_photos" | "new_account" | "resubmitted";
+
+/** Raised by the automated review. `photoIndex` (0-based) points at the photo it is about. */
+export interface ModerationFlagDto {
+  code: ModerationFlagCode;
+  label: string;
+  tone: "danger" | "warning" | "neutral";
+  photoIndex?: number;
+  /** 0–1, for OCR and image matches. */
+  confidence?: number;
+  /** One sentence for the reviewer, e.g. what was found and where. */
+  detail?: string;
+}
+
+export type ModerationReturnReason = "contact_in_photo" | "price" | "incomplete" | "duplicate" | "scam";
+
+export interface ModerationDecisionDto {
+  outcome: "approved" | "returned";
+  reasons: ModerationReturnReason[];
+  /** Sent to the lister when returned. */
+  message: string;
+  by: string;
+  at: string;
+}
+
+export interface ModerationPosterDto {
+  userId: string;
+  name: string;
+  kind: "agent" | "owner";
+  /** "นายหน้า Pro", "เจ้าของ (ใหม่)". */
+  badge: string;
+  accountAgeDays: number;
+  listings: number;
+  returnedLast90d: number;
+  reportsCount: number;
+  kycApproved: boolean;
+}
+
+/** One listing waiting for (or past) human review. `id` is the listing code, e.g. "PH-2291". */
+export interface ModerationItemDto {
+  id: string;
+  status: ModerationTab;
+  listing: PropertyDetailDto;
+  /** Where the asking price sits against the project or area. */
+  marketBand: "below" | "market" | "above";
+  poster: ModerationPosterDto;
+  /** Paid promotion that starts once the listing passes (handoff §6). */
+  promotion?: { label: string; amount: number };
+  flags: ModerationFlagDto[];
+  /** Checklist with the automated review's suggestion for each line. */
+  checks: { id: string; label: string; passed: boolean }[];
+  submittedAt: string;
+  decision?: ModerationDecisionDto;
+}
+
+export type ModerationSort = "paid_first" | "oldest" | "newest";
+
+export interface ListModerationQuery {
+  tab?: ModerationTab;
+  /** `any` (default), `flagged` or `clean`. */
+  flags?: "any" | "flagged" | "clean";
+  poster?: "all" | "agent" | "owner";
+  paid?: boolean;
+  sort?: ModerationSort;
+  page?: number;
+}
+
+export const MODERATION_PAGE_SIZE = 20;
+/** Review SLA in minutes (handoff §6). */
+export const MODERATION_SLA_MINUTES = 120;
+
+/** `GET /admin/moderation` — `counts` per tab (other filters ignored). */
+export interface ListModerationResponse {
+  data: ModerationItemDto[];
+  meta: PageMeta;
+  counts: Record<ModerationTab, number>;
+}
+
+/** `GET /admin/moderation/:id` — with its place in the pending queue for prev/next. */
+export interface GetModerationItemResponse {
+  data: ModerationItemDto;
+  queue: { position: number; total: number; prevId?: string; nextId?: string };
+}
+
+/** `POST /admin/moderation/:id/approve` and `/return`. 409 when already decided. */
+export interface ReturnListingRequest {
+  reasons: ModerationReturnReason[];
+  message: string;
+}
+
+/** `POST /admin/moderation/approve` — bulk approve from the queue. Skips decided items. */
+export interface BulkApproveRequest {
+  ids: string[];
+}
+
+export interface ModerationDecisionResponse {
+  data: ModerationItemDto;
+  /** The next pending item, so continuous review can move on. */
+  nextId?: string;
+}
+
+// --- Admin: user reports (E4) -------------------------------------------------
+
+export type ReportSeverity = "high" | "medium" | "low";
+export type ReportCaseStatus = "open" | "awaiting_reporter" | "resolved" | "dismissed";
+export type ReportCaseTab = "open" | "awaiting_reporter" | "closed";
+export type ReportAction = "suspend" | "hide_listing" | "warn" | "dismiss" | "request_info";
+
+export interface ReportCaseDto {
+  id: string;
+  severity: ReportSeverity;
+  status: ReportCaseStatus;
+  reason: ReportReason;
+  title: string;
+  listing: { code: string; slug: string; title: string; hidden: boolean };
+  reported: { userId: string; name: string; accountAgeDays: number; listings: number; suspended: boolean };
+  reportCount: number;
+  /** The automated review flagged it too. */
+  systemFlag: boolean;
+  reporters: { count: number; verified: number };
+  quotes: { text: string; at: string; reporter: string }[];
+  /** Chat messages attached as evidence. */
+  evidenceMessages: number;
+  assignee?: string;
+  openedAt: string;
+  resolution?: { action: ReportAction; by: string; at: string; note: string };
+}
+
+/** Hours to close a case, by severity. */
+export const REPORT_SLA_HOURS: Record<ReportSeverity, number> = { high: 4, medium: 24, low: 72 };
+/** A listing is hidden automatically at this many reports (handoff §6). */
+export const REPORT_AUTO_HIDE = 3;
+
+/** `GET /admin/reports?tab=` — highest severity first, then oldest. */
+export interface ListReportCasesResponse {
+  data: ReportCaseDto[];
+  counts: Record<ReportCaseTab, number>;
+}
+
+/** `POST /admin/reports/:id/actions`. 409 once the case is closed. */
+export interface ReportActionRequest {
+  action: ReportAction;
+  note?: string;
+}
+
+export interface ReportCaseResponse {
+  data: ReportCaseDto;
+}
+
+// --- Admin: agent KYC review (E5) ---------------------------------------------
+
+export type KycApplicationStatus = "pending" | "needs_info" | "approved" | "rejected";
+
+export interface KycCheckDto {
+  label: string;
+  entered?: string;
+  fromDocument?: string;
+  result: "match" | "mismatch" | "pass" | "fail" | "optional";
+  resultLabel: string;
+}
+
+export interface KycApplicationDto {
+  id: string;
+  userId: string;
+  name: string;
+  /** Company name, or "อิสระ". */
+  affiliation: string;
+  attempt: number;
+  status: KycApplicationStatus;
+  submittedAt: string;
+  idCard: { ocrName: string; idMasked: string; expiresYear: number };
+  /** Face match between the selfie and the ID photo, 0–1. */
+  faceMatch: number;
+  checks: KycCheckDto[];
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
+}
+
+export type KycDecision = "approve" | "reject" | "request_info";
+
+/** `GET /admin/kyc?tab=` — oldest first. Documents are not included; see `/view`. */
+export interface ListKycApplicationsResponse {
+  data: KycApplicationDto[];
+  counts: Record<KycApplicationStatus, number>;
+}
+
+/** `POST /admin/kyc/:id/view` — opening the documents is logged with a reason. */
+export interface ViewKycDocumentsRequest {
+  reason: string;
+}
+
+/** `POST /admin/kyc/:id/decision` — a note is required to reject or ask for more. 409 once decided. */
+export interface KycDecisionRequest {
+  decision: KycDecision;
+  note?: string;
+}
+
+export interface KycApplicationResponse {
+  data: KycApplicationDto;
+}
+
+// --- Admin: users (E6) ---------------------------------------------------------
+
+export type AdminUserKind = "seeker" | "owner" | "agent" | "agent_pro" | "agency";
+/** handoff §4: `active`, `suspended`, `banned`, `pending_kyc`. */
+export type AdminUserStatus = "active" | "suspended" | "banned" | "pending_kyc";
+export type AdminUserJoined = "all" | "7d" | "30d" | "90d";
+
+export interface AdminUserRowDto {
+  id: string;
+  name: string;
+  /** Masked email or phone, e.g. "kittipat@…" or "08x-xxx-4412". */
+  contact: string;
+  kind: AdminUserKind;
+  status: AdminUserStatus;
+  listings: number;
+  /** THB paid in total. */
+  totalPaid: number;
+  joinedAt: string;
+  /** Number shared with other accounts (fraud signal). */
+  sharedPhone: boolean;
+}
+
+export interface AdminUserDetailDto extends AdminUserRowDto {
+  joinedVia: "email" | "google" | "line";
+  phoneVerified: boolean;
+  /** Other accounts on the same phone number. */
+  sharedPhoneWith: { id: string; name: string; status: AdminUserStatus }[];
+  device: string;
+  /** Network note, e.g. the IP matches a suspended account. */
+  networkNote?: string;
+  suspension?: { at: string; by: string; reason: string };
+  listingItems: { code: string; title: string; slug: string; hidden: boolean }[];
+  reports: { id: string; title: string; status: ReportCaseStatus }[];
+  payments: { id: string; at: string; item: string; amount: number; status: PaymentStatusDto }[];
+  /** Admin actions about this user, newest first. */
+  activity: AuditEntryDto[];
+}
+
+export interface ListAdminUsersQuery {
+  kind?: AdminUserKind | "all";
+  status?: AdminUserStatus | "all";
+  joined?: AdminUserJoined;
+  q?: string;
+  /** Accounts that share a phone with this user id. */
+  sharedWith?: string;
+  page?: number;
+}
+
+export const ADMIN_USERS_PAGE_SIZE = 20;
+
+/** `GET /admin/users` — `platformTotal` counts every account, not just the filtered ones. */
+export interface ListAdminUsersResponse {
+  data: AdminUserRowDto[];
+  meta: PageMeta;
+  platformTotal: number;
+}
+
+export interface AdminUserResponse {
+  data: AdminUserDetailDto;
+}
+
+export type AdminUserAction = "suspend" | "unsuspend" | "ban" | "message";
+
+/** `POST /admin/users/:id/actions`. `reason` for suspend and ban, `message` for message. 409 when the status does not allow it. */
+export interface AdminUserActionRequest {
+  action: AdminUserAction;
+  reason?: string;
+  message?: string;
+}
+
+/** `POST /admin/users/:id/reveal-phone` — the full number, logged with the reason. */
+export interface RevealPhoneResponse {
+  data: { phone: string };
+}
+
+// --- Admin: revenue and refunds (E7) -------------------------------------------
+
+export type RevenueProduct = "agent_plan" | "featured" | "homepage_pin" | "bump";
+
+export interface RefundRequestDto {
+  paymentId: string;
+  customer: string;
+  reason: string;
+  amount: number;
+  requestedAt: string;
+  /** Over ฿1,000: only Finance (or a super admin) may approve (handoff §6). */
+  needsFinance: boolean;
+}
+
+/** Refunds above this need Finance (handoff §6). */
+export const REFUND_FINANCE_THRESHOLD = 1_000;
+
+export interface AdminRevenueDto {
+  /** "2026-11". */
+  month: string;
+  /** Last day included (ISO date). */
+  through: string;
+  kpis: {
+    revenue: number;
+    changePct: number;
+    members: { total: number; pro: number; agency: number };
+    churnPct: number;
+    churnTargetPct: number;
+    refunds: { amount: number; count: number };
+  };
+  byProduct: { product: RevenueProduct; amount: number }[];
+  refundRequests: RefundRequestDto[];
+}
+
+export interface GetAdminRevenueResponse {
+  data: AdminRevenueDto;
+  /** Months with data, newest first. */
+  months: string[];
+}
+
+export type AdminPaymentStatus = PaymentStatusDto | "awaiting_review";
+
+export interface AdminPaymentDto {
+  id: string;
+  at: string;
+  customer: string;
+  item: string;
+  amount: number;
+  method: PaymentMethod;
+  status: AdminPaymentStatus;
+}
+
+export const ADMIN_PAYMENTS_PAGE_SIZE = 10;
+
+/** `GET /admin/payments?page=` — newest first. */
+export interface ListAdminPaymentsResponse {
+  data: AdminPaymentDto[];
+  meta: PageMeta;
+}
+
+/** `POST /admin/refunds/:paymentId` — 403 when the amount needs Finance. 409 once decided. */
+export interface RefundDecisionRequest {
+  decision: "approve" | "reject";
+  note?: string;
+}
+
+// --- Admin: homepage pin slots (E8) ----------------------------------------------
+
+export interface PromoSettingsDto {
+  /** THB for 7 days. */
+  priceWeek: number;
+  slotsPerDay: number;
+  /** Slots per day kept for partner contracts. */
+  partnerReserved: number;
+  /** Most pins per district per day. */
+  districtCap: number;
+}
+
+export interface PromoPinDto {
+  id: string;
+  listing: { code: string; title: string; slug: string; district: string };
+  buyer: string;
+  /** Bangkok days, "2026-11-17", inclusive. */
+  start: string;
+  end: string;
+  source: "purchase" | "partner";
+}
+
+export interface PromoDayDto {
+  date: string;
+  /** Pins bought for the day. */
+  sold: number;
+  /** Partner pins (inside the reserved slots). */
+  partner: number;
+  capacity: number;
+}
+
+/** `GET /admin/promo-slots?week=YYYY-MM-DD` (any day; the week starts Monday). */
+export interface GetPromoSlotsResponse {
+  data: { weekStart: string; days: PromoDayDto[]; pins: PromoPinDto[]; settings: PromoSettingsDto };
+}
+
+/** `POST /admin/promo-slots/pins/:id/move` — 409 names the first day that is full or over the district cap. */
+export interface MovePinRequest {
+  start: string;
+}
+
+export interface MovePinConflict {
+  statusCode: 409;
+  message: string;
+  error: string;
+  day: string;
+  reason: "full" | "district";
+}
+
+/** `PUT /admin/promo-slots/settings` — 400 when out of range. */
+export type UpdatePromoSettingsRequest = PromoSettingsDto;
+
+// --- Admin: CMS (E9) ---------------------------------------------------------------
+
+export type CmsStatus = "draft" | "in_review" | "scheduled" | "published";
+
+export interface CmsRevisionDto {
+  id: string;
+  at: string;
+  by: string;
+  note: string;
+}
+
+export interface CmsArticleDto {
+  /** Stable id; the slug can change. */
+  id: string;
+  slug: string;
+  title: string;
+  category: ArticleCategory;
+  tags: string[];
+  cover: { src: string; alt: string };
+  /** Meta description, max 160 characters. */
+  seoDescription: string;
+  body: ArticleBlock[];
+  status: CmsStatus;
+  reviewer?: string;
+  scheduledAt?: string;
+  publishedAt?: string;
+  updatedAt: string;
+  updatedBy: string;
+  revisions: CmsRevisionDto[];
+}
+
+export type CmsArticleSummaryDto = Omit<CmsArticleDto, "body" | "revisions">;
+
+export const SEO_DESCRIPTION_MAX = 160;
+
+/** `GET /admin/cms` — newest change first. */
+export type ListCmsArticlesResponse = ListResponse<CmsArticleSummaryDto>;
+
+export interface CmsArticleResponse {
+  data: CmsArticleDto;
+}
+
+/** `PUT /admin/cms/:id` — saves a revision. 400 for invalid fields, 409 when the slug is taken. */
+export type SaveCmsArticleRequest = Pick<
+  CmsArticleDto,
+  "slug" | "title" | "category" | "tags" | "cover" | "seoDescription" | "body"
+>;
+
+/** `POST /admin/cms/:id/publish` — now, or at `at` (scheduled). */
+export interface PublishCmsArticleRequest {
+  at?: string;
 }

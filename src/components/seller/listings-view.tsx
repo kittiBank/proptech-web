@@ -37,6 +37,7 @@ import {
   type SellerListingsState,
 } from "@/lib/seller";
 import { listingStatuses } from "@/lib/status";
+import { downloadText } from "@/lib/csv";
 import { cn } from "@/lib/utils";
 import type { SellerListingDto } from "@/types/api";
 import { BoostDialog } from "./boost-dialog";
@@ -253,10 +254,7 @@ export function ListingsView() {
         rows.push(...res.data);
         if (page >= res.meta.totalPages) break;
       }
-      const url = URL.createObjectURL(new Blob([listingsCsv(rows)], { type: "text/csv;charset=utf-8" }));
-      const a = Object.assign(document.createElement("a"), { href: url, download: "my-listings.csv" });
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadText("my-listings.csv", listingsCsv(rows));
     } catch {
       toast("ส่งออกไม่สำเร็จ ลองอีกครั้ง");
     } finally {

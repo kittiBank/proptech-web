@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/endpoints";
 import { queryKeys, sessionQuery } from "@/lib/api/queries";
+import { clearOfflineSnapshots } from "@/lib/offline-snapshot";
 import type { UserDto } from "@/types/api";
 
 /** The signed-in user. `user` is `null` when signed out and `undefined` while loading. */
@@ -28,6 +29,7 @@ export function useSignOut() {
       client.setQueryData(queryKeys.session, null);
       // Everything under ["me", …] belongs to the account that just left.
       client.removeQueries({ queryKey: ["me"] });
+      clearOfflineSnapshots();
     },
   });
 }

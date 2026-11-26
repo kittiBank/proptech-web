@@ -144,7 +144,44 @@ function ArticleCallout({ block }: { block: Extract<ArticleBlock, { type: "callo
   );
 }
 
-function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
+/** Inline listing cards (E9 "การ์ดประกาศ"). Quietly absent when nothing matches or the request fails. */
+function ListingsBlock({ block }: { block: Extract<ArticleBlock, { type: "listings" }> }) {
+  const { data, isPending, isError } = useQuery(
+    propertyQueries.list({ ...block.query, sort: "-postedAt", limit: block.limit }),
+  );
+  if (isError || (data && data.data.length === 0)) return null;
+  return (
+    <section aria-label={block.title} className="my-7 rounded-lg border border-line bg-mist p-4">
+      <p className="mb-3 text-[15px] font-semibold">{block.title}</p>
+      {isPending ? (
+        <div role="status" aria-label="กำลังโหลดประกาศ" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: block.limit }, (_, i) => (
+            <Skeleton key={i} className="h-40" />
+          ))}
+        </div>
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {data.data.map((p) => (
+            <li key={p.id}>
+              <Link href={routes.property(p.slug)} className="group flex flex-col gap-1.5 text-ink">
+                <PropertyPhoto
+                  image={p.image}
+                  sizes="(min-width: 640px) 220px, 100vw"
+                  className="aspect-[4/3] rounded-md"
+                />
+                <b className="line-clamp-2 text-[15px] leading-snug font-semibold group-hover:underline">{p.title}</b>
+                <span className="text-sm tabular-nums">{formatListingPrice(p.price, p.mode)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Renders article blocks; the CMS preview (E9) uses it too. */
+export function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
   return (
     <div className="text-[17px] leading-[1.85] text-ink">
       {blocks.map((block, i) => {
@@ -177,6 +214,25 @@ function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
             return <ArticleCallout key={i} block={block} />;
           case "calculator":
             return <InlineCalculator key={i} {...block} />;
+          case "subheading":
+            return (
+              <h3 key={i} className="mt-6 mb-2 text-[19px] leading-snug font-semibold">
+                {block.text}
+              </h3>
+            );
+          case "image":
+            return (
+              <figure key={i} className="my-7">
+                <PropertyPhoto
+                  image={block}
+                  sizes="(min-width: 768px) 720px, 100vw"
+                  className="aspect-[16/9] rounded-lg"
+                />
+                {block.caption && <figcaption className="mt-2 text-sm text-slate">{block.caption}</figcaption>}
+              </figure>
+            );
+          case "listings":
+            return <ListingsBlock key={i} block={block} />;
         }
       })}
     </div>

@@ -63,6 +63,10 @@ component → useQuery(lib/api/queries.ts) → lib/api/endpoints.ts → apiGet (
 
 To use the real API, copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL`. The value is inlined at build time, and MSW is left out of builds that set it.
 
+For planned maintenance, set `MAINTENANCE_MODE=on` (and the window in `MAINTENANCE_STARTS_AT` / `MAINTENANCE_ENDS_AT`). `src/proxy.ts` then answers every site page with a standalone maintenance page and HTTP 503 (preview it at `/maintenance`). The admin app stays up. The proxy also answers 404 for unknown listings.
+
+The admin app (FE-20+) lives at `/admin` (sign in at `/admin/login`; mock credentials are shown on the page). In production it runs on its own subdomain: set `ADMIN_HOST` (e.g. `admin.propertyhub.example`) and `proxy.ts` serves that host from `/admin/*` and hides `/admin` on the public host. Build the admin deployment with `NEXT_PUBLIC_ADMIN_BASE_PATH=` (empty) for clean URLs.
+
 To check loading and error states by hand, add `?mock=<scenario>` to the page URL while the mock API is active:
 
 | Scenario | Behaviour                                         |

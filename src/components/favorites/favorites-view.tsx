@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
+import { onlineManager } from "@tanstack/react-query";
 import { Heart, TrendingDown } from "lucide-react";
 import { PropertyPhoto } from "@/components/property/property-photo";
 import { TransitBadge } from "@/components/property/transit-badge";
@@ -12,7 +13,8 @@ import { inputClass } from "@/components/ui/field";
 import { QueryError, Skeleton } from "@/components/ui/query-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { routes } from "@/data/navigation";
-import { formatListingPrice, formatNumber, formatRelativeDays } from "@/lib/format";
+import { formatListingPrice, formatNumber, formatRelativeDays, formatShortStamp } from "@/lib/format";
+import { useOnline } from "@/lib/use-online";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useHideBottomNav } from "@/lib/bottom-nav";
 import { cn } from "@/lib/utils";
@@ -299,8 +301,36 @@ function FavoritesSkeleton() {
   );
 }
 
+/** D14: what works offline and a way to check the connection again. */
+function OfflineNotice({
+  title = "ส่งข้อความและขอนัดไม่ได้ตอนออฟไลน์",
+  body = "ข้อความที่พิมพ์ไว้จะถูกเก็บเป็นแบบร่าง และส่งให้เมื่อกลับมาออนไลน์",
+  onRetry,
+}: {
+  title?: string;
+  body?: string;
+  onRetry: () => void;
+}) {
+  const retry = () => {
+    // The browser may have missed the "online" event; ask again before refetching.
+    onlineManager.setOnline(navigator.onLine);
+    if (navigator.onLine) onRetry();
+    else toast("ยังไม่มีการเชื่อมต่ออินเทอร์เน็ต");
+  };
+  return (
+    <div className="mt-6 rounded-xl border border-dashed border-line-strong px-5 py-5 text-center">
+      <p className="font-semibold text-ink">{title}</p>
+      <p className="mt-0.5 text-sm text-slate">{body}</p>
+      <Button variant="outline" className="mt-3.5" onClick={retry}>
+        ลองเชื่อมต่ออีกครั้ง
+      </Button>
+    </div>
+  );
+}
+
 export function FavoritesView() {
-  const { favorites, isPending, isError, isFetching, refetch, remove, save } = useFavorites();
+  const { favorites, dataUpdatedAt, isPending, isError, isFetching, refetch, remove, save } = useFavorites();
+  const online = useOnline();
   const wide = useMediaQuery("(min-width: 640px)");
   const max = wide ? COMPARE_MAX : MOBILE_COMPARE_MAX;
   const [mode, setMode] = useState<ModeFilter>("all");
@@ -351,9 +381,18 @@ export function FavoritesView() {
             </span>
           )}
         </h1>
-        <p className="mt-1 hidden text-[15px] text-slate sm:block">
-          เราแจ้งให้ทราบเมื่อประกาศที่คุณบันทึกลดราคาหรือถูกปิด
-        </p>
+        {online ? (
+          <p className="mt-1 hidden text-[15px] text-slate sm:block">
+            เราแจ้งให้ทราบเมื่อประกาศที่คุณบันทึกลดราคาหรือถูกปิด
+          </p>
+        ) : (
+          dataUpdatedAt > 0 && (
+            <p className="mt-1 text-[13px] text-slate">
+              แสดงข้อมูลที่บันทึกไว้ในเครื่อง ราคาอาจไม่ใช่ล่าสุด · อัปเดตล่าสุด{" "}
+              {formatShortStamp(new Date(dataUpdatedAt).toISOString())}
+            </p>
+          )
+        )}
       </div>
       {favorites.length > 1 && (
         <Button
@@ -370,6 +409,19 @@ export function FavoritesView() {
       )}
     </div>
   );
+
+  if (isPending && !online) {
+    return (
+      <>
+        {header}
+        <OfflineNotice
+          title="ยังไม่มีรายการโปรดที่บันทึกไว้ในเครื่อง"
+          body="เปิดหน้านี้อีกครั้งตอนออนไลน์ แล้วรายการโปรดจะดูได้แม้ไม่มีอินเทอร์เน็ต"
+          onRetry={() => refetch()}
+        />
+      </>
+    );
+  }
 
   if (isPending) {
     return (
@@ -494,6 +546,8 @@ export function FavoritesView() {
           </ul>
         </>
       )}
+
+      {!online && <OfflineNotice onRetry={() => refetch()} />}
 
       {showBar && (
         <div

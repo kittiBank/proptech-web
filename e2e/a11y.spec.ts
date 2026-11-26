@@ -26,6 +26,9 @@ const pages = [
   { name: "legal privacy", path: "/legal/privacy" },
   { name: "legal listing rules", path: "/legal/listing-rules" },
   { name: "not found", path: "/this-page-does-not-exist" },
+  { name: "listing closed", path: "/property/listing-2010" },
+  { name: "listing not found", path: "/property/no-such-listing" },
+  { name: "maintenance", path: "/maintenance" },
 ];
 
 for (const { name, path } of pages) {

@@ -24,13 +24,15 @@ export function savedSearchQuery(state: SearchState): string {
   });
 }
 
-/** D11 "บันทึกการค้นหานี้ไว้": saves the current filters for alerts. Signed-out visitors log in first. */
-export function SaveSearchCard({ state, className }: { state: SearchState; className?: string }) {
+/**
+ * Saves a search for alerts (`POST /me/saved-searches`). Signed-out visitors log in first and the
+ * save resumes afterwards. Used by D11 and the closed-listing "notify me" (D9).
+ */
+export function useSaveSearch(state: SearchState, name = describeSearch(state)) {
   const router = useRouter();
   const client = useQueryClient();
   const requireAuth = useAuthGate();
   const query = savedSearchQuery(state);
-  const name = describeSearch(state);
 
   const mutation = useMutation({
     mutationFn: () => api.createSavedSearch({ name, query }),
@@ -42,12 +44,26 @@ export function SaveSearchCard({ state, className }: { state: SearchState; class
     },
   });
 
-  const save = () => mutation.mutate();
-  useResumeAction("save-search", query, save);
+  const run = () => mutation.mutate();
+  useResumeAction("save-search", query, run);
 
-  // Changing the filters afterwards offers saving the new search.
-  const saved = mutation.isSuccess && mutation.data.data.query === query;
   const limit = mutation.error instanceof ApiError && mutation.error.status === 409;
+  return {
+    save: () => requireAuth({ intent: "save-search", key: query, preview: { title: name } }, run),
+    // Changing the filters afterwards offers saving the new search.
+    saved: mutation.isSuccess && mutation.data.data.query === query,
+    pending: mutation.isPending,
+    error: mutation.isError
+      ? limit
+        ? `บันทึกได้สูงสุด ${MAX_SAVED_SEARCHES} รายการ ลบรายการเก่าที่การค้นหาที่บันทึกไว้ก่อน`
+        : "บันทึกไม่สำเร็จ ลองอีกครั้ง"
+      : undefined,
+  };
+}
+
+/** D11 "บันทึกการค้นหานี้ไว้": saves the current filters for alerts. */
+export function SaveSearchCard({ state, className }: { state: SearchState; className?: string }) {
+  const { save, saved, pending, error } = useSaveSearch(state);
 
   return (
     <div
@@ -56,11 +72,9 @@ export function SaveSearchCard({ state, className }: { state: SearchState; class
       <div className="flex-1">
         <p className="font-semibold text-ink">บันทึกการค้นหานี้ไว้</p>
         <p className="text-sm text-slate">เราจะแจ้งทาง LINE หรืออีเมลทันทีที่มีประกาศตรงทุกเงื่อนไข</p>
-        {mutation.isError && (
+        {error && (
           <p role="alert" className="mt-1 text-sm text-danger">
-            {limit
-              ? `บันทึกได้สูงสุด ${MAX_SAVED_SEARCHES} รายการ ลบรายการเก่าที่การค้นหาที่บันทึกไว้ก่อน`
-              : "บันทึกไม่สำเร็จ ลองอีกครั้ง"}
+            {error}
           </p>
         )}
       </div>
@@ -70,12 +84,9 @@ export function SaveSearchCard({ state, className }: { state: SearchState; class
           บันทึกแล้ว
         </Button>
       ) : (
-        <Button
-          disabled={mutation.isPending}
-          onClick={() => requireAuth({ intent: "save-search", key: query, preview: { title: name } }, save)}
-        >
+        <Button disabled={pending} onClick={save}>
           <BellRing aria-hidden="true" />
-          {mutation.isPending ? "กำลังบันทึก…" : "รับแจ้งเตือน"}
+          {pending ? "กำลังบันทึก…" : "รับแจ้งเตือน"}
         </Button>
       )}
     </div>

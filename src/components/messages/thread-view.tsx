@@ -24,6 +24,7 @@ import { telHref } from "@/lib/contact";
 import { bangkokDay } from "@/lib/format";
 import { formatResponseTime } from "@/lib/listing";
 import { formatSlot, slotParts } from "@/lib/viewing";
+import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
 import type { MessageDto, ThreadDetailResponse, ThreadDto, ViewingRequestDto } from "@/types/api";
 
@@ -157,6 +158,9 @@ function ContextAside({ thread, viewings }: { thread: ThreadDto; viewings: Viewi
   );
 }
 
+/** Optimistic messages not yet confirmed by the server (or waiting for a connection). */
+const PENDING_PREFIX = "pending-";
+
 function Bubble({ m, showRead }: { m: MessageDto; showRead: boolean }) {
   const mine = m.from === "me";
   return (
@@ -172,7 +176,7 @@ function Bubble({ m, showRead }: { m: MessageDto; showRead: boolean }) {
       </p>
       <span className="text-[11px] text-slate sm:text-xs">
         <time dateTime={m.createdAt}>{slotParts(m.createdAt).time}</time>
-        {showRead && " · อ่านแล้ว"}
+        {m.id.startsWith(PENDING_PREFIX) ? " · รอส่ง" : showRead && " · อ่านแล้ว"}
       </span>
     </div>
   );
@@ -237,8 +241,11 @@ function Conversation({ detail, onRebook }: { detail: Detail; onRebook: () => vo
   );
 }
 
-function Composer({ thread, onRequestViewing }: { thread: ThreadDto; onRequestViewing?: () => void }) {
+function Composer({ thread, onRequestViewing: requestViewing }: { thread: ThreadDto; onRequestViewing?: () => void }) {
   const id = useId();
+  const online = useOnline();
+  // Messages queue while offline (the mutation pauses and sends on reconnect); viewing requests need a live answer.
+  const onRequestViewing = online ? requestViewing : undefined;
   const client = useQueryClient();
   const [text, setText] = useState("");
   const key = queryKeys.threads.detail(thread.id);
@@ -249,7 +256,7 @@ function Composer({ thread, onRequestViewing }: { thread: ThreadDto; onRequestVi
       const previous = client.getQueryData<Detail>(key);
       if (previous) {
         const optimistic: MessageDto = {
-          id: `pending-${Date.now()}`,
+          id: `${PENDING_PREFIX}${Date.now()}`,
           threadId: thread.id,
           from: "me",
           kind: "text",
@@ -291,6 +298,11 @@ function Composer({ thread, onRequestViewing }: { thread: ThreadDto; onRequestVi
 
   return (
     <div className="shrink-0 border-t border-line pb-[env(safe-area-inset-bottom)] lg:border-t-0">
+      {!online && (
+        <p className="bg-mist px-4 py-2 text-[13px] text-slate sm:px-5">
+          ออฟไลน์อยู่ ข้อความที่ส่งจะรอในเครื่องและส่งให้เมื่อกลับมาออนไลน์ ขอนัดดูห้องได้เมื่อออนไลน์
+        </p>
+      )}
       <div role="group" aria-label="ข้อความด่วน" className="flex gap-2 overflow-x-auto px-4 pt-2.5 sm:px-5">
         {onRequestViewing && (
           <button

@@ -113,6 +113,8 @@ export const footerNav: { title: string; links: { label: string; href: string }[
 export const contact = {
   phone: "02 000 4567",
   email: "hello@propertyhub.example",
+  /** LINE official account, also used for status updates during outages. */
+  line: "@propertyhub",
   address: "ชั้น 18 ถนนสาทรใต้ เขตสาทร กรุงเทพฯ 10120",
   hours: "จันทร์–เสาร์ 9:00–18:00",
 };
