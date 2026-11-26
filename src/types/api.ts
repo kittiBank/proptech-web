@@ -826,7 +826,12 @@ export type ArticleBlock =
   | { type: "list"; items: string[] }
   | { type: "callout"; tone: "warning" | "tip"; title: string; text: string }
   /** Inline mortgage estimate, prefilled with these values. */
-  | { type: "calculator"; price: number; downPaymentPct: number; annualRatePct: number; years: number };
+  | { type: "calculator"; price: number; downPaymentPct: number; annualRatePct: number; years: number }
+  /** Smaller heading inside a section (H3); not in the table of contents. */
+  | { type: "subheading"; text: string }
+  | { type: "image"; src: string; alt: string; caption?: string }
+  /** Live listing cards from a `GET /properties` filter (E9 "การ์ดประกาศ"). */
+  | { type: "listings"; title: string; query: ArticleRelatedListings["query"]; limit: number };
 
 /** Listings shown beside an article: a ready-made `GET /properties` filter and its heading. */
 export interface ArticleRelatedListings {
@@ -1669,4 +1674,250 @@ export interface KycDecisionRequest {
 
 export interface KycApplicationResponse {
   data: KycApplicationDto;
+}
+
+// --- Admin: users (E6) ---------------------------------------------------------
+
+export type AdminUserKind = "seeker" | "owner" | "agent" | "agent_pro" | "agency";
+/** handoff §4: `active`, `suspended`, `banned`, `pending_kyc`. */
+export type AdminUserStatus = "active" | "suspended" | "banned" | "pending_kyc";
+export type AdminUserJoined = "all" | "7d" | "30d" | "90d";
+
+export interface AdminUserRowDto {
+  id: string;
+  name: string;
+  /** Masked email or phone, e.g. "kittipat@…" or "08x-xxx-4412". */
+  contact: string;
+  kind: AdminUserKind;
+  status: AdminUserStatus;
+  listings: number;
+  /** THB paid in total. */
+  totalPaid: number;
+  joinedAt: string;
+  /** Number shared with other accounts (fraud signal). */
+  sharedPhone: boolean;
+}
+
+export interface AdminUserDetailDto extends AdminUserRowDto {
+  joinedVia: "email" | "google" | "line";
+  phoneVerified: boolean;
+  /** Other accounts on the same phone number. */
+  sharedPhoneWith: { id: string; name: string; status: AdminUserStatus }[];
+  device: string;
+  /** Network note, e.g. the IP matches a suspended account. */
+  networkNote?: string;
+  suspension?: { at: string; by: string; reason: string };
+  listingItems: { code: string; title: string; slug: string; hidden: boolean }[];
+  reports: { id: string; title: string; status: ReportCaseStatus }[];
+  payments: { id: string; at: string; item: string; amount: number; status: PaymentStatusDto }[];
+  /** Admin actions about this user, newest first. */
+  activity: AuditEntryDto[];
+}
+
+export interface ListAdminUsersQuery {
+  kind?: AdminUserKind | "all";
+  status?: AdminUserStatus | "all";
+  joined?: AdminUserJoined;
+  q?: string;
+  /** Accounts that share a phone with this user id. */
+  sharedWith?: string;
+  page?: number;
+}
+
+export const ADMIN_USERS_PAGE_SIZE = 20;
+
+/** `GET /admin/users` — `platformTotal` counts every account, not just the filtered ones. */
+export interface ListAdminUsersResponse {
+  data: AdminUserRowDto[];
+  meta: PageMeta;
+  platformTotal: number;
+}
+
+export interface AdminUserResponse {
+  data: AdminUserDetailDto;
+}
+
+export type AdminUserAction = "suspend" | "unsuspend" | "ban" | "message";
+
+/** `POST /admin/users/:id/actions`. `reason` for suspend and ban, `message` for message. 409 when the status does not allow it. */
+export interface AdminUserActionRequest {
+  action: AdminUserAction;
+  reason?: string;
+  message?: string;
+}
+
+/** `POST /admin/users/:id/reveal-phone` — the full number, logged with the reason. */
+export interface RevealPhoneResponse {
+  data: { phone: string };
+}
+
+// --- Admin: revenue and refunds (E7) -------------------------------------------
+
+export type RevenueProduct = "agent_plan" | "featured" | "homepage_pin" | "bump";
+
+export interface RefundRequestDto {
+  paymentId: string;
+  customer: string;
+  reason: string;
+  amount: number;
+  requestedAt: string;
+  /** Over ฿1,000: only Finance (or a super admin) may approve (handoff §6). */
+  needsFinance: boolean;
+}
+
+/** Refunds above this need Finance (handoff §6). */
+export const REFUND_FINANCE_THRESHOLD = 1_000;
+
+export interface AdminRevenueDto {
+  /** "2026-11". */
+  month: string;
+  /** Last day included (ISO date). */
+  through: string;
+  kpis: {
+    revenue: number;
+    changePct: number;
+    members: { total: number; pro: number; agency: number };
+    churnPct: number;
+    churnTargetPct: number;
+    refunds: { amount: number; count: number };
+  };
+  byProduct: { product: RevenueProduct; amount: number }[];
+  refundRequests: RefundRequestDto[];
+}
+
+export interface GetAdminRevenueResponse {
+  data: AdminRevenueDto;
+  /** Months with data, newest first. */
+  months: string[];
+}
+
+export type AdminPaymentStatus = PaymentStatusDto | "awaiting_review";
+
+export interface AdminPaymentDto {
+  id: string;
+  at: string;
+  customer: string;
+  item: string;
+  amount: number;
+  method: PaymentMethod;
+  status: AdminPaymentStatus;
+}
+
+export const ADMIN_PAYMENTS_PAGE_SIZE = 10;
+
+/** `GET /admin/payments?page=` — newest first. */
+export interface ListAdminPaymentsResponse {
+  data: AdminPaymentDto[];
+  meta: PageMeta;
+}
+
+/** `POST /admin/refunds/:paymentId` — 403 when the amount needs Finance. 409 once decided. */
+export interface RefundDecisionRequest {
+  decision: "approve" | "reject";
+  note?: string;
+}
+
+// --- Admin: homepage pin slots (E8) ----------------------------------------------
+
+export interface PromoSettingsDto {
+  /** THB for 7 days. */
+  priceWeek: number;
+  slotsPerDay: number;
+  /** Slots per day kept for partner contracts. */
+  partnerReserved: number;
+  /** Most pins per district per day. */
+  districtCap: number;
+}
+
+export interface PromoPinDto {
+  id: string;
+  listing: { code: string; title: string; slug: string; district: string };
+  buyer: string;
+  /** Bangkok days, "2026-11-17", inclusive. */
+  start: string;
+  end: string;
+  source: "purchase" | "partner";
+}
+
+export interface PromoDayDto {
+  date: string;
+  /** Pins bought for the day. */
+  sold: number;
+  /** Partner pins (inside the reserved slots). */
+  partner: number;
+  capacity: number;
+}
+
+/** `GET /admin/promo-slots?week=YYYY-MM-DD` (any day; the week starts Monday). */
+export interface GetPromoSlotsResponse {
+  data: { weekStart: string; days: PromoDayDto[]; pins: PromoPinDto[]; settings: PromoSettingsDto };
+}
+
+/** `POST /admin/promo-slots/pins/:id/move` — 409 names the first day that is full or over the district cap. */
+export interface MovePinRequest {
+  start: string;
+}
+
+export interface MovePinConflict {
+  statusCode: 409;
+  message: string;
+  error: string;
+  day: string;
+  reason: "full" | "district";
+}
+
+/** `PUT /admin/promo-slots/settings` — 400 when out of range. */
+export type UpdatePromoSettingsRequest = PromoSettingsDto;
+
+// --- Admin: CMS (E9) ---------------------------------------------------------------
+
+export type CmsStatus = "draft" | "in_review" | "scheduled" | "published";
+
+export interface CmsRevisionDto {
+  id: string;
+  at: string;
+  by: string;
+  note: string;
+}
+
+export interface CmsArticleDto {
+  /** Stable id; the slug can change. */
+  id: string;
+  slug: string;
+  title: string;
+  category: ArticleCategory;
+  tags: string[];
+  cover: { src: string; alt: string };
+  /** Meta description, max 160 characters. */
+  seoDescription: string;
+  body: ArticleBlock[];
+  status: CmsStatus;
+  reviewer?: string;
+  scheduledAt?: string;
+  publishedAt?: string;
+  updatedAt: string;
+  updatedBy: string;
+  revisions: CmsRevisionDto[];
+}
+
+export type CmsArticleSummaryDto = Omit<CmsArticleDto, "body" | "revisions">;
+
+export const SEO_DESCRIPTION_MAX = 160;
+
+/** `GET /admin/cms` — newest change first. */
+export type ListCmsArticlesResponse = ListResponse<CmsArticleSummaryDto>;
+
+export interface CmsArticleResponse {
+  data: CmsArticleDto;
+}
+
+/** `PUT /admin/cms/:id` — saves a revision. 400 for invalid fields, 409 when the slug is taken. */
+export type SaveCmsArticleRequest = Pick<
+  CmsArticleDto,
+  "slug" | "title" | "category" | "tags" | "cover" | "seoDescription" | "body"
+>;
+
+/** `POST /admin/cms/:id/publish` — now, or at `at` (scheduled). */
+export interface PublishCmsArticleRequest {
+  at?: string;
 }

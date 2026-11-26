@@ -34,6 +34,8 @@ export async function adminSignIn(page: Page, next = "") {
 
 /** WCAG 2.1 AA scan of the current page. */
 export async function expectNoAxeViolations(page: Page) {
+  // Metadata streams in after a client navigation; scan once the title is there.
+  await expect(page).not.toHaveTitle("");
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();

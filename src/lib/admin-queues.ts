@@ -1,8 +1,17 @@
+import { toCsv } from "@/lib/csv";
 import type { StatusTone } from "@/lib/status";
 import {
   MODERATION_SLA_MINUTES,
   REPORT_SLA_HOURS,
+  type AdminPaymentDto,
+  type AdminPaymentStatus,
+  type AdminUserKind,
+  type AdminUserRowDto,
+  type AdminUserStatus,
+  type CmsStatus,
   type KycApplicationStatus,
+  type PaymentMethod,
+  type RevenueProduct,
   type ModerationItemDto,
   type ModerationReturnReason,
   type ModerationSort,
@@ -131,4 +140,88 @@ export function faceMatchLabel(score: number): { text: string; tone: StatusTone 
   if (score >= 0.9) return { text: `ตรง ${value}`, tone: "success" };
   if (score >= 0.8) return { text: `ใกล้เคียง ${value}`, tone: "warning" };
   return { text: `ไม่ตรง ${value}`, tone: "danger" };
+}
+
+// --- E6–E9 labels -----------------------------------------------------------
+
+export const userKindLabels: Record<AdminUserKind, string> = {
+  seeker: "ผู้หาบ้าน",
+  owner: "เจ้าของ",
+  agent: "นายหน้า",
+  agent_pro: "นายหน้า Pro",
+  agency: "เอเจนซี",
+};
+
+export const userStatusInfo: Record<AdminUserStatus, { label: string; tone: StatusTone }> = {
+  active: { label: "ปกติ", tone: "success" },
+  suspended: { label: "ระงับ", tone: "danger" },
+  banned: { label: "แบนถาวร", tone: "danger" },
+  pending_kyc: { label: "รอ KYC", tone: "warning" },
+};
+
+export const productLabels: Record<RevenueProduct, string> = {
+  agent_plan: "แพ็กเกจนายหน้า",
+  featured: "ประกาศแนะนำ",
+  homepage_pin: "ปักหมุดหน้าแรก",
+  bump: "ดันประกาศ",
+};
+
+export const paymentStatusInfo: Record<AdminPaymentStatus, { label: string; tone: StatusTone }> = {
+  pending: { label: "รอชำระ", tone: "warning" },
+  awaiting_review: { label: "รอผลตรวจประกาศ", tone: "warning" },
+  paid: { label: "สำเร็จ", tone: "success" },
+  failed: { label: "ไม่สำเร็จ", tone: "danger" },
+  refund_requested: { label: "ขอคืนเงิน", tone: "danger" },
+  refunded: { label: "คืนเงินแล้ว", tone: "neutral" },
+};
+
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  promptpay: "PromptPay",
+  card: "บัตร",
+  credit: "เครดิต",
+};
+
+export const cmsStatusInfo: Record<CmsStatus, { label: string; tone: StatusTone }> = {
+  draft: { label: "แบบร่าง", tone: "neutral" },
+  in_review: { label: "รอตรวจทาน", tone: "warning" },
+  scheduled: { label: "ตั้งเวลาไว้", tone: "violet" },
+  published: { label: "เผยแพร่แล้ว", tone: "success" },
+};
+
+const monthFormat = new Intl.DateTimeFormat("th-TH", { month: "short", year: "numeric", timeZone: "Asia/Bangkok" });
+
+/** "2026-11" → "พ.ย. 2569". */
+export const formatMonth = (month: string) => monthFormat.format(new Date(`${month}-15T12:00:00+07:00`));
+
+/** Users list as CSV for "ส่งออก". */
+export function usersCsv(rows: AdminUserRowDto[]): string {
+  return toCsv(
+    ["รหัส", "ชื่อ", "ติดต่อ", "ประเภท", "สถานะ", "ประกาศ", "ยอดจ่ายรวม", "สมัครเมื่อ"],
+    rows.map((u) => [
+      u.id,
+      u.name,
+      u.contact,
+      userKindLabels[u.kind],
+      userStatusInfo[u.status].label,
+      u.listings,
+      u.totalPaid,
+      u.joinedAt.slice(0, 10),
+    ]),
+  );
+}
+
+/** Payments as CSV for "ส่งออกให้บัญชี". */
+export function paymentsCsv(rows: AdminPaymentDto[]): string {
+  return toCsv(
+    ["เลขที่", "เวลา", "ลูกค้า", "รายการ", "ยอด", "ช่องทาง", "สถานะ"],
+    rows.map((p) => [
+      p.id,
+      p.at,
+      p.customer,
+      p.item,
+      p.amount,
+      paymentMethodLabels[p.method],
+      paymentStatusInfo[p.status].label,
+    ]),
+  );
 }

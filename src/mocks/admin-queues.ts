@@ -37,7 +37,15 @@ interface State {
   kyc: KycApplicationDto[];
   /** Site report ids already folded into cases. */
   syncedReports: string[];
-  suspendedUsers: string[];
+  /** Suspended or banned accounts, shared by reports (E4) and users (E6). */
+  restrictions: Record<string, UserRestriction>;
+}
+
+export interface UserRestriction {
+  status: "suspended" | "banned";
+  at: string;
+  by: string;
+  reason: string;
 }
 
 let state: State | undefined;
@@ -398,12 +406,22 @@ function seedKyc(now: number): KycApplicationDto[] {
 }
 
 function seed(now: number): State {
+  const reports = seedReports(now);
+  for (const c of reports) if (c.resolution?.action === "suspend") c.reported.suspended = true;
   return {
     moderation: seedModeration(now),
-    reports: seedReports(now),
+    reports,
     kyc: seedKyc(now),
     syncedReports: [],
-    suspendedUsers: [],
+    // The scam case closed two days ago suspended its account.
+    restrictions: {
+      [reports.find((c) => c.resolution?.action === "suspend")!.reported.userId]: {
+        status: "suspended",
+        at: iso(now - 2 * 24 * HOUR),
+        by: "นภัส",
+        reason: "มิจฉาชีพ ขอค่าดูห้องล่วงหน้า",
+      },
+    },
   };
 }
 
@@ -634,8 +652,12 @@ export function actOnReport(
   c.assignee ??= admin.name;
   if (action === "hide_listing" || action === "suspend") c.listing.hidden = true;
   if (action === "suspend") {
-    if (!s.suspendedUsers.includes(c.reported.userId)) s.suspendedUsers.push(c.reported.userId);
-    for (const other of s.reports) if (other.reported.userId === c.reported.userId) other.reported.suspended = true;
+    restrictUser(c.reported.userId, {
+      status: "suspended",
+      at: iso(now),
+      by: admin.name,
+      reason: `${c.title} (${c.id})`,
+    });
   }
   const target =
     action === "suspend" || action === "warn"
@@ -649,7 +671,37 @@ export function actOnReport(
 }
 
 /** Users suspended from a report; the users page (FE-22) reads this. */
-export const suspendedUsers = () => [...load().suspendedUsers];
+export const suspendedUsers = () =>
+  Object.entries(load().restrictions)
+    .filter(([, r]) => r.status === "suspended")
+    .map(([id]) => id);
+
+export const userRestriction = (userId: string): UserRestriction | undefined => load().restrictions[userId];
+
+/** Suspends or bans an account: its report cases show it and its listings hide. */
+export function restrictUser(userId: string, restriction: UserRestriction) {
+  const s = load();
+  s.restrictions[userId] = restriction;
+  for (const c of s.reports) {
+    if (c.reported.userId !== userId) continue;
+    c.reported.suspended = true;
+    c.listing.hidden = true;
+  }
+  save();
+}
+
+export function liftRestriction(userId: string) {
+  const s = load();
+  delete s.restrictions[userId];
+  for (const c of s.reports) if (c.reported.userId === userId) c.reported.suspended = false;
+  save();
+}
+
+/** Read-only view of the queues, for the users page (E6). */
+export function queueSnapshot(): Readonly<Pick<State, "moderation" | "reports" | "kyc">> {
+  const { moderation, reports, kyc } = load();
+  return { moderation, reports, kyc };
+}
 
 // --- KYC --------------------------------------------------------------------
 

@@ -4,6 +4,25 @@ import { delay } from "msw/utils/delay";
 import { canOpen, roleLabels } from "@/lib/admin";
 import { bangkokDay } from "@/lib/format";
 import type {
+  AdminPaymentDto,
+  AdminUserAction,
+  AdminUserActionRequest,
+  AdminUserKind,
+  AdminUserResponse,
+  AdminUserStatus,
+  CmsArticleResponse,
+  GetAdminRevenueResponse,
+  GetPromoSlotsResponse,
+  ListAdminPaymentsResponse,
+  ListAdminUsersResponse,
+  ListCmsArticlesResponse,
+  MovePinConflict,
+  MovePinRequest,
+  PublishCmsArticleRequest,
+  RefundDecisionRequest,
+  RevealPhoneResponse,
+  SaveCmsArticleRequest,
+  UpdatePromoSettingsRequest,
   BulkApproveRequest,
   GetModerationItemResponse,
   KycApplicationResponse,
@@ -61,6 +80,27 @@ import {
   returnListing,
   viewKycDocuments,
 } from "./admin-queues";
+import {
+  actOnUser,
+  adminRevenue,
+  allAdminPayments,
+  cmsErrors,
+  createCms,
+  decideRefund,
+  getAdminUser,
+  getCms,
+  listAdminPayments,
+  listAdminUsers,
+  listCms,
+  movePin,
+  promoSettingsErrors,
+  promoWeek,
+  publishCms,
+  revealPhone,
+  revenueMonths,
+  saveCms,
+  updatePromoSettings,
+} from "./admin-data";
 import { endpoint, errorResponse, readBody, writeScenario } from "./http";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -79,6 +119,10 @@ const reportTabs: readonly ReportCaseTab[] = ["open", "awaiting_reporter", "clos
 const reportActions: readonly ReportAction[] = ["suspend", "hide_listing", "warn", "dismiss", "request_info"];
 const kycTabs: readonly KycApplicationStatus[] = ["pending", "needs_info", "approved", "rejected"];
 const kycDecisions: readonly KycDecision[] = ["approve", "reject", "request_info"];
+const userKinds: readonly (AdminUserKind | "all")[] = ["all", "seeker", "owner", "agent", "agent_pro", "agency"];
+const userStatuses: readonly (AdminUserStatus | "all")[] = ["all", "active", "suspended", "banned", "pending_kyc"];
+const userActions: readonly AdminUserAction[] = ["suspend", "unsuspend", "ban", "message"];
+const DAY_PARAM = /^\d{4}-\d{2}-\d{2}$/;
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback;
@@ -304,5 +348,197 @@ export const adminHandlers = [
     const result = decideKyc(params.id, body.decision, admin, body.note?.trim() ?? "");
     if (!result.ok) return decisionError(result.reason);
     return HttpResponse.json<KycApplicationResponse>({ data: result.application });
+  }),
+
+  // --- Users (E6) ---
+  http.get(endpoint("/admin/users"), async ({ request }) => {
+    await delay(200);
+    const admin = requireAdmin("users");
+    if (admin instanceof Response) return admin;
+    const q = new URL(request.url).searchParams;
+    return HttpResponse.json<ListAdminUsersResponse>(
+      listAdminUsers({
+        kind: pick(q.get("kind"), userKinds, "all"),
+        status: pick(q.get("status"), userStatuses, "all"),
+        joined: pick(q.get("joined"), ["all", "7d", "30d", "90d"] as const, "all"),
+        q: q.get("q") ?? undefined,
+        sharedWith: q.get("sharedWith") ?? undefined,
+        page: Number(q.get("page")) || 1,
+      }),
+    );
+  }),
+
+  http.get<{ id: string }>(endpoint("/admin/users/:id"), async ({ params }) => {
+    await delay(150);
+    const admin = requireAdmin("users");
+    if (admin instanceof Response) return admin;
+    const user = getAdminUser(params.id);
+    if (!user) return errorResponse(404, "User not found");
+    return HttpResponse.json<AdminUserResponse>({ data: user });
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/users/:id/actions"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("users");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<AdminUserActionRequest>(request);
+    if (!body.action || !userActions.includes(body.action)) return errorResponse(400, ["action is invalid"]);
+    const text = (body.action === "message" ? body.message : body.reason)?.trim() ?? "";
+    if ((body.action === "suspend" || body.action === "ban") && !text)
+      return errorResponse(400, ["reason is required"]);
+    if (body.action === "message" && !text) return errorResponse(400, ["message is required"]);
+    const result = actOnUser(params.id, body.action, admin, text);
+    if (!result.ok)
+      return result.reason === "missing"
+        ? errorResponse(404, "User not found")
+        : errorResponse(409, "Not allowed for this status");
+    return HttpResponse.json<AdminUserResponse>({ data: result.user });
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/users/:id/reveal-phone"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("users");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<{ reason: string }>(request);
+    if (!body.reason?.trim()) return errorResponse(400, ["reason is required"]);
+    const phone = revealPhone(params.id, admin, body.reason.trim());
+    if (!phone) return errorResponse(404, "User not found");
+    return HttpResponse.json<RevealPhoneResponse>({ data: { phone } });
+  }),
+
+  // --- Revenue (E7) ---
+  http.get(endpoint("/admin/revenue"), async ({ request }) => {
+    await delay(200);
+    const admin = requireAdmin("revenue");
+    if (admin instanceof Response) return admin;
+    const months = revenueMonths();
+    const month = new URL(request.url).searchParams.get("month") ?? months[0];
+    const data = adminRevenue(month);
+    if (!data) return errorResponse(404, "No data for that month");
+    return HttpResponse.json<GetAdminRevenueResponse>({ data, months });
+  }),
+
+  http.get(endpoint("/admin/payments"), async ({ request }) => {
+    await delay(150);
+    const admin = requireAdmin("revenue");
+    if (admin instanceof Response) return admin;
+    const q = new URL(request.url).searchParams;
+    if (q.get("all") === "true") return HttpResponse.json<{ data: AdminPaymentDto[] }>({ data: allAdminPayments() });
+    return HttpResponse.json<ListAdminPaymentsResponse>(listAdminPayments(Number(q.get("page")) || 1));
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/refunds/:id"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("revenue");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<RefundDecisionRequest>(request);
+    if (body.decision !== "approve" && body.decision !== "reject") return errorResponse(400, ["decision is invalid"]);
+    const result = decideRefund(params.id, body.decision, admin, body.note?.trim() ?? "");
+    if (!result.ok) {
+      return result.reason === "missing"
+        ? errorResponse(409, "The refund request is already decided")
+        : errorResponse(403, "Refunds over ฿1,000 need Finance");
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // --- Homepage pins (E8) ---
+  http.get(endpoint("/admin/promo-slots"), async ({ request }) => {
+    await delay(200);
+    const admin = requireAdmin("promo-slots");
+    if (admin instanceof Response) return admin;
+    const week = new URL(request.url).searchParams.get("week");
+    return HttpResponse.json<GetPromoSlotsResponse>({
+      data: promoWeek(week && DAY_PARAM.test(week) ? week : bangkokDay(new Date())),
+    });
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(
+    endpoint("/admin/promo-slots/pins/:id/move"),
+    async ({ params, request }) => {
+      const failed = await writeScenario();
+      if (failed) return failed;
+      const admin = requireAdmin("promo-slots");
+      if (admin instanceof Response) return admin;
+      const body = await readBody<MovePinRequest>(request);
+      if (!body.start || !DAY_PARAM.test(body.start)) return errorResponse(400, ["start must be YYYY-MM-DD"]);
+      const result = movePin(params.id, body.start, admin);
+      if (result.ok) return HttpResponse.json({ data: result.pin });
+      if (result.reason === "missing") return errorResponse(404, "Pin not found");
+      return HttpResponse.json<MovePinConflict>(
+        {
+          statusCode: 409,
+          message: `No room on ${result.day}`,
+          error: "Conflict",
+          day: result.day,
+          reason: result.conflict,
+        },
+        { status: 409 },
+      );
+    },
+  ),
+
+  http.put<PathParams, DefaultBodyType>(endpoint("/admin/promo-slots/settings"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("promo-slots");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<UpdatePromoSettingsRequest>(request);
+    const errors = promoSettingsErrors(body);
+    if (errors.length) return errorResponse(400, errors);
+    return HttpResponse.json({ data: updatePromoSettings(body as UpdatePromoSettingsRequest, admin) });
+  }),
+
+  // --- CMS (E9) ---
+  http.get(endpoint("/admin/cms"), async () => {
+    await delay(150);
+    const admin = requireAdmin("cms");
+    if (admin instanceof Response) return admin;
+    return HttpResponse.json<ListCmsArticlesResponse>({ data: listCms() });
+  }),
+
+  http.post(endpoint("/admin/cms"), async () => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("cms");
+    if (admin instanceof Response) return admin;
+    return HttpResponse.json<CmsArticleResponse>({ data: createCms(admin) }, { status: 201 });
+  }),
+
+  http.get<{ id: string }>(endpoint("/admin/cms/:id"), async ({ params }) => {
+    await delay(150);
+    const admin = requireAdmin("cms");
+    if (admin instanceof Response) return admin;
+    const article = getCms(params.id);
+    if (!article) return errorResponse(404, "Article not found");
+    return HttpResponse.json<CmsArticleResponse>({ data: article });
+  }),
+
+  http.put<{ id: string }, DefaultBodyType>(endpoint("/admin/cms/:id"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("cms");
+    if (admin instanceof Response) return admin;
+    if (!getCms(params.id)) return errorResponse(404, "Article not found");
+    const body = await readBody<SaveCmsArticleRequest>(request);
+    const { errors, slugTaken } = cmsErrors(body, params.id);
+    if (errors.length) return errorResponse(400, errors);
+    if (slugTaken) return errorResponse(409, "Slug is already used by another article");
+    return HttpResponse.json<CmsArticleResponse>({ data: saveCms(params.id, body as SaveCmsArticleRequest, admin)! });
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/cms/:id/publish"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("cms");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<PublishCmsArticleRequest>(request);
+    if (body.at && Number.isNaN(Date.parse(body.at))) return errorResponse(400, ["at must be an ISO date-time"]);
+    const article = publishCms(params.id, admin, body.at);
+    if (!article) return errorResponse(404, "Article not found");
+    return HttpResponse.json<CmsArticleResponse>({ data: article });
   }),
 ];

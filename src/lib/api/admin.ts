@@ -1,5 +1,21 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import type {
+  AdminPaymentDto,
+  AdminUserActionRequest,
+  AdminUserResponse,
+  CmsArticleResponse,
+  GetAdminRevenueResponse,
+  GetPromoSlotsResponse,
+  ListAdminPaymentsResponse,
+  ListAdminUsersQuery,
+  ListAdminUsersResponse,
+  ListCmsArticlesResponse,
+  PromoPinDto,
+  PromoSettingsDto,
+  PublishCmsArticleRequest,
+  RefundDecisionRequest,
+  RevealPhoneResponse,
+  SaveCmsArticleRequest,
   BulkApproveRequest,
   GetModerationItemResponse,
   KycApplicationResponse,
@@ -82,6 +98,55 @@ export const adminApi = {
   /** POST /admin/kyc/:id/decision */
   decideKyc: (id: string, body: KycDecisionRequest) =>
     apiSend<KycApplicationResponse>("POST", `/admin/kyc/${encodeURIComponent(id)}/decision`, body),
+
+  /** GET /admin/users */
+  users: (query: ListAdminUsersQuery, signal?: AbortSignal) =>
+    apiGet<ListAdminUsersResponse>("/admin/users", { ...query }, { signal }),
+  /** GET /admin/users/:id */
+  user: (id: string, signal?: AbortSignal) =>
+    apiGet<AdminUserResponse>(`/admin/users/${encodeURIComponent(id)}`, undefined, { signal }),
+  /** POST /admin/users/:id/actions */
+  actOnUser: (id: string, body: AdminUserActionRequest) =>
+    apiSend<AdminUserResponse>("POST", `/admin/users/${encodeURIComponent(id)}/actions`, body),
+  /** POST /admin/users/:id/reveal-phone — logged. */
+  revealPhone: (id: string, reason: string) =>
+    apiSend<RevealPhoneResponse>("POST", `/admin/users/${encodeURIComponent(id)}/reveal-phone`, { reason }),
+
+  /** GET /admin/revenue?month= */
+  revenue: (month: string | undefined, signal?: AbortSignal) =>
+    apiGet<GetAdminRevenueResponse>("/admin/revenue", { month }, { signal }),
+  /** GET /admin/payments?page= */
+  payments: (page: number, signal?: AbortSignal) =>
+    apiGet<ListAdminPaymentsResponse>("/admin/payments", { page }, { signal }),
+  /** GET /admin/payments?all=true — for the accounting export. */
+  allPayments: () => apiGet<{ data: AdminPaymentDto[] }>("/admin/payments", { all: true }),
+  /** POST /admin/refunds/:paymentId */
+  decideRefund: (paymentId: string, body: RefundDecisionRequest) =>
+    apiSend<void>("POST", `/admin/refunds/${encodeURIComponent(paymentId)}`, body),
+
+  /** GET /admin/promo-slots?week= */
+  promoSlots: (week: string | undefined, signal?: AbortSignal) =>
+    apiGet<GetPromoSlotsResponse>("/admin/promo-slots", { week }, { signal }),
+  /** POST /admin/promo-slots/pins/:id/move */
+  movePin: (id: string, start: string) =>
+    apiSend<{ data: PromoPinDto }>("POST", `/admin/promo-slots/pins/${encodeURIComponent(id)}/move`, { start }),
+  /** PUT /admin/promo-slots/settings */
+  updatePromoSettings: (body: PromoSettingsDto) =>
+    apiSend<{ data: PromoSettingsDto }>("PUT", "/admin/promo-slots/settings", body),
+
+  /** GET /admin/cms */
+  cmsArticles: (signal?: AbortSignal) => apiGet<ListCmsArticlesResponse>("/admin/cms", undefined, { signal }),
+  /** POST /admin/cms — a new draft. */
+  createCmsArticle: () => apiSend<CmsArticleResponse>("POST", "/admin/cms"),
+  /** GET /admin/cms/:id */
+  cmsArticle: (id: string, signal?: AbortSignal) =>
+    apiGet<CmsArticleResponse>(`/admin/cms/${encodeURIComponent(id)}`, undefined, { signal }),
+  /** PUT /admin/cms/:id */
+  saveCmsArticle: (id: string, body: SaveCmsArticleRequest) =>
+    apiSend<CmsArticleResponse>("PUT", `/admin/cms/${encodeURIComponent(id)}`, body),
+  /** POST /admin/cms/:id/publish */
+  publishCmsArticle: (id: string, body: PublishCmsArticleRequest) =>
+    apiSend<CmsArticleResponse>("POST", `/admin/cms/${encodeURIComponent(id)}/publish`, body),
 };
 
 const MINUTE = 60_000;
@@ -98,6 +163,14 @@ export const adminKeys = {
   moderationItem: (id: string) => ["admin", "moderation", "item", id] as const,
   reports: (tab: ReportCaseTab) => ["admin", "reports", tab] as const,
   kyc: (tab: KycApplicationStatus) => ["admin", "kyc", tab] as const,
+  users: ["admin", "users"] as const,
+  userList: (query: ListAdminUsersQuery) => ["admin", "users", "list", query] as const,
+  user: (id: string) => ["admin", "users", "detail", id] as const,
+  revenue: (month: string | undefined) => ["admin", "revenue", month ?? "current"] as const,
+  payments: (page: number) => ["admin", "payments", page] as const,
+  promo: (week: string | undefined) => ["admin", "promo-slots", week ?? "current"] as const,
+  cms: ["admin", "cms"] as const,
+  cmsArticle: (id: string) => ["admin", "cms", id] as const,
 };
 
 /** After a decision: the queues, their counts and the dashboard all change. */
@@ -164,3 +237,42 @@ export const kycApplicationsQuery = (tab: KycApplicationStatus) =>
     queryKey: adminKeys.kyc(tab),
     queryFn: ({ signal }) => adminApi.kyc(tab, signal),
   });
+
+export const adminUsersQuery = (query: ListAdminUsersQuery) =>
+  queryOptions({
+    queryKey: adminKeys.userList(query),
+    queryFn: ({ signal }) => adminApi.users(query, signal),
+    placeholderData: keepPreviousData,
+  });
+
+export const adminUserQuery = (id: string) =>
+  queryOptions({ queryKey: adminKeys.user(id), queryFn: ({ signal }) => adminApi.user(id, signal) });
+
+export const adminRevenueQuery = (month: string | undefined) =>
+  queryOptions({
+    queryKey: adminKeys.revenue(month),
+    queryFn: ({ signal }) => adminApi.revenue(month, signal),
+    placeholderData: keepPreviousData,
+  });
+
+export const adminPaymentsQuery = (page: number) =>
+  queryOptions({
+    queryKey: adminKeys.payments(page),
+    queryFn: ({ signal }) => adminApi.payments(page, signal),
+    placeholderData: keepPreviousData,
+  });
+
+export const promoSlotsQuery = (week: string | undefined) =>
+  queryOptions({
+    queryKey: adminKeys.promo(week),
+    queryFn: ({ signal }) => adminApi.promoSlots(week, signal),
+    placeholderData: keepPreviousData,
+  });
+
+export const cmsArticlesQuery = queryOptions({
+  queryKey: adminKeys.cms,
+  queryFn: ({ signal }) => adminApi.cmsArticles(signal),
+});
+
+export const cmsArticleQuery = (id: string) =>
+  queryOptions({ queryKey: adminKeys.cmsArticle(id), queryFn: ({ signal }) => adminApi.cmsArticle(id, signal) });

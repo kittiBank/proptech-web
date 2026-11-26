@@ -42,10 +42,10 @@ export function AdminTabs<T extends string>({
 }
 
 /** Refreshes what every review decision changes: the queue itself, sidebar counts, dashboard and audit log. */
-export function useAfterDecision(queue: readonly unknown[]) {
+export function useAfterDecision(...queues: (readonly unknown[])[]) {
   const client = useQueryClient();
   return () => {
-    client.invalidateQueries({ queryKey: queue });
+    for (const queue of queues) client.invalidateQueries({ queryKey: queue });
     for (const key of afterDecisionKeys) client.invalidateQueries({ queryKey: key });
   };
 }

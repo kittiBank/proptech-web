@@ -24,6 +24,7 @@ export const adminRoutes = {
   revenue: at("/revenue"),
   promoSlots: at("/promo-slots"),
   cms: at("/cms"),
+  cmsArticle: (id: string) => at(`/cms/${encodeURIComponent(id)}`),
   roles: at("/settings/roles"),
 };
 

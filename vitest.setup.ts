@@ -5,6 +5,7 @@ import { dismissToast } from "@/components/ui/toast";
 import { resetMockAccount } from "@/mocks/account";
 import { resetMockAdmin } from "@/mocks/admin";
 import { resetMockAdminQueues } from "@/mocks/admin-queues";
+import { resetMockAdminData } from "@/mocks/admin-data";
 import { resetMockInbox } from "@/mocks/inbox";
 import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
@@ -57,6 +58,7 @@ afterEach(() => {
   resetMockReports();
   resetMockAdmin();
   resetMockAdminQueues();
+  resetMockAdminData();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();
