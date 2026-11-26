@@ -41,6 +41,10 @@ interface DataTableProps<T> {
    * e.g. "max-h-[640px]". Without it the table grows with the page.
    */
   scrollClassName?: string;
+  /** The row shown in a detail panel next to the table (E4); highlighted and `aria-current`. */
+  currentRowId?: string;
+  /** Opens a row from anywhere on it; keep a link in the row for keyboard users. */
+  onRowClick?: (row: T) => void;
   className?: string;
 }
 
@@ -57,6 +61,8 @@ export function DataTable<T>({
   footer,
   empty,
   scrollClassName,
+  currentRowId,
+  onRowClick,
   className,
 }: DataTableProps<T>) {
   const ids = rows.map(getRowId);
@@ -150,12 +156,20 @@ export function DataTable<T>({
               rows.map((row) => {
                 const id = getRowId(row);
                 const checked = selected.includes(id);
+                const current = id === currentRowId;
                 return (
                   <tr
                     key={id}
+                    aria-current={current ? "true" : undefined}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
                     className={cn(
                       "border-b border-line last:border-b-0",
-                      checked ? "bg-[#FAF8FF]" : "hover:bg-mist/60",
+                      current
+                        ? "bg-violet-50 shadow-[inset_3px_0_0_var(--color-brand)]"
+                        : checked
+                          ? "bg-[#FAF8FF]"
+                          : "hover:bg-mist/60",
+                      onRowClick && "cursor-pointer",
                     )}
                   >
                     {selection && (

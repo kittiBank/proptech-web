@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { dismissToast } from "@/components/ui/toast";
 import { resetMockAccount } from "@/mocks/account";
 import { resetMockAdmin } from "@/mocks/admin";
+import { resetMockAdminQueues } from "@/mocks/admin-queues";
 import { resetMockInbox } from "@/mocks/inbox";
 import { resetMockDrafts } from "@/mocks/drafts";
 import { resetMockFavorites } from "@/mocks/favorites";
@@ -55,6 +56,7 @@ afterEach(() => {
   resetMockKyc();
   resetMockReports();
   resetMockAdmin();
+  resetMockAdminQueues();
   window.sessionStorage.clear();
   resetNavigation();
   dismissToast();

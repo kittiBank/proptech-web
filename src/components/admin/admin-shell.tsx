@@ -262,7 +262,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-mist text-[14px] text-ink lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
-      <Sidebar admin={admin} current={section} />
+      {/* The cell stretches with the page so the dark column runs to the bottom; the nav sticks inside it. */}
+      <div className="bg-ink">
+        <Sidebar admin={admin} current={section} />
+      </div>
       <div className="min-w-0">
         <TopBar />
         <main id="main" className="flex flex-col gap-4 px-4 pt-5 pb-12 lg:px-6">

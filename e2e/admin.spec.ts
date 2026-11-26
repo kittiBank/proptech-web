@@ -1,27 +1,8 @@
-import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
-import { waitForData } from "./helpers";
+import { expect, test } from "@playwright/test";
+import { adminSignIn, expectNoAxeViolations, waitForData } from "./helpers";
 
 /** Admin is desktop only (handoff §2). */
 test.skip(({ isMobile }) => isMobile, "admin is desktop only");
-
-async function adminSignIn(page: Page, next = "") {
-  const { DEMO_ADMIN } = await import("../src/mocks/constants");
-  await page.goto(`/admin/login${next ? `?next=${encodeURIComponent(next)}` : ""}`);
-  await page.getByLabel("อีเมลบริษัท").fill(DEMO_ADMIN.email);
-  await page.getByLabel("รหัสผ่าน", { exact: true }).fill(DEMO_ADMIN.password);
-  await page.getByRole("button", { name: "ถัดไป" }).click();
-  await page.getByLabel("รหัส 6 หลักจากแอป Authenticator").fill(DEMO_ADMIN.code);
-  await page.getByRole("button", { name: "ยืนยัน" }).click();
-}
-
-async function expectNoAxeViolations(page: Page) {
-  const { violations } = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-    .analyze();
-  const summary = violations.map((v) => ({ rule: v.id, targets: v.nodes.slice(0, 5).map((n) => n.target.join(" ")) }));
-  expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
-}
 
 test.describe("admin app (FE-20)", () => {
   test("sign-in with 2FA, dashboard, roles and audit log", async ({ page }) => {

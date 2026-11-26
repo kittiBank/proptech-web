@@ -48,7 +48,7 @@ const auditColumns: DataColumn<AuditEntryDto>[] = [
     ),
   },
   { id: "action", header: "การกระทำ", cell: (e) => e.action },
-  { id: "note", header: "หมายเหตุ", cell: (e) => <span className="text-xs text-slate">{e.note}</span> },
+  { id: "note", header: "หมายเหตุ", cell: (e) => <span className="text-xs text-slate">{e.note || "-"}</span> },
 ];
 
 function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {

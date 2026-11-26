@@ -1463,3 +1463,210 @@ export interface CreateAdminInviteRequest {
 export interface CreateAdminInviteResponse {
   data: { email: string; role: AdminRoleId; expiresAt: string };
 }
+
+// --- Admin: listing moderation (E2, E3) ---------------------------------------
+
+export type ModerationTab = "pending" | "returned" | "spot_check" | "done";
+
+export type ModerationFlagCode =
+  "phone_in_photo" | "price_below_market" | "duplicate_photos" | "new_account" | "resubmitted";
+
+/** Raised by the automated review. `photoIndex` (0-based) points at the photo it is about. */
+export interface ModerationFlagDto {
+  code: ModerationFlagCode;
+  label: string;
+  tone: "danger" | "warning" | "neutral";
+  photoIndex?: number;
+  /** 0–1, for OCR and image matches. */
+  confidence?: number;
+  /** One sentence for the reviewer, e.g. what was found and where. */
+  detail?: string;
+}
+
+export type ModerationReturnReason = "contact_in_photo" | "price" | "incomplete" | "duplicate" | "scam";
+
+export interface ModerationDecisionDto {
+  outcome: "approved" | "returned";
+  reasons: ModerationReturnReason[];
+  /** Sent to the lister when returned. */
+  message: string;
+  by: string;
+  at: string;
+}
+
+export interface ModerationPosterDto {
+  userId: string;
+  name: string;
+  kind: "agent" | "owner";
+  /** "นายหน้า Pro", "เจ้าของ (ใหม่)". */
+  badge: string;
+  accountAgeDays: number;
+  listings: number;
+  returnedLast90d: number;
+  reportsCount: number;
+  kycApproved: boolean;
+}
+
+/** One listing waiting for (or past) human review. `id` is the listing code, e.g. "PH-2291". */
+export interface ModerationItemDto {
+  id: string;
+  status: ModerationTab;
+  listing: PropertyDetailDto;
+  /** Where the asking price sits against the project or area. */
+  marketBand: "below" | "market" | "above";
+  poster: ModerationPosterDto;
+  /** Paid promotion that starts once the listing passes (handoff §6). */
+  promotion?: { label: string; amount: number };
+  flags: ModerationFlagDto[];
+  /** Checklist with the automated review's suggestion for each line. */
+  checks: { id: string; label: string; passed: boolean }[];
+  submittedAt: string;
+  decision?: ModerationDecisionDto;
+}
+
+export type ModerationSort = "paid_first" | "oldest" | "newest";
+
+export interface ListModerationQuery {
+  tab?: ModerationTab;
+  /** `any` (default), `flagged` or `clean`. */
+  flags?: "any" | "flagged" | "clean";
+  poster?: "all" | "agent" | "owner";
+  paid?: boolean;
+  sort?: ModerationSort;
+  page?: number;
+}
+
+export const MODERATION_PAGE_SIZE = 20;
+/** Review SLA in minutes (handoff §6). */
+export const MODERATION_SLA_MINUTES = 120;
+
+/** `GET /admin/moderation` — `counts` per tab (other filters ignored). */
+export interface ListModerationResponse {
+  data: ModerationItemDto[];
+  meta: PageMeta;
+  counts: Record<ModerationTab, number>;
+}
+
+/** `GET /admin/moderation/:id` — with its place in the pending queue for prev/next. */
+export interface GetModerationItemResponse {
+  data: ModerationItemDto;
+  queue: { position: number; total: number; prevId?: string; nextId?: string };
+}
+
+/** `POST /admin/moderation/:id/approve` and `/return`. 409 when already decided. */
+export interface ReturnListingRequest {
+  reasons: ModerationReturnReason[];
+  message: string;
+}
+
+/** `POST /admin/moderation/approve` — bulk approve from the queue. Skips decided items. */
+export interface BulkApproveRequest {
+  ids: string[];
+}
+
+export interface ModerationDecisionResponse {
+  data: ModerationItemDto;
+  /** The next pending item, so continuous review can move on. */
+  nextId?: string;
+}
+
+// --- Admin: user reports (E4) -------------------------------------------------
+
+export type ReportSeverity = "high" | "medium" | "low";
+export type ReportCaseStatus = "open" | "awaiting_reporter" | "resolved" | "dismissed";
+export type ReportCaseTab = "open" | "awaiting_reporter" | "closed";
+export type ReportAction = "suspend" | "hide_listing" | "warn" | "dismiss" | "request_info";
+
+export interface ReportCaseDto {
+  id: string;
+  severity: ReportSeverity;
+  status: ReportCaseStatus;
+  reason: ReportReason;
+  title: string;
+  listing: { code: string; slug: string; title: string; hidden: boolean };
+  reported: { userId: string; name: string; accountAgeDays: number; listings: number; suspended: boolean };
+  reportCount: number;
+  /** The automated review flagged it too. */
+  systemFlag: boolean;
+  reporters: { count: number; verified: number };
+  quotes: { text: string; at: string; reporter: string }[];
+  /** Chat messages attached as evidence. */
+  evidenceMessages: number;
+  assignee?: string;
+  openedAt: string;
+  resolution?: { action: ReportAction; by: string; at: string; note: string };
+}
+
+/** Hours to close a case, by severity. */
+export const REPORT_SLA_HOURS: Record<ReportSeverity, number> = { high: 4, medium: 24, low: 72 };
+/** A listing is hidden automatically at this many reports (handoff §6). */
+export const REPORT_AUTO_HIDE = 3;
+
+/** `GET /admin/reports?tab=` — highest severity first, then oldest. */
+export interface ListReportCasesResponse {
+  data: ReportCaseDto[];
+  counts: Record<ReportCaseTab, number>;
+}
+
+/** `POST /admin/reports/:id/actions`. 409 once the case is closed. */
+export interface ReportActionRequest {
+  action: ReportAction;
+  note?: string;
+}
+
+export interface ReportCaseResponse {
+  data: ReportCaseDto;
+}
+
+// --- Admin: agent KYC review (E5) ---------------------------------------------
+
+export type KycApplicationStatus = "pending" | "needs_info" | "approved" | "rejected";
+
+export interface KycCheckDto {
+  label: string;
+  entered?: string;
+  fromDocument?: string;
+  result: "match" | "mismatch" | "pass" | "fail" | "optional";
+  resultLabel: string;
+}
+
+export interface KycApplicationDto {
+  id: string;
+  userId: string;
+  name: string;
+  /** Company name, or "อิสระ". */
+  affiliation: string;
+  attempt: number;
+  status: KycApplicationStatus;
+  submittedAt: string;
+  idCard: { ocrName: string; idMasked: string; expiresYear: number };
+  /** Face match between the selfie and the ID photo, 0–1. */
+  faceMatch: number;
+  checks: KycCheckDto[];
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
+}
+
+export type KycDecision = "approve" | "reject" | "request_info";
+
+/** `GET /admin/kyc?tab=` — oldest first. Documents are not included; see `/view`. */
+export interface ListKycApplicationsResponse {
+  data: KycApplicationDto[];
+  counts: Record<KycApplicationStatus, number>;
+}
+
+/** `POST /admin/kyc/:id/view` — opening the documents is logged with a reason. */
+export interface ViewKycDocumentsRequest {
+  reason: string;
+}
+
+/** `POST /admin/kyc/:id/decision` — a note is required to reject or ask for more. 409 once decided. */
+export interface KycDecisionRequest {
+  decision: KycDecision;
+  note?: string;
+}
+
+export interface KycApplicationResponse {
+  data: KycApplicationDto;
+}

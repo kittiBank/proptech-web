@@ -8,6 +8,7 @@ import {
   type AdminUserDto,
   type AuditEntryDto,
 } from "@/types/api";
+import { queueKpis } from "./admin-queues";
 import { DEMO_ADMIN } from "./constants";
 
 /**
@@ -249,11 +250,13 @@ export function adminLogout(now = Date.now()) {
   saveSession(null);
 }
 
-// --- Data -------------------------------------------------------------------
-
-export function adminQueueCounts() {
-  return { moderation: 38, reports: 7, kyc: 12 };
+/** Writes an admin action to the audit log (every queue decision calls this). */
+export function recordAdminAction(by: AdminUserDto, action: string, note = "", now = Date.now()) {
+  const actor = accounts.find((a) => a.id === by.id);
+  if (actor) record(actor, action, note, now);
 }
+
+// --- Data -------------------------------------------------------------------
 
 export function listAdminRoles(): AdminRoleDto[] {
   return (Object.keys(roleLabels) as AdminRoleId[]).map((id) => ({
@@ -293,9 +296,7 @@ export function adminDashboard(now = Date.now()): AdminDashboardDto {
   return {
     updatedAt: new Date(Math.floor(now / (5 * MINUTE)) * 5 * MINUTE).toISOString(),
     kpis: {
-      pendingListings: { count: 38, overSla: 4 },
-      openReports: { count: 7, scam: 2 },
-      pendingKyc: { count: 12, oldestHours: 19 },
+      ...queueKpis(now),
       revenueToday: { amount: 48_320, changePct: 12, comparedTo: "วันเดียวกันสัปดาห์ก่อน" },
       newListings: { count: 612, autoApprovedPct: 71 },
       newUsers: { count: 1_904, agents: 38 },

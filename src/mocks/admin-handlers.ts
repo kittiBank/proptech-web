@@ -4,6 +4,25 @@ import { delay } from "msw/utils/delay";
 import { canOpen, roleLabels } from "@/lib/admin";
 import { bangkokDay } from "@/lib/format";
 import type {
+  BulkApproveRequest,
+  GetModerationItemResponse,
+  KycApplicationResponse,
+  KycApplicationStatus,
+  KycDecision,
+  KycDecisionRequest,
+  ListKycApplicationsResponse,
+  ListModerationResponse,
+  ListReportCasesResponse,
+  ModerationDecisionResponse,
+  ModerationReturnReason,
+  ModerationSort,
+  ModerationTab,
+  ReportAction,
+  ReportActionRequest,
+  ReportCaseResponse,
+  ReportCaseTab,
+  ReturnListingRequest,
+  ViewKycDocumentsRequest,
   AdminLoginRequest,
   AdminLoginResponse,
   AdminQueueCountsResponse,
@@ -22,7 +41,6 @@ import type {
 import {
   adminDashboard,
   adminLogout,
-  adminQueueCounts,
   currentAdmin,
   inviteAdmin,
   listAdminRoles,
@@ -30,10 +48,44 @@ import {
   startAdminLogin,
   verifyAdminCode,
 } from "./admin";
+import {
+  actOnReport,
+  approveListing,
+  bulkApprove,
+  decideKyc,
+  getModerationItem,
+  listKycApplications,
+  listModeration,
+  listReportCases,
+  queueCounts,
+  returnListing,
+  viewKycDocuments,
+} from "./admin-queues";
 import { endpoint, errorResponse, readBody, writeScenario } from "./http";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const moderationTabs: readonly ModerationTab[] = ["pending", "returned", "spot_check", "done"];
+const moderationSorts: readonly ModerationSort[] = ["paid_first", "oldest", "newest"];
+const returnReasons: readonly ModerationReturnReason[] = [
+  "contact_in_photo",
+  "price",
+  "incomplete",
+  "duplicate",
+  "scam",
+];
+const reportTabs: readonly ReportCaseTab[] = ["open", "awaiting_reporter", "closed"];
+const reportActions: readonly ReportAction[] = ["suspend", "hide_listing", "warn", "dismiss", "request_info"];
+const kycTabs: readonly KycApplicationStatus[] = ["pending", "needs_info", "approved", "rejected"];
+const kycDecisions: readonly KycDecision[] = ["approve", "reject", "request_info"];
+
+function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+const decisionError = (reason: "missing" | "decided") =>
+  reason === "missing" ? errorResponse(404, "Not found") : errorResponse(409, "Already decided by another reviewer");
 
 /** 401 when there is no admin session (or it timed out), 403 when the role may not open `section`. */
 function requireAdmin(section?: AdminSection): AdminUserDto | Response {
@@ -85,7 +137,7 @@ export const adminHandlers = [
     await delay(120);
     const admin = requireAdmin();
     if (admin instanceof Response) return admin;
-    return HttpResponse.json<AdminQueueCountsResponse>({ data: adminQueueCounts() });
+    return HttpResponse.json<AdminQueueCountsResponse>({ data: queueCounts() });
   }),
 
   http.get(endpoint("/admin/dashboard"), async () => {
@@ -127,5 +179,130 @@ export const adminHandlers = [
       { data: { email: body.email!.trim().toLowerCase(), role: body.role!, expiresAt: result.expiresAt } },
       { status: 201 },
     );
+  }),
+
+  // --- Moderation (E2, E3) ---
+  http.get(endpoint("/admin/moderation"), async ({ request }) => {
+    await delay(200);
+    const admin = requireAdmin("moderation");
+    if (admin instanceof Response) return admin;
+    const q = new URL(request.url).searchParams;
+    const tab = pick(q.get("tab"), moderationTabs, "pending");
+    return HttpResponse.json<ListModerationResponse>(
+      listModeration({
+        tab,
+        flags: pick(q.get("flags"), ["any", "flagged", "clean"] as const, "any"),
+        poster: pick(q.get("poster"), ["all", "agent", "owner"] as const, "all"),
+        paid: q.get("paid") === "true",
+        sort: pick(q.get("sort"), moderationSorts, "paid_first"),
+        page: Number(q.get("page")) || 1,
+      }),
+    );
+  }),
+
+  http.post<PathParams, DefaultBodyType>(endpoint("/admin/moderation/approve"), async ({ request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("moderation");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<BulkApproveRequest>(request);
+    if (!Array.isArray(body.ids) || body.ids.length === 0) return errorResponse(400, ["ids must be a non-empty array"]);
+    return HttpResponse.json({ data: { approved: bulkApprove(body.ids, admin) } });
+  }),
+
+  http.get<{ id: string }>(endpoint("/admin/moderation/:id"), async ({ params }) => {
+    await delay(150);
+    const admin = requireAdmin("moderation");
+    if (admin instanceof Response) return admin;
+    const result = getModerationItem(params.id);
+    if (!result) return errorResponse(404, `Listing ${params.id} is not in the review queue`);
+    return HttpResponse.json<GetModerationItemResponse>(result);
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/moderation/:id/approve"), async ({ params }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("moderation");
+    if (admin instanceof Response) return admin;
+    const result = approveListing(params.id, admin);
+    if (!result.ok) return decisionError(result.reason);
+    return HttpResponse.json<ModerationDecisionResponse>({ data: result.item, nextId: result.nextId });
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/moderation/:id/return"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("moderation");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<ReturnListingRequest>(request);
+    const reasons = (Array.isArray(body.reasons) ? body.reasons : []).filter((r): r is ModerationReturnReason =>
+      returnReasons.includes(r as ModerationReturnReason),
+    );
+    const errors: string[] = [];
+    if (reasons.length === 0) errors.push("reasons must include at least one reason");
+    if (!body.message?.trim()) errors.push("message is required");
+    if (errors.length) return errorResponse(400, errors);
+    const result = returnListing(params.id, admin, reasons, body.message!.trim());
+    if (!result.ok) return decisionError(result.reason);
+    return HttpResponse.json<ModerationDecisionResponse>({ data: result.item, nextId: result.nextId });
+  }),
+
+  // --- Reports (E4) ---
+  http.get(endpoint("/admin/reports"), async ({ request }) => {
+    await delay(200);
+    const admin = requireAdmin("reports");
+    if (admin instanceof Response) return admin;
+    const tab = pick(new URL(request.url).searchParams.get("tab"), reportTabs, "open");
+    return HttpResponse.json<ListReportCasesResponse>(listReportCases(tab));
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/reports/:id/actions"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("reports");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<ReportActionRequest>(request);
+    if (!body.action || !reportActions.includes(body.action)) return errorResponse(400, ["action is invalid"]);
+    const result = actOnReport(params.id, body.action, admin, body.note?.trim() ?? "");
+    if (!result.ok)
+      return result.reason === "missing"
+        ? errorResponse(404, "Report not found")
+        : errorResponse(409, "The report is already closed");
+    return HttpResponse.json<ReportCaseResponse>({ data: result.case });
+  }),
+
+  // --- KYC (E5) ---
+  http.get(endpoint("/admin/kyc"), async ({ request }) => {
+    await delay(200);
+    const admin = requireAdmin("kyc");
+    if (admin instanceof Response) return admin;
+    const tab = pick(new URL(request.url).searchParams.get("tab"), kycTabs, "pending");
+    return HttpResponse.json<ListKycApplicationsResponse>(listKycApplications(tab));
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/kyc/:id/view"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("kyc");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<ViewKycDocumentsRequest>(request);
+    if (!body.reason?.trim()) return errorResponse(400, ["reason is required"]);
+    const application = viewKycDocuments(params.id, admin, body.reason.trim());
+    if (!application) return errorResponse(404, "Application not found");
+    return HttpResponse.json<KycApplicationResponse>({ data: application });
+  }),
+
+  http.post<{ id: string }, DefaultBodyType>(endpoint("/admin/kyc/:id/decision"), async ({ params, request }) => {
+    const failed = await writeScenario();
+    if (failed) return failed;
+    const admin = requireAdmin("kyc");
+    if (admin instanceof Response) return admin;
+    const body = await readBody<KycDecisionRequest>(request);
+    if (!body.decision || !kycDecisions.includes(body.decision)) return errorResponse(400, ["decision is invalid"]);
+    if (body.decision !== "approve" && !body.note?.trim())
+      return errorResponse(400, ["note is required to reject or ask for more"]);
+    const result = decideKyc(params.id, body.decision, admin, body.note?.trim() ?? "");
+    if (!result.ok) return decisionError(result.reason);
+    return HttpResponse.json<KycApplicationResponse>({ data: result.application });
   }),
 ];
