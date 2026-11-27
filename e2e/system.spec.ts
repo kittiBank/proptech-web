@@ -27,14 +27,16 @@ test.describe("system pages (FE-19)", () => {
 
   test("client navigation to a closed listing still shows D9", async ({ page }) => {
     await page.goto("/help");
+    // Use the App Router itself: an <a> injected into <main> is wiped by hydration,
+    // and a plain anchor would do a full page load anyway.
+    await page.waitForFunction(() => Boolean((window as { next?: { router?: unknown } }).next?.router));
     await page.evaluate(() => {
-      const a = document.createElement("a");
-      a.href = "/property/listing-2010";
-      a.textContent = "closed listing";
-      document.querySelector("main")?.append(a);
+      const w = window as unknown as { __noReload: boolean; next: { router: { push: (href: string) => void } } };
+      w.__noReload = true;
+      w.next.router.push("/property/listing-2010");
     });
-    await page.getByRole("link", { name: "closed listing" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "ประกาศนี้ขายไปแล้ว" })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { __noReload?: boolean }).__noReload)).toBe(true);
   });
 
   test("the maintenance page shows the window and a countdown (D10)", async ({ page }) => {

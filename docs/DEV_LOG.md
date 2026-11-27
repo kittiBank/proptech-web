@@ -7,6 +7,7 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 | Date done  | Issue | Ticket | Summary                                                                                                                              | Branch / PR                            | Status | Note                                                                                                                                                            |
 | ---------- | ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-27 | —     | —      | Fix CI: e2e "client navigation to a closed listing" timed out (injected link wiped by hydration)                                     | `fix/e2e-closed-listing-client-nav`    | done   | Test now navigates with `window.next.router.push` and checks there was no full reload                                                                           |
 | 2026-11-26 | #26   | FE-22  | Admin users (E6), revenue + refunds (E7), homepage pin calendar + settings (E8), CMS list + block editor with SEO (E9)               | `feat/fe19-fe22`                       | done   | Mock `/admin/users`, `/revenue`, `/payments`, `/refunds`, `/promo-slots`, `/cms`; article blocks gain H3, image, listing cards; CMS does not feed `/guides` yet |
 | 2026-11-26 | #25   | FE-21  | Admin queues: moderation `/admin/moderation` (E2) + review `/[listingId]` (E3), reports (E4), KYC review (E5)                        | `feat/fe19-fe22`                       | done   | Mock `/admin/moderation`, `/admin/reports`, `/admin/kyc`; site reports (D6) join E4; every decision in the audit log; KYC seeded only                           |
 | 2026-11-26 | #24   | FE-20  | Admin app at `/admin` (subdomain via `ADMIN_HOST`): AdminShell, 2FA login (E11), dashboard (E1), roles + audit log + invite (E10)    | `feat/fe19-fe22`                       | done   | Mock `/admin/*`; demo admin + code shown on login; 30 min idle; nav by role. Maintenance page is now served by `proxy.ts` (real 503)                            |
@@ -38,5 +39,5 @@ Status is `done` (ready, waiting for commit or PR), `merged` (in `main`) or `par
 
 ## Up next
 
-FE-19…FE-22 are on `feat/fe19-fe22`, ready for a PR. Run `gh issue list` for what comes next. Admin is a route group served on its subdomain by `proxy.ts` (decided 2026-11-26).
+FE-19…FE-22 merged in PR #41. Run `gh issue list` for what comes next. Admin is a route group served on its subdomain by `proxy.ts` (decided 2026-11-26).
 Run `gh issue list` for the current list.
