@@ -61,7 +61,12 @@ export function useFavorites() {
   useEffect(() => {
     if (userId && data && !isPlaceholderData) saveOfflineSnapshot(SNAPSHOT, { userId, savedAt: dataUpdatedAt, data });
   }, [userId, data, isPlaceholderData, dataUpdatedAt]);
-  const favorites = useMemo(() => data?.data ?? [], [data]);
+  // No user (signed out, or still hydrating) means no favorites, even if the cache still holds a
+  // list; the offline snapshot is the exception, since offline the session cannot load at all.
+  const favorites = useMemo(
+    () => (userId || isPlaceholderData ? (data?.data ?? []) : []),
+    [userId, isPlaceholderData, data],
+  );
   const ids = useMemo(() => favorites.map((f) => f.property.id), [favorites]);
 
   const { mutate: change } = useMutation({

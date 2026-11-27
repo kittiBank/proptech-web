@@ -153,6 +153,12 @@ export function stepErrors(step: PostStep, values: DraftValues): StepErrors {
 
 export const isStepValid = (step: PostStep, values: DraftValues) => Object.keys(stepErrors(step, values)).length === 0;
 
+/** Fields whose value differs between two copies of the values (edit mode's unsaved-changes count). */
+export function changedFields(before: DraftValues, after: DraftValues): (keyof DraftValues)[] {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)] as (keyof DraftValues)[]);
+  return [...keys].filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+}
+
 /** Steps a visitor may open: every completed step plus the first one not yet completed. */
 export function reachableSteps(completed: PostStep[]): PostStep[] {
   const out: PostStep[] = [];

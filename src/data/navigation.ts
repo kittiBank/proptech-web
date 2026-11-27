@@ -21,6 +21,9 @@ export const routes = {
   postProperty: "/post",
   postStep: (draftId: string, step: string) => `/post/${encodeURIComponent(draftId)}/${step}`,
   postDone: (draftId: string) => `/post/${encodeURIComponent(draftId)}/done`,
+  /** Edit mode of the wizard for a published, rejected or expired listing (FE-24). */
+  editListing: (listingId: string, step = "type") =>
+    `/dashboard/listings/${encodeURIComponent(listingId)}/edit/${step}`,
   checkout: (orderId: string) => `/checkout/${encodeURIComponent(orderId)}`,
   property: (slug: string) => `/property/${slug}`,
   /** Search results. Params: see `lib/search-params.ts` (mode, q, type, station, price, beds, area, sort, page, view). */

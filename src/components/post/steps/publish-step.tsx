@@ -8,12 +8,11 @@ import { Field, fieldA11y, NativeSelect } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/query-state";
 import { Switch } from "@/components/ui/switch";
 import { propertyTypeLabels } from "@/data/catalog";
-import { routes } from "@/data/navigation";
 import { promotionsQuery, propertyQueries } from "@/lib/api/queries";
 import { formatNumber } from "@/lib/format";
 import { promotionCatalog } from "@/lib/post-wizard";
 import { cn } from "@/lib/utils";
-import type { DraftValues } from "@/types/api";
+import type { DraftValues, PostStep } from "@/types/api";
 import { NumberField } from "./number-field";
 import { GroupError, req, WizardCard, type StepProps } from "./shared";
 
@@ -65,8 +64,8 @@ function MarketCompare({ values }: { values: DraftValues }) {
   );
 }
 
-function Review({ draftId, values }: { draftId: string; values: DraftValues }) {
-  const rows = [
+function Review({ stepHref, values }: Pick<StepProps, "stepHref" | "values">) {
+  const rows: { step: PostStep; label: string; text: unknown[] }[] = [
     {
       step: "type",
       label: "ประเภท",
@@ -112,7 +111,7 @@ function Review({ draftId, values }: { draftId: string; values: DraftValues }) {
           <dt className="w-24 shrink-0 text-sm text-slate">{r.label}</dt>
           <dd className="min-w-0 flex-1 text-[15px] text-ink">{r.text.filter(Boolean).join("  ")}</dd>
           <Link
-            href={routes.postStep(draftId, r.step)}
+            href={stepHref(r.step)}
             className="shrink-0 text-sm font-medium text-brand-strong underline-offset-4 hover:underline"
             aria-label={`แก้ไข${r.label}`}
           >
@@ -125,9 +124,9 @@ function Review({ draftId, values }: { draftId: string; values: DraftValues }) {
 }
 
 /** C5: price, optional promotion, a last review and the confirmation. */
-export function PublishStep({ draftId, values, set, errors, touch }: StepProps) {
+export function PublishStep({ stepHref, editing, values, set, errors, touch }: StepProps) {
   const id = useId();
-  const { data: promos } = useQuery(promotionsQuery);
+  const { data: promos } = useQuery({ ...promotionsQuery, enabled: !editing });
   const options = promos?.data ?? promotionCatalog;
   const sale = values.deal !== "rent";
   const rent = values.deal !== "sale";
@@ -203,68 +202,76 @@ export function PublishStep({ draftId, values, set, errors, touch }: StepProps) 
         </div>
       </WizardCard>
 
-      <WizardCard
-        title={
-          <>
-            เพิ่มการมองเห็น <span className="text-sm font-normal text-slate">(ไม่บังคับ)</span>
-          </>
-        }
-        sub="ซื้อทีหลังจากแดชบอร์ดได้ ราคารวม VAT แล้ว"
-      >
-        <div role="radiogroup" aria-label="เพิ่มการมองเห็น" className="flex flex-col gap-2.5">
-          {options.map((o) => (
-            <RadioCard
-              key={o.id}
-              name="promotion"
-              checked={values.promotion === o.id}
-              onChange={() => set({ promotion: o.id })}
-              disabled={o.slotsLeft === 0}
-              title={
-                <span className="flex flex-wrap items-center gap-2">
-                  {o.title}
-                  {o.badge && (
-                    <span className="rounded-sm bg-violet-100 px-1.5 text-[11px] font-semibold text-violet-700">
-                      {o.badge}
-                    </span>
-                  )}
-                  {o.slotsLeft !== undefined && (
-                    <span
-                      className={cn(
-                        "rounded-sm px-1.5 text-[11px] font-semibold",
-                        o.slotsLeft ? "bg-warning-soft text-warning" : "bg-mist text-slate",
-                      )}
-                    >
-                      {o.slotsLeft ? `เหลือ ${o.slotsLeft} ที่` : "เต็มวันนี้"}
-                    </span>
-                  )}
-                </span>
-              }
-              description={o.description}
-              aside={o.price ? `฿${formatNumber(o.price)}` : "ฟรี"}
-            />
-          ))}
-        </div>
-      </WizardCard>
+      {/* Edit mode: promotions are bought from the dashboard (Boost), not while editing. */}
+      {!editing && (
+        <WizardCard
+          title={
+            <>
+              เพิ่มการมองเห็น <span className="text-sm font-normal text-slate">(ไม่บังคับ)</span>
+            </>
+          }
+          sub="ซื้อทีหลังจากแดชบอร์ดได้ ราคารวม VAT แล้ว"
+        >
+          <div role="radiogroup" aria-label="เพิ่มการมองเห็น" className="flex flex-col gap-2.5">
+            {options.map((o) => (
+              <RadioCard
+                key={o.id}
+                name="promotion"
+                checked={values.promotion === o.id}
+                onChange={() => set({ promotion: o.id })}
+                disabled={o.slotsLeft === 0}
+                title={
+                  <span className="flex flex-wrap items-center gap-2">
+                    {o.title}
+                    {o.badge && (
+                      <span className="rounded-sm bg-violet-100 px-1.5 text-[11px] font-semibold text-violet-700">
+                        {o.badge}
+                      </span>
+                    )}
+                    {o.slotsLeft !== undefined && (
+                      <span
+                        className={cn(
+                          "rounded-sm px-1.5 text-[11px] font-semibold",
+                          o.slotsLeft ? "bg-warning-soft text-warning" : "bg-mist text-slate",
+                        )}
+                      >
+                        {o.slotsLeft ? `เหลือ ${o.slotsLeft} ที่` : "เต็มวันนี้"}
+                      </span>
+                    )}
+                  </span>
+                }
+                description={o.description}
+                aside={o.price ? `฿${formatNumber(o.price)}` : "ฟรี"}
+              />
+            ))}
+          </div>
+        </WizardCard>
+      )}
 
-      <WizardCard id="field-confirmed" title="ตรวจสอบก่อนเผยแพร่">
-        <Review draftId={draftId} values={values} />
-        <label className="mt-5 flex gap-2.5 text-sm text-ink">
-          <input
-            type="checkbox"
-            checked={values.confirmed}
-            onChange={(e) => set({ confirmed: e.target.checked })}
-            aria-invalid={errors.confirmed ? true : undefined}
-            aria-describedby={errors.confirmed ? "confirmed-error" : undefined}
-            className="mt-0.5 size-5 shrink-0 accent-brand"
-          />
-          <span>
-            ฉันยืนยันว่าข้อมูลถูกต้อง เป็นเจ้าของหรือได้รับมอบหมายให้ลงประกาศ และยอมรับ{" "}
-            <Link href="/legal/listing-rules" className="text-brand-strong underline underline-offset-4">
-              กฎการลงประกาศ
-            </Link>
-          </span>
-        </label>
-        <GroupError id="confirmed-error" message={errors.confirmed} />
+      <WizardCard id="field-confirmed" title={editing ? "ตรวจสอบข้อมูล" : "ตรวจสอบก่อนเผยแพร่"}>
+        <Review stepHref={stepHref} values={values} />
+        {/* Edit mode: confirmed when the listing was first published. */}
+        {!editing && (
+          <>
+            <label className="mt-5 flex gap-2.5 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={values.confirmed}
+                onChange={(e) => set({ confirmed: e.target.checked })}
+                aria-invalid={errors.confirmed ? true : undefined}
+                aria-describedby={errors.confirmed ? "confirmed-error" : undefined}
+                className="mt-0.5 size-5 shrink-0 accent-brand"
+              />
+              <span>
+                ฉันยืนยันว่าข้อมูลถูกต้อง เป็นเจ้าของหรือได้รับมอบหมายให้ลงประกาศ และยอมรับ{" "}
+                <Link href="/legal/listing-rules" className="text-brand-strong underline underline-offset-4">
+                  กฎการลงประกาศ
+                </Link>
+              </span>
+            </label>
+            <GroupError id="confirmed-error" message={errors.confirmed} />
+          </>
+        )}
       </WizardCard>
     </>
   );

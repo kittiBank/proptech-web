@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { DraftPhoto, DraftValues } from "@/types/api";
-import { defaultDraftValues, draftDescription, MIN_SALE_PRICE, reachableSteps, stepErrors } from "./post-wizard";
+import {
+  changedFields,
+  defaultDraftValues,
+  draftDescription,
+  MIN_SALE_PRICE,
+  reachableSteps,
+  stepErrors,
+} from "./post-wizard";
 
 const v = (over: Partial<DraftValues>): DraftValues => ({ ...defaultDraftValues, ...over });
 const photo = (i: number, status: DraftPhoto["status"] = "ready"): DraftPhoto => ({
@@ -101,5 +108,20 @@ describe("number and price rules", () => {
     expect(stepErrors("publish", { ...base, price: 1 }).price).toMatch(/ไม่ต่ำกว่า/);
     expect(stepErrors("publish", { ...base, price: MIN_SALE_PRICE }).price).toBeUndefined();
     expect(stepErrors("publish", { ...base, deal: "rent", rentPrice: 500 }).rentPrice).toMatch(/ไม่ต่ำกว่า/);
+  });
+});
+
+describe("changedFields (FE-24)", () => {
+  it("lists only the fields whose value differs, comparing arrays by content", () => {
+    const before = v({ title: "คอนโดใกล้ BTS อโศก", stations: ["E4"], photos: [photo(1)] });
+    expect(changedFields(before, { ...before, stations: ["E4"], photos: [photo(1)] })).toEqual([]);
+    expect(
+      changedFields(before, { ...before, title: "คอนโดใกล้ BTS อโศก วิวสวย", stations: ["E4", "N5"] }).sort(),
+    ).toEqual(["stations", "title"]);
+  });
+
+  it("counts a field that was added or cleared", () => {
+    expect(changedFields(v({}), v({ price: 3_500_000 }))).toEqual(["price"]);
+    expect(changedFields(v({ floor: 12 }), v({ floor: undefined }))).toEqual(["floor"]);
   });
 });

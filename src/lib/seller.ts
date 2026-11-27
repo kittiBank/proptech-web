@@ -127,6 +127,9 @@ export function promotionNote(
 export const canPromote = (l: Pick<SellerListingDto, "status">) => l.status === "published";
 export const canRenew = (l: Pick<SellerListingDto, "status">) => l.status === "published" || l.status === "expired";
 export const canClose = (l: Pick<SellerListingDto, "status" | "draftId">) => l.status !== "closed" && !l.draftId;
+/** Listings the lister can open in edit mode (FE-24); drafts reopen in the wizard, reviews and closed ones are locked. */
+export const canEdit = (l: Pick<SellerListingDto, "status">) =>
+  l.status === "published" || l.status === "rejected" || l.status === "expired";
 
 /** "ส่งออก CSV": one row per listing; a BOM so Excel reads the Thai text as UTF-8. */
 export function listingsCsv(rows: SellerListingDto[]): string {

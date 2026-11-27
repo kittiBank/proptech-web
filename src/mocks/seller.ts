@@ -1,5 +1,5 @@
-import { postSteps } from "@/lib/post-wizard";
-import { BOOST_CATALOG, PLANS, coverage, formatThaiDate } from "@/lib/seller";
+import { postSteps, stepErrors } from "@/lib/post-wizard";
+import { BOOST_CATALOG, PLANS, canEdit, coverage, formatThaiDate } from "@/lib/seller";
 import { slotParts } from "@/lib/viewing";
 import {
   SELLER_LISTINGS_DEFAULT_LIMIT,
@@ -9,6 +9,7 @@ import {
   type SellerPlan,
   type BoostOptionDto,
   type BulkListingsRequest,
+  type DraftValues,
   type LeadChannel,
   type LeadDto,
   type ListSellerListingsQuery,
@@ -18,14 +19,16 @@ import {
   type PromoteListingsResponse,
   type SellerAccountDto,
   type SellerListingDto,
+  type SellerListingEditDto,
   type SellerListingStatus,
   type SellerListingTab,
   type SellerOverviewDto,
 } from "@/types/api";
-import { sellerSourceListings } from "./db";
+import { getPropertyDetail, sellerSourceListings } from "./db";
 import { listDrafts, listSubmissions } from "./drafts";
 import { listAppointments, listThreads } from "./inbox";
 import { kycStatus } from "./kyc";
+import { draftValuesFromProperty } from "./listing-values";
 
 /**
  * The lister workspace behind `/me/seller`, `/me/listings`, `/me/leads` and
@@ -49,6 +52,8 @@ interface Workspace {
   autoRenew: boolean;
   /** Next charge, or the end of the plan once auto-renew is off. */
   renewsAt: string;
+  /** Wizard values saved in edit mode (FE-24), by listing id; unedited listings derive theirs. */
+  edits?: Record<string, DraftValues>;
 }
 
 /** End of the current Bangkok month, 10:00. */
@@ -369,6 +374,64 @@ export function bulkUpdateListings(userId: string, body: BulkListingsRequest, no
   return { updated, skipped };
 }
 
+// --- Edit mode (FE-24) -------------------------------------------------------
+
+function editValues(ws: Workspace, listing: SellerListingDto): DraftValues | undefined {
+  const saved = ws.edits?.[listing.id];
+  if (saved) return saved;
+  const detail = listing.slug ? getPropertyDetail(listing.slug) : undefined;
+  return detail && draftValuesFromProperty(detail);
+}
+
+/** A dashboard listing with its wizard values. Wizard drafts and submissions are not edited here. */
+export function getListingForEdit(userId: string, id: string, now = Date.now()): SellerListingEditDto | undefined {
+  const ws = workspace(userId, now);
+  const listing = ws.listings.find((l) => l.id === id);
+  const values = listing && editValues(ws, listing);
+  return listing && values ? { listing, values } : undefined;
+}
+
+export type EditListingResult =
+  { ok: true; body: SellerListingEditDto } | { ok: false; status: 404 | 409 | 422; message: string | string[] };
+
+/**
+ * Saves an edit. The status stays as it was (published stays live, expired stays expired)
+ * unless `resubmit`, which sends a rejected listing back to review.
+ */
+export function saveListingEdit(
+  userId: string,
+  id: string,
+  input: DraftValues,
+  { resubmit = false } = {},
+  now = Date.now(),
+): EditListingResult {
+  const ws = workspace(userId, now);
+  const listing = ws.listings.find((l) => l.id === id);
+  if (!listing) return { ok: false, status: 404, message: "Listing not found" };
+  if (!canEdit(listing)) return { ok: false, status: 409, message: "listing_locked" };
+  if (resubmit && listing.status !== "rejected") return { ok: false, status: 409, message: "not_rejected" };
+  // Promotions are bought from the dashboard, not in edit mode.
+  const values: DraftValues = { ...input, promotion: "none", confirmed: true };
+  const failing = postSteps.filter((step) => Object.keys(stepErrors(step.id, values)).length > 0);
+  if (failing.length) return { ok: false, status: 422, message: failing.map((st) => `step ${st.id} is incomplete`) };
+
+  (ws.edits ??= {})[id] = values;
+  const rent = values.deal === "rent";
+  const cover = values.photos.find((p) => p.status === "ready" && !p.isFloorPlan);
+  listing.title = values.title!.trim();
+  listing.mode = rent ? "rent" : "buy";
+  listing.price = rent ? values.rentPrice : values.price;
+  if (cover) listing.image = { src: cover.url, alt: cover.name };
+  listing.updatedAt = new Date(now).toISOString();
+  if (resubmit) {
+    listing.status = "pending_review";
+    listing.submittedAt = listing.updatedAt;
+    listing.rejectReason = undefined;
+  }
+  persist();
+  return { ok: true, body: { listing, values } };
+}
+
 // --- Boosts ------------------------------------------------------------------
 
 const HOMEPAGE_PINS_LEFT = 5;
@@ -533,6 +596,7 @@ export function sellerOverview(userId: string, days: OverviewRange = 14, now = D
       firstExpiresAt: pending[0]?.expiresAt,
       rejected: rejected.length,
       rejectReason: rejected[0]?.rejectReason,
+      rejectedListingId: rejected[0]?.id,
       expiringSoon: live.filter((l) => l.expiresAt && Date.parse(l.expiresAt) - now <= 3 * DAY).length,
       drafts: drafts.length,
       latestDraftTitle: drafts[0]?.title,

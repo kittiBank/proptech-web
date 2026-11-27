@@ -1,10 +1,9 @@
 import { SegmentStepper, Stepper as BaseStepper, type StepItem } from "@/components/ui/stepper";
-import { routes } from "@/data/navigation";
 import { postSteps, stepIndex } from "@/lib/post-wizard";
 import type { PostStep } from "@/types/api";
 
 interface StepperProps {
-  draftId: string;
+  hrefFor: (step: PostStep) => string;
   current: PostStep;
   completed: PostStep[];
   reachable: PostStep[];
@@ -14,14 +13,14 @@ interface StepperProps {
  * Post wizard stepper (C1–C5): done steps link back, the current one has a ring
  * and halo, later ones are inert. Steps that can be reached link even if not done.
  */
-export function Stepper({ draftId, current, completed, reachable }: StepperProps) {
+export function Stepper({ hrefFor, current, completed, reachable }: StepperProps) {
   const steps: StepItem[] = postSteps.map((s) => {
     const isCurrent = s.id === current;
     return {
       id: s.id,
       label: s.label,
       state: isCurrent ? "current" : completed.includes(s.id) ? "done" : "upcoming",
-      href: !isCurrent && reachable.includes(s.id) ? routes.postStep(draftId, s.id) : undefined,
+      href: !isCurrent && reachable.includes(s.id) ? hrefFor(s.id) : undefined,
     };
   });
   return <BaseStepper steps={steps} label="ขั้นตอนการลงประกาศ" />;
