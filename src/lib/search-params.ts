@@ -1,5 +1,5 @@
 import { areaRanges, bedroomOptions, priceRanges, propertyTypeLabels } from "@/data/catalog";
-import { findStation } from "@/lib/search";
+import { findStation, findStationById } from "@/lib/search";
 import type { ListPropertiesQuery, PropertySort } from "@/types/api";
 import type { ListingMode, PropertyType } from "@/types/property";
 
@@ -113,6 +113,29 @@ export function toSearchQueryString(state: SearchState): string {
   if (state.view !== defaultSearchState.view) params.set("view", state.view);
   // Keep commas in station lists readable.
   return params.toString().replaceAll("%2C", ",");
+}
+
+const legacySearchModes: Record<string, ListingMode> = { "/buy": "buy", "/rent": "rent" };
+
+/**
+ * `/buy` and `/rent` (older links and bookmarks) live on as redirects to `/search` with the mode set.
+ * Other params are kept; `location=<station id>` becomes `station=<code>`, the param `/search` reads.
+ * Returns `null` for any other path.
+ */
+export function legacySearchRedirect(pathname: string, search: URLSearchParams): string | null {
+  const mode = legacySearchModes[pathname];
+  if (!mode) return null;
+  const params = new URLSearchParams({ mode });
+  for (const [key, value] of search) {
+    if (key === "mode") continue;
+    if (key === "location") {
+      const code = findStationById(value)?.stationCode;
+      if (code) params.set("station", code);
+      continue;
+    }
+    params.append(key, value);
+  }
+  return `/search?${params.toString().replaceAll("%2C", ",")}`;
 }
 
 /**

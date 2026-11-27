@@ -70,6 +70,8 @@ export const queryKeys = {
     account: ["me", "seller", "account"] as const,
     overview: (days: OverviewRange) => ["me", "seller", "overview", days] as const,
     listings: (query: ListSellerListingsQuery) => ["me", "seller", "listings", query] as const,
+    /** One listing with its wizard values (edit mode); not under `listings`, which is the paged table. */
+    listingEdit: (id: string) => ["me", "seller", "listing-edit", id] as const,
     boostOptions: ["me", "seller", "boost-options"] as const,
     leads: ["me", "seller", "leads"] as const,
     availability: ["me", "seller", "availability"] as const,
@@ -314,6 +316,13 @@ export const sellerQueries = {
       queryKey: queryKeys.seller.listings(query),
       queryFn: ({ signal }) => api.listSellerListings(query, signal),
       placeholderData: keepPreviousData,
+    }),
+  listingEdit: (id: string) =>
+    queryOptions({
+      queryKey: queryKeys.seller.listingEdit(id),
+      queryFn: async ({ signal }) => (await api.getSellerListing(id, signal)).data,
+      // The editor keeps its own working copy; a refetch must not reset what the lister typed.
+      staleTime: Infinity,
     }),
   boostOptions: queryOptions({
     queryKey: queryKeys.seller.boostOptions,

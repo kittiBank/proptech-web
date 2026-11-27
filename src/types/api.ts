@@ -960,6 +960,27 @@ export interface SellerListingDto {
   updatedAt: string;
 }
 
+/** `GET /me/listings/:id` (FE-24): a listing and the wizard values it is edited with. */
+export interface SellerListingEditDto {
+  listing: SellerListingDto;
+  values: DraftValues;
+}
+
+export interface GetSellerListingResponse {
+  data: SellerListingEditDto;
+}
+
+/**
+ * `PATCH /me/listings/:id` saves the edit and keeps the status (published stays live, expired stays
+ * expired). `POST /me/listings/:id/resubmit` saves a rejected listing and sends it back to review.
+ * Both check every wizard step and answer 422 with the incomplete steps.
+ */
+export interface UpdateSellerListingRequest {
+  values: DraftValues;
+}
+
+export type UpdateSellerListingResponse = GetSellerListingResponse;
+
 export type SellerListingSort = "-views" | "-leads" | "-updatedAt" | "expiresAt";
 export type SellerListingTab = SellerListingStatus | "all";
 
@@ -1057,6 +1078,8 @@ export interface SellerOverviewDto {
     firstExpiresAt?: string;
     rejected: number;
     rejectReason?: string;
+    /** The first rejected listing, opened in edit mode from the to-do card (FE-24). */
+    rejectedListingId?: string;
     expiringSoon: number;
     drafts: number;
     latestDraftTitle?: string;

@@ -1,11 +1,16 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { StepErrors } from "@/lib/post-wizard";
-import type { DraftValues } from "@/types/api";
+import type { DraftValues, PostStep, UploadPhotoRequest, UploadPhotoResponse } from "@/types/api";
 
 export interface StepProps {
-  draftId: string;
   values: DraftValues;
+  /** Link to another step of the same wizard (new draft or edit mode). */
+  stepHref: (step: PostStep) => string;
+  /** Sends a photo for checking: to the draft, or to the listing in edit mode. */
+  uploadPhoto: (body: UploadPhotoRequest) => Promise<UploadPhotoResponse>;
+  /** Edit mode (FE-24): the last step shows the price only, no promotion or confirmation. */
+  editing?: boolean;
   /** Merge a change; pass a function when it depends on the latest values (e.g. parallel uploads). */
   set: (patch: Partial<DraftValues> | ((current: DraftValues) => Partial<DraftValues>)) => void;
   /** Errors to show now: touched fields, or every field after "ถัดไป". */

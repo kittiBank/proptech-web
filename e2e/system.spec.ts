@@ -63,3 +63,21 @@ test.describe("system pages (FE-19)", () => {
     await expect(page.getByText(/แสดงข้อมูลที่บันทึกไว้ในเครื่อง/)).toBeHidden();
   });
 });
+
+test.describe("old and shortcut links (FE-23)", () => {
+  test("/buy and /rent redirect to search and keep the filters", async ({ page, request }) => {
+    const res = await request.get("/buy?type=condo&location=ari", { maxRedirects: 0 });
+    expect(res.status()).toBe(308);
+    expect(res.headers().location).toMatch(/\/search\?mode=buy&type=condo&station=N5$/);
+
+    await page.goto("/rent?type=house");
+    await expect(page).toHaveURL(/\/search\?mode=rent&type=house$/);
+  });
+
+  test("homepage category tiles open search with the type filter", async ({ page }) => {
+    await page.goto("/");
+    const categories = page.getByRole("region", { name: "ค้นหาตามประเภทอสังหาฯ" });
+    await categories.getByRole("link", { name: /บ้านเดี่ยว/ }).click();
+    await expect(page).toHaveURL(/\/search\?mode=buy&type=house$/);
+  });
+});

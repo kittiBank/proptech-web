@@ -96,9 +96,10 @@ export function SellerShell({ children }: { children: ReactNode }) {
   const signedIn = Boolean(user);
   const { data: account } = useQuery({ ...sellerQueries.account, enabled: signedIn });
   const { data: unread } = useQuery({ ...unreadCountsQuery, enabled: signedIn });
+  // Only with a user: while hydrating, the cache may already hold counts the server never rendered.
   const counts: Record<Badge, number> = {
-    leads: account?.pendingViewings ?? 0,
-    messages: unread?.messages ?? 0,
+    leads: signedIn ? (account?.pendingViewings ?? 0) : 0,
+    messages: signedIn ? (unread?.messages ?? 0) : 0,
   };
   const badgeLabel: Record<Badge, string> = { leads: "คำขอรอยืนยัน", messages: "ยังไม่ได้อ่าน" };
 

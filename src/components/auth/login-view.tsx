@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { routes } from "@/data/navigation";
+import { cn } from "@/lib/utils";
 import { safeNext } from "@/lib/auth-gate";
 import { useSession } from "@/providers/session";
 import type { UserDto } from "@/types/api";
@@ -11,6 +12,8 @@ import { OrDivider, SsoButtons } from "./auth-fields";
 import { AuthSplit } from "./auth-shell";
 import { LoginForm } from "./login-form";
 import { RegisterForm } from "./register-form";
+
+const formTitle = "text-[26px] font-semibold tracking-[-0.015em] text-ink sm:text-[30px]";
 
 /** Where to go once signed in: unfinished onboarding first, then `next`. */
 export function afterSignIn(user: UserDto, next: string) {
@@ -52,7 +55,9 @@ export function LoginView() {
         line: "green",
       }}
     >
-      <h2 className="text-[26px] font-semibold tracking-[-0.015em] text-ink sm:text-[30px]">เข้าสู่ระบบ</h2>
+      {/* Phones hide the aside and its H1, so there the form title is the page heading. */}
+      <h1 className={cn(formTitle, "lg:hidden")}>เข้าสู่ระบบ</h1>
+      <h2 className={cn(formTitle, "max-lg:hidden")}>เข้าสู่ระบบ</h2>
       <p className="mt-1.5 mb-7 text-[15px] text-slate">
         <span className="lg:hidden">ดูรายการโปรดและการค้นหาที่บันทึกไว้ได้ทุกเครื่อง </span>
         <span className="hidden lg:inline">ยังไม่มีบัญชี </span>
@@ -108,7 +113,9 @@ export function RegisterView() {
         line: "blue",
       }}
     >
-      <h2 className="text-[26px] font-semibold tracking-[-0.015em] text-ink sm:text-[30px]">สมัครสมาชิก</h2>
+      {/* Phones hide the aside and its H1, so there the form title is the page heading. */}
+      <h1 className={cn(formTitle, "lg:hidden")}>สมัครสมาชิก</h1>
+      <h2 className={cn(formTitle, "max-lg:hidden")}>สมัครสมาชิก</h2>
       <p className="mt-1.5 mb-6 text-[15px] text-slate">
         มีบัญชีแล้ว{" "}
         <Link

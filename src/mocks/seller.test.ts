@@ -5,9 +5,11 @@ import {
   boostOptions,
   bulkUpdateListings,
   getAvailability,
+  getListingForEdit,
   listLeads,
   listSellerListings,
   promoteListings,
+  saveListingEdit,
   sellerAccount,
   sellerOverview,
   setAvailability,
@@ -117,5 +119,69 @@ describe("mock seller workspace", () => {
     expect(setAvailability(U, { weekdays: { start: "20:00", end: "17:00" } })).toBeUndefined();
     expect(setAvailability(U, { weekdays: null, gapMinutes: 30 })).toMatchObject({ weekdays: null, gapMinutes: 30 });
     expect(getAvailability(U).gapMinutes).toBe(30);
+  });
+});
+
+describe("mock edit mode (FE-24)", () => {
+  const first = (status: "published" | "rejected" | "expired" | "pending_review" | "closed") =>
+    listSellerListings(U, { status }).data[0];
+
+  it("opens a seeded listing with prefilled wizard values", () => {
+    const listing = first("published");
+    const found = getListingForEdit(U, listing.id)!;
+    expect(found.listing.id).toBe(listing.id);
+    expect(found.values.title).toBe(listing.title);
+    expect(found.values.confirmed).toBe(true);
+    expect(getListingForEdit(U, "sl-nope")).toBeUndefined();
+  });
+
+  it("saves a published listing and keeps it live, with the new title and price in the table", () => {
+    const listing = first("published");
+    const { values } = getListingForEdit(U, listing.id)!;
+    const deal = values.deal === "rent" ? { rentPrice: 25_000 } : { price: 4_250_000 };
+    const result = saveListingEdit(U, listing.id, { ...values, ...deal, title: "ห้องมุมวิวเมือง ใกล้รถไฟฟ้า" });
+    expect(result.ok).toBe(true);
+    const row = listSellerListings(U, { ids: listing.id }).data[0];
+    expect(row).toMatchObject({ status: "published", title: "ห้องมุมวิวเมือง ใกล้รถไฟฟ้า" });
+    expect(row.price).toBe(values.deal === "rent" ? 25_000 : 4_250_000);
+    expect(getListingForEdit(U, listing.id)!.values.title).toBe("ห้องมุมวิวเมือง ใกล้รถไฟฟ้า");
+  });
+
+  it("sends a rejected listing back to review only through resubmit", () => {
+    const listing = first("rejected");
+    const { values } = getListingForEdit(U, listing.id)!;
+    expect(saveListingEdit(U, listing.id, values, { resubmit: true }).ok).toBe(true);
+    const row = listSellerListings(U, { ids: listing.id }).data[0];
+    expect(row).toMatchObject({ status: "pending_review", rejectReason: undefined });
+    expect(row.submittedAt).toBeTruthy();
+  });
+
+  it("keeps an expired listing expired after a save", () => {
+    const listing = first("expired");
+    const { values } = getListingForEdit(U, listing.id)!;
+    expect(saveListingEdit(U, listing.id, values).ok).toBe(true);
+    expect(listSellerListings(U, { ids: listing.id }).data[0].status).toBe("expired");
+  });
+
+  it("refuses locked listings, resubmitting a live one and incomplete values", () => {
+    const pending = first("pending_review");
+    const closed = first("closed");
+    const live = first("published");
+    const values = getListingForEdit(U, live.id)!.values;
+    expect(saveListingEdit(U, pending.id, values)).toMatchObject({ ok: false, status: 409 });
+    expect(saveListingEdit(U, closed.id, values)).toMatchObject({ ok: false, status: 409 });
+    expect(saveListingEdit(U, live.id, values, { resubmit: true })).toMatchObject({ ok: false, status: 409 });
+    expect(saveListingEdit(U, live.id, { ...values, title: "สั้น", photos: [] })).toEqual({
+      ok: false,
+      status: 422,
+      message: ["step details is incomplete", "step photos is incomplete"],
+    });
+    expect(saveListingEdit(U, "sl-nope", values)).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("points the overview's rejected to-do at the rejected listing", () => {
+    const fresh = "u-edit-overview";
+    const rejected = listSellerListings(fresh, { status: "rejected" }).data[0];
+    expect(sellerOverview(fresh).todo.rejectedListingId).toBe(rejected.id);
   });
 });

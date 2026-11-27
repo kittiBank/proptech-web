@@ -5,7 +5,6 @@ import { Camera, ChevronLeft, ChevronRight, ImagePlus, Star, Trash2, TriangleAle
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/client";
-import { api } from "@/lib/api/endpoints";
 import { MAX_PHOTOS, MIN_PHOTOS } from "@/lib/post-wizard";
 import { cn } from "@/lib/utils";
 import type { DraftPhoto } from "@/types/api";
@@ -121,7 +120,7 @@ function PhotoTile({
 }
 
 /** C4/C7 `PhotoUploader`: drop zone, sortable grid, cover badge, per-file progress, rejected state. */
-export function PhotosStep({ draftId, values, set, errors, touch }: StepProps) {
+export function PhotosStep({ uploadPhoto, values, set, errors, touch }: StepProps) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -160,7 +159,7 @@ export function PhotosStep({ draftId, values, set, errors, touch }: StepProps) {
           120,
         );
         try {
-          const { data } = await api.uploadPhoto(draftId, {
+          const { data } = await uploadPhoto({
             name: file.name,
             size: file.size,
             mimeType: file.type || "application/octet-stream",

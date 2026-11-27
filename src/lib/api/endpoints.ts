@@ -17,6 +17,9 @@ import type {
   AvailabilityResponse,
   BulkListingsRequest,
   BulkListingsResponse,
+  GetSellerListingResponse,
+  UpdateSellerListingRequest,
+  UpdateSellerListingResponse,
   ListBoostOptionsResponse,
   ListLeadsResponse,
   ListSellerListingsQuery,
@@ -306,6 +309,22 @@ export const api = {
 
   /** POST /me/listings/bulk — renew or close several listings. */
   bulkUpdateListings: (body: BulkListingsRequest) => apiSend<BulkListingsResponse>("POST", "/me/listings/bulk", body),
+
+  /** GET /me/listings/:id — a listing and its wizard values, for edit mode (FE-24). */
+  getSellerListing: (id: string, signal?: AbortSignal) =>
+    apiGet<GetSellerListingResponse>(`/me/listings/${encodeURIComponent(id)}`, undefined, { signal }),
+
+  /** PATCH /me/listings/:id — saves an edit; the status stays as it was. 422 lists incomplete steps. */
+  updateSellerListing: (id: string, body: UpdateSellerListingRequest) =>
+    apiSend<UpdateSellerListingResponse>("PATCH", `/me/listings/${encodeURIComponent(id)}`, body),
+
+  /** POST /me/listings/:id/resubmit — saves a rejected listing and sends it back to review. */
+  resubmitSellerListing: (id: string, body: UpdateSellerListingRequest) =>
+    apiSend<UpdateSellerListingResponse>("POST", `/me/listings/${encodeURIComponent(id)}/resubmit`, body),
+
+  /** POST /me/listings/:id/photos — checks a photo added in edit mode (same rules as drafts). */
+  uploadListingPhoto: (id: string, body: UploadPhotoRequest) =>
+    apiSend<UploadPhotoResponse>("POST", `/me/listings/${encodeURIComponent(id)}/photos`, body),
 
   /** GET /me/boost-options — boost products with what the package still covers (C14). */
   listBoostOptions: (signal?: AbortSignal) =>

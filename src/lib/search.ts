@@ -65,6 +65,11 @@ export function describeFilters(filters: SearchFilters): string {
   return parts.join(" ");
 }
 
+/** Station by its slug id (e.g. "ari"), as used by older `?location=` links. */
+export function findStationById(id: string) {
+  return transitLines.flatMap((line) => line.stations).find((st) => st.id === id);
+}
+
 export function findStation(code: string) {
   for (const line of transitLines) {
     const s = line.stations.find((st) => st.stationCode === code);

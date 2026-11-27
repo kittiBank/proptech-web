@@ -44,7 +44,8 @@ export function BottomNav() {
         <ul className="grid h-16 grid-cols-4">
           {tabs.map(({ id, label, href, icon: Icon }) => {
             const current = active === id;
-            const count = id === "messages" ? (unread?.messages ?? 0) : 0;
+            // Only with a user: while hydrating, the cache may already hold counts the server never rendered.
+            const count = id === "messages" && user ? (unread?.messages ?? 0) : 0;
             return (
               <li key={id}>
                 <Link

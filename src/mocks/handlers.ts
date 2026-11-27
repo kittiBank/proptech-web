@@ -45,6 +45,7 @@ import {
   FAVORITE_NOTE_MAX,
   type SaveFavoriteResponse,
   type UpdateDraftRequest,
+  type UpdateSellerListingRequest,
   type UploadPhotoRequest,
   type ForgotPasswordRequest,
   type LoginRequest,
@@ -138,9 +139,11 @@ import {
   boostOptions,
   bulkUpdateListings,
   getAvailability,
+  getListingForEdit,
   listLeads,
   listSellerListings,
   promoteListings,
+  saveListingEdit,
   sellerAccount,
   sellerOverview,
   setAvailability,
@@ -363,6 +366,18 @@ function withScenario(
       throw error;
     }
   };
+}
+
+/** `PATCH /me/listings/:id` and `POST /me/listings/:id/resubmit` (FE-24). */
+async function saveEdit(request: Request, id: string, resubmit: boolean) {
+  const failed = await writeScenario();
+  if (failed) return failed;
+  const user = currentUser();
+  if (!user) return unauthorized();
+  const body = await readBody<UpdateSellerListingRequest>(request);
+  if (!body.values || typeof body.values !== "object") return errorResponse(400, ["values is required"]);
+  const result = saveListingEdit(user.id, id, body.values as UpdateSellerListingRequest["values"], { resubmit });
+  return result.ok ? HttpResponse.json({ data: result.body }) : errorResponse(result.status, result.message);
 }
 
 export const handlers = [
@@ -778,6 +793,28 @@ export const handlers = [
     if (!Array.isArray(body.ids) || !body.ids.length || (body.action !== "renew" && body.action !== "close"))
       return errorResponse(400, ["ids should not be empty", "action must be one of: renew, close"]);
     return HttpResponse.json({ data: bulkUpdateListings(user.id, body as BulkListingsRequest) });
+  }),
+  // Edit mode (FE-24). After "/me/listings/bulk", so that path is not read as an id.
+  http.get(
+    endpoint("/me/listings/:id"),
+    withScenario((_request, params) => {
+      const found = getListingForEdit(requireUser().id, String(params.id));
+      if (!found) throw new NotFoundError("Listing not found");
+      return { data: found };
+    }),
+  ),
+  http.patch(endpoint("/me/listings/:id"), ({ request, params }) => saveEdit(request, String(params.id), false)),
+  http.post(endpoint("/me/listings/:id/resubmit"), ({ request, params }) => saveEdit(request, String(params.id), true)),
+  http.post(endpoint("/me/listings/:id/photos"), async ({ request, params }) => {
+    await delay(600);
+    if (getMockScenario() === "error") return errorResponse(500, "Mock server error");
+    const user = currentUser();
+    if (!user) return unauthorized();
+    if (!getListingForEdit(user.id, String(params.id))) return errorResponse(404, "Listing not found");
+    const body = await readBody<UploadPhotoRequest>(request);
+    if (!body.name || !body.mimeType || !body.preview)
+      return errorResponse(400, ["name, mimeType and preview are required"]);
+    return HttpResponse.json({ data: checkPhoto(body as UploadPhotoRequest) }, { status: 201 });
   }),
   http.get(
     endpoint("/me/boost-options"),

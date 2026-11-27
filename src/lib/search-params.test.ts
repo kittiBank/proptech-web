@@ -4,6 +4,7 @@ import {
   countActiveFilters,
   defaultSearchState,
   describeSearch,
+  legacySearchRedirect,
   parseSearchParams,
   SEARCH_PAGE_SIZE,
   toListQuery,
@@ -156,5 +157,34 @@ describe("describeSearch", () => {
     expect(describeSearch(defaultSearchState)).toBe("ซื้ออสังหาฯ");
     expect(describeSearch(state({ mode: "rent", type: "condo", stations: ["E4"] }))).toBe("เช่าคอนโด ใกล้ BTS อโศก");
     expect(describeSearch(state({ stations: ["E4", "N5"] }))).toBe("ซื้ออสังหาฯ ใกล้รถไฟฟ้า 2 สถานี");
+  });
+});
+
+describe("legacySearchRedirect (FE-23)", () => {
+  const redirect = (path: string, query = "") => legacySearchRedirect(path, new URLSearchParams(query));
+
+  it("sends /buy and /rent to /search with the mode", () => {
+    expect(redirect("/buy")).toBe("/search?mode=buy");
+    expect(redirect("/rent")).toBe("/search?mode=rent");
+  });
+
+  it("keeps filters, maps a station id to its code and ignores a conflicting mode", () => {
+    expect(redirect("/buy", "type=condo&location=ari&mode=rent&price=3-5m")).toBe(
+      "/search?mode=buy&type=condo&station=N5&price=3-5m",
+    );
+  });
+
+  it("drops an unknown location instead of guessing", () => {
+    expect(redirect("/rent", "location=atlantis&type=house")).toBe("/search?mode=rent&type=house");
+  });
+
+  it("leaves every other path alone", () => {
+    expect(redirect("/search", "mode=buy")).toBeNull();
+    expect(redirect("/buyer")).toBeNull();
+  });
+
+  it("produces URLs /search reads back as the same filters", () => {
+    const url = new URL(redirect("/buy", "type=condo&location=asok")!, "http://x");
+    expect(parseSearchParams(url.searchParams)).toMatchObject({ mode: "buy", type: "condo", stations: ["E4"] });
   });
 });

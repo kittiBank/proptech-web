@@ -21,6 +21,7 @@ import { sellerQueries } from "@/lib/api/queries";
 import { formatListingPrice, formatNumber, formatTimeAgo } from "@/lib/format";
 import {
   canClose,
+  canEdit,
   canPromote,
   canRenew,
   daysUntil,
@@ -70,7 +71,7 @@ interface RowActionsProps {
   onClose: (ids: string[]) => void;
 }
 
-/** "⋯" menu: view, renew, close. */
+/** "⋯" menu: view, edit, renew, close. */
 function MoreMenu({ listing, onRenew, onClose, className }: Omit<RowActionsProps, "onBoost"> & { className?: string }) {
   const [open, setOpen] = useState(false);
   const href = listingHref(listing);
@@ -79,7 +80,7 @@ function MoreMenu({ listing, onRenew, onClose, className }: Omit<RowActionsProps
     setOpen(false);
     fn();
   };
-  if (!href && !canRenew(listing) && !canClose(listing)) return null;
+  if (!href && !canEdit(listing) && !canRenew(listing) && !canClose(listing)) return null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -95,6 +96,11 @@ function MoreMenu({ listing, onRenew, onClose, className }: Omit<RowActionsProps
         {href && (
           <Link href={href} className={item} onClick={() => setOpen(false)}>
             {listing.status === "draft" ? "ทำต่อ" : "ดูประกาศ"}
+          </Link>
+        )}
+        {canEdit(listing) && (
+          <Link href={routes.editListing(listing.id)} className={item} onClick={() => setOpen(false)}>
+            แก้ไขประกาศ
           </Link>
         )}
         {canRenew(listing) && (
@@ -124,6 +130,15 @@ function PrimaryAction({
       <Button variant="outline" size="sm" className={className} onClick={() => onBoost([listing.id])}>
         {listing.promotion ? "ดูผลโปรโมต" : "ดันประกาศ"}
         <span className="sr-only"> {listing.title}</span>
+      </Button>
+    );
+  }
+  if (listing.status === "rejected") {
+    return (
+      <Button asChild variant="outline" size="sm" className={className}>
+        <Link href={routes.editListing(listing.id)}>
+          แก้ไข<span className="sr-only"> {listing.title}</span>
+        </Link>
       </Button>
     );
   }

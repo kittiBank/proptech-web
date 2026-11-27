@@ -1,11 +1,6 @@
-/**
- * Site routes. `/`, `/search`, `/property/[slug]`, `/projects(/[slug])`, `/agents/[slug]`, `/guides(/[slug])` and `/tools/mortgage` are implemented; the rest are reserved paths
- * for upcoming pages and land on the branded not-found page until then.
- */
+/** Site routes. Every path here has a page; `/buy` and `/rent` only exist as redirects to `/search` (see `proxy.ts`). */
 export const routes = {
   home: "/",
-  buy: "/buy",
-  rent: "/rent",
   newProjects: "/projects",
   guides: "/guides",
   guide: (slug: string) => `/guides/${slug}`,
@@ -26,6 +21,9 @@ export const routes = {
   postProperty: "/post",
   postStep: (draftId: string, step: string) => `/post/${encodeURIComponent(draftId)}/${step}`,
   postDone: (draftId: string) => `/post/${encodeURIComponent(draftId)}/done`,
+  /** Edit mode of the wizard for a published, rejected or expired listing (FE-24). */
+  editListing: (listingId: string, step = "type") =>
+    `/dashboard/listings/${encodeURIComponent(listingId)}/edit/${step}`,
   checkout: (orderId: string) => `/checkout/${encodeURIComponent(orderId)}`,
   property: (slug: string) => `/property/${slug}`,
   /** Search results. Params: see `lib/search-params.ts` (mode, q, type, station, price, beds, area, sort, page, view). */
@@ -53,14 +51,16 @@ export const routes = {
   verify: "/dashboard/verify",
   pricing: "/pricing",
   help: "/help",
+  /** Help center filtered to one topic (`helpTopics` in `data/help.ts`), e.g. `safety` for reporting a scam. */
+  helpTopic: (topic: string) => `/help?topic=${topic}`,
   /** `privacy`, `terms`, `listing-rules` or `cookies`. */
   legal: (doc: string) => `/legal/${doc}`,
   savedSearches: "/account/saved-searches",
   notifications: "/notifications",
   /** Side-by-side table for up to 3 listing ids. */
   compare: (ids: string[]) => `/compare?ids=${ids.map(encodeURIComponent).join(",")}`,
-  location: (id: string) => `/buy?location=${id}`,
-  category: (type: string) => `/buy?type=${type}`,
+  /** Search results for one property type (homepage category tiles). */
+  category: (type: string) => `/search?mode=buy&type=${type}`,
 } as const;
 
 export interface NavItem {
@@ -77,21 +77,13 @@ export const mainNav: NavItem[] = [
   { label: "บทความ & คู่มือ", href: routes.guides },
 ];
 
+/** Company pages (about, careers, advertise, press) are left out until they exist (FE-23). */
 export const footerNav: { title: string; links: { label: string; href: string }[] }[] = [
-  {
-    title: "PropertyHub",
-    links: [
-      { label: "เกี่ยวกับเรา", href: "/about" },
-      { label: "ร่วมงานกับเรา", href: "/careers" },
-      { label: "ติดต่อฝ่ายขายโฆษณา", href: "/advertise" },
-      { label: "ข่าวสาร", href: "/press" },
-    ],
-  },
   {
     title: "ค้นหาอสังหาฯ",
     links: [
-      { label: "ซื้อบ้านและคอนโด", href: routes.buy },
-      { label: "เช่าบ้านและคอนโด", href: routes.rent },
+      { label: "ซื้อบ้านและคอนโด", href: "/search?mode=buy" },
+      { label: "เช่าบ้านและคอนโด", href: "/search?mode=rent" },
       { label: "โครงการใหม่", href: routes.newProjects },
       { label: "ลงประกาศฟรี", href: routes.postProperty },
     ],
@@ -101,7 +93,7 @@ export const footerNav: { title: string; links: { label: string; href: string }[
     links: [
       { label: "ศูนย์ช่วยเหลือ", href: routes.help },
       { label: "คู่มือผู้ซื้อบ้าน", href: routes.guides },
-      { label: "แจ้งประกาศไม่เหมาะสม", href: "/help?topic=safety" },
+      { label: "แจ้งประกาศไม่เหมาะสม", href: routes.helpTopic("safety") },
       { label: "แพ็กเกจและราคา", href: routes.pricing },
       { label: "ข้อกำหนดการใช้งาน", href: routes.legal("terms") },
       { label: "นโยบายความเป็นส่วนตัว", href: routes.legal("privacy") },

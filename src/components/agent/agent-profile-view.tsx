@@ -270,14 +270,14 @@ function AgentProfile({ agent }: { agent: AgentProfileDto }) {
         <About agent={agent} />
         <AgentListings agent={agent} />
         <p className="mt-10 text-[13px] text-slate">
-          พบข้อมูลไม่ถูกต้อง{" "}
-          <a
-            href={`/help/report?agent=${encodeURIComponent(agent.slug)}`}
+          พบข้อมูลไม่ถูกต้อง {/* No profile report form yet: the safety topic explains how to reach the team. */}
+          <Link
+            href={routes.helpTopic("safety")}
             className="inline-flex items-center gap-1 text-brand-strong underline-offset-4 hover:underline"
           >
             <Flag className="size-3.5" aria-hidden="true" />
             รายงานโปรไฟล์นี้
-          </a>
+          </Link>
         </p>
       </Container>
 

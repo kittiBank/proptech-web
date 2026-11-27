@@ -46,7 +46,10 @@ function TodoList({ todo }: { todo: SellerOverviewDto["todo"] }) {
       title: `${todo.rejected} ประกาศไม่ผ่านการตรวจ`,
       detail: todo.rejectReason,
       action: "แก้ไข",
-      href: `${routes.dashboardListings}?status=rejected`,
+      // Straight into edit mode for the listing whose reason is shown (FE-24).
+      href: todo.rejectedListingId
+        ? routes.editListing(todo.rejectedListingId)
+        : `${routes.dashboardListings}?status=rejected`,
     },
     todo.expiringSoon > 0 && {
       tone: "neutral" as const,

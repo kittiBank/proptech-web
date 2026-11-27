@@ -230,11 +230,7 @@ function Wizard({ draft: cached, step }: { draft: DraftDto; step: PostStep }) {
     : Object.fromEntries(Object.entries(errors).filter(([k]) => touched.has(k)));
   const errorCount = Object.keys(errors).length;
 
-  const { data: nearby } = useQuery({
-    ...nearbyStationsQuery(values.point ?? { lat: 0, lng: 0 }),
-    enabled: Boolean(values.point && values.stations.length),
-  });
-  const firstStation = nearby?.data.find((s) => s.station.code === values.stations[0]);
+  const firstStation = usePreviewStation(values);
 
   const promotion = promotionCatalog.find((p) => p.id === values.promotion);
   const paid = Boolean(promotion && promotion.price > 0);
@@ -303,103 +299,50 @@ function Wizard({ draft: cached, step }: { draft: DraftDto; step: PostStep }) {
 
   if (!allowed) return <WizardSkeleton />;
 
+  const stepHref = (s: PostStep) => routes.postStep(draft.id, s);
   const StepComponent = stepComponents[step];
   const back = previousStep(step);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-mist">
-      <SkipLink />
-      <header className="sticky top-0 z-30 border-b border-line bg-white">
-        <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-3 px-2 sm:h-16 sm:gap-4 sm:px-8">
-          {back ? (
-            <Link
-              href={routes.postStep(draft.id, back)}
-              aria-label="ย้อนกลับ"
-              className="inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-mist sm:hidden"
-            >
-              <ChevronLeft className="size-6" aria-hidden="true" />
-            </Link>
-          ) : (
-            <span className="size-11 sm:hidden" aria-hidden="true" />
-          )}
-          <span className="hidden sm:contents">
-            <Logo />
-            <span aria-hidden="true" className="h-6 w-px bg-line" />
-            <span className="font-semibold text-ink">ลงประกาศ</span>
-          </span>
-          <span className="flex-1 text-center sm:ml-auto sm:flex-none">
-            <SaveStatus save={save} onRetry={retry} />
-          </span>
-          <Link
-            href={routes.home}
-            onClick={() => void flush().catch(() => {})}
-            className="inline-flex h-11 items-center px-2 text-sm font-medium text-brand-strong underline-offset-4 hover:underline"
-          >
-            <span className="hidden sm:inline">ออกและทำต่อทีหลัง</span>
-            <span className="sm:hidden">ทำต่อทีหลัง</span>
-          </Link>
-        </div>
-        <div className="border-t border-line">
-          <div className="mx-auto max-w-[1180px] px-4 py-4 sm:px-8">
-            {/* Padding (offset by a negative margin) so the scroll box does not clip the current step's halo ring. */}
-            <div className="-m-1.5 hidden overflow-x-auto p-1.5 md:block">
-              <Stepper draftId={draft.id} current={step} completed={completedSteps} reachable={reachable} />
-            </div>
-            <div className="md:hidden">
-              <MobileStepper current={step} />
-            </div>
+    <WizardFrame
+      label="ลงประกาศ"
+      step={step}
+      backHref={back && stepHref(back)}
+      status={<SaveStatus save={save} onRetry={retry} />}
+      exit={
+        <Link
+          href={routes.home}
+          onClick={() => void flush().catch(() => {})}
+          className="inline-flex h-11 items-center px-2 text-sm font-medium text-brand-strong underline-offset-4 hover:underline"
+        >
+          <span className="hidden sm:inline">ออกและทำต่อทีหลัง</span>
+          <span className="sm:hidden">ทำต่อทีหลัง</span>
+        </Link>
+      }
+      stepper={<Stepper hrefFor={stepHref} current={step} completed={completedSteps} reachable={reachable} />}
+      preview={<ListingPreviewCard values={values} station={firstStation} />}
+      note={
+        showAll && errorCount > 0 ? (
+          <div className="rounded-lg border border-danger-line bg-danger-soft p-4 text-sm text-danger">
+            <p className="font-semibold">แก้ไข {errorCount} จุดก่อนไปต่อ</p>
+            <p className="mt-1">{Object.values(errors)[0]}</p>
           </div>
-        </div>
-      </header>
-
-      <div className="mx-auto grid w-full max-w-[1180px] flex-1 gap-8 px-4 pt-6 pb-32 sm:px-8 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <main id="main" className="flex min-w-0 flex-col gap-5">
-          <div className="hidden md:block">
-            <h1 className="text-[26px] font-semibold tracking-[-0.015em] text-ink sm:text-[30px]">
-              {intro[step].title}
-            </h1>
-            <p className="mt-1 text-[15px] text-slate">{intro[step].body}</p>
+        ) : step === "publish" && paid ? (
+          <div className="rounded-lg border border-line bg-white p-4 text-sm">
+            <p className="font-semibold text-ink">ยอดชำระ ฿{formatNumber(promotion!.price)}</p>
+            <p className="mt-1 text-slate">
+              {promotion!.title} เริ่มนับเมื่อประกาศผ่านการตรวจ ถ้าไม่ผ่านคืนเงินเต็มจำนวน
+            </p>
           </div>
-          <StepComponent draftId={draft.id} values={values} set={set} errors={visible} touch={touch} />
-          {publishError && (
-            <FormAlert>
-              <CircleAlert className="mt-0.5 size-[18px] shrink-0" aria-hidden="true" />
-              <span>{publishError}</span>
-            </FormAlert>
-          )}
-        </main>
-
-        <aside aria-label="ตัวอย่างประกาศ" className="hidden lg:block">
-          <div className="sticky top-[180px] flex flex-col gap-4">
-            <p className="text-sm font-medium text-slate">ตัวอย่างการ์ดในผลค้นหา</p>
-            <ListingPreviewCard values={values} station={firstStation} />
-            {showAll && errorCount > 0 ? (
-              <div className="rounded-lg border border-danger-line bg-danger-soft p-4 text-sm text-danger">
-                <p className="font-semibold">แก้ไข {errorCount} จุดก่อนไปต่อ</p>
-                <p className="mt-1">{Object.values(errors)[0]}</p>
-              </div>
-            ) : step === "publish" && paid ? (
-              <div className="rounded-lg border border-line bg-white p-4 text-sm">
-                <p className="font-semibold text-ink">ยอดชำระ ฿{formatNumber(promotion!.price)}</p>
-                <p className="mt-1 text-slate">
-                  {promotion!.title} เริ่มนับเมื่อประกาศผ่านการตรวจ ถ้าไม่ผ่านคืนเงินเต็มจำนวน
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-line bg-white p-4 text-sm">
-                <p className="font-semibold text-ink">{tips[step].title}</p>
-                <p className="mt-1 text-slate">{tips[step].body}</p>
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
-
-      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto flex max-w-[1180px] items-center gap-3 px-4 py-3 sm:px-8">
+        ) : (
+          <TipCard step={step} />
+        )
+      }
+      footer={
+        <>
           {back ? (
             <Button asChild variant="outline" size="lg">
-              <Link href={routes.postStep(draft.id, back)}>ย้อนกลับ</Link>
+              <Link href={stepHref(back)}>ย้อนกลับ</Link>
             </Button>
           ) : (
             <span />
@@ -440,13 +383,148 @@ function Wizard({ draft: cached, step }: { draft: DraftDto; step: PostStep }) {
               </Button>
             )}
           </div>
+        </>
+      }
+    >
+      <StepComponent
+        values={values}
+        stepHref={stepHref}
+        uploadPhoto={(body) => api.uploadPhoto(draft.id, body)}
+        set={set}
+        errors={visible}
+        touch={touch}
+      />
+      {publishError && (
+        <FormAlert>
+          <CircleAlert className="mt-0.5 size-[18px] shrink-0" aria-hidden="true" />
+          <span>{publishError}</span>
+        </FormAlert>
+      )}
+    </WizardFrame>
+  );
+}
+
+/** The first chosen station with its walking distance, for the preview card. */
+export function usePreviewStation(values: DraftValues) {
+  const { data: nearby } = useQuery({
+    ...nearbyStationsQuery(values.point ?? { lat: 0, lng: 0 }),
+    enabled: Boolean(values.point && values.stations.length),
+  });
+  return nearby?.data.find((s) => s.station.code === values.stations[0]);
+}
+
+export function TipCard({ step }: { step: PostStep }) {
+  return (
+    <div className="rounded-lg border border-line bg-white p-4 text-sm">
+      <p className="font-semibold text-ink">{tips[step].title}</p>
+      <p className="mt-1 text-slate">{tips[step].body}</p>
+    </div>
+  );
+}
+
+interface WizardFrameProps {
+  /** Shown next to the logo: "ลงประกาศ", or "แก้ไขประกาศ PH-1008" in edit mode. */
+  label: ReactNode;
+  step: PostStep;
+  /** Heading and line above the step; defaults to the new-listing copy. */
+  intro?: { title: string; body: string };
+  /** Phones: the header arrow goes to the previous step. */
+  backHref?: string;
+  /** Centre of the header: save state or unsaved changes. */
+  status: ReactNode;
+  /** Right of the header: leave the wizard. */
+  exit: ReactNode;
+  /** Desktop stepper (phones get "ขั้นที่ X จาก 5"). */
+  stepper: ReactNode;
+  /** Above the step on every screen size, e.g. why a listing was rejected. */
+  banner?: ReactNode;
+  preview: ReactNode;
+  /** Card under the preview: a tip, an error summary or the amount to pay. */
+  note: ReactNode;
+  /** Content of the fixed bottom bar. */
+  footer: ReactNode;
+  children: ReactNode;
+}
+
+/** The posting wizard's frame (C1–C7), shared by new drafts and edit mode (FE-24). */
+export function WizardFrame({
+  label,
+  step,
+  intro: introOverride,
+  backHref,
+  status,
+  exit,
+  stepper,
+  banner,
+  preview,
+  note,
+  footer,
+  children,
+}: WizardFrameProps) {
+  return (
+    <div className="flex min-h-dvh flex-col bg-mist">
+      <SkipLink />
+      <header className="sticky top-0 z-30 border-b border-line bg-white">
+        <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-3 px-2 sm:h-16 sm:gap-4 sm:px-8">
+          {backHref ? (
+            <Link
+              href={backHref}
+              aria-label="ย้อนกลับ"
+              className="inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-mist sm:hidden"
+            >
+              <ChevronLeft className="size-6" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span className="size-11 sm:hidden" aria-hidden="true" />
+          )}
+          <span className="hidden sm:contents">
+            <Logo />
+            <span aria-hidden="true" className="h-6 w-px bg-line" />
+            <span className="font-semibold text-ink">{label}</span>
+          </span>
+          <span className="flex-1 text-center sm:ml-auto sm:flex-none">{status}</span>
+          {exit}
         </div>
+        <div className="border-t border-line">
+          <div className="mx-auto max-w-[1180px] px-4 py-4 sm:px-8">
+            {/* Padding (offset by a negative margin) so the scroll box does not clip the current step's halo ring. */}
+            <div className="-m-1.5 hidden overflow-x-auto p-1.5 md:block">{stepper}</div>
+            <div className="md:hidden">
+              <MobileStepper current={step} />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto grid w-full max-w-[1180px] flex-1 gap-8 px-4 pt-6 pb-32 sm:px-8 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <main id="main" className="flex min-w-0 flex-col gap-5">
+          {banner}
+          <div className="hidden md:block">
+            <h1 className="text-[26px] font-semibold tracking-[-0.015em] text-ink sm:text-[30px]">
+              {(introOverride ?? intro[step]).title}
+            </h1>
+            <p className="mt-1 text-[15px] text-slate">{(introOverride ?? intro[step]).body}</p>
+          </div>
+          {children}
+        </main>
+
+        <aside aria-label="ตัวอย่างประกาศ" className="hidden lg:block">
+          <div className="sticky top-[180px] flex flex-col gap-4">
+            <p className="text-sm font-medium text-slate">ตัวอย่างการ์ดในผลค้นหา</p>
+            {preview}
+            {note}
+          </div>
+        </aside>
+      </div>
+
+      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex max-w-[1180px] items-center gap-3 px-4 py-3 sm:px-8">{footer}</div>
       </footer>
     </div>
   );
 }
 
-function WizardSkeleton() {
+export function WizardSkeleton() {
   return (
     <div className="min-h-dvh bg-mist" role="status" aria-label="กำลังโหลดแบบร่าง">
       <div className="h-[140px] border-b border-line bg-white" />

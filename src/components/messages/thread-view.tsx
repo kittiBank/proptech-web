@@ -89,7 +89,9 @@ function Header({ thread }: { thread: ThreadDto }) {
       </Link>
       <Avatar name={c.name} size="md" className="max-sm:size-9 max-sm:text-sm" />
       <div className="min-w-0 flex-1">
-        <h2 className="truncate font-semibold text-ink">{name}</h2>
+        {/* Phones hide the chat list and its H1, so there the contact name is the page heading. */}
+        <h1 className="truncate font-semibold text-ink lg:hidden">{name}</h1>
+        <h2 className="truncate font-semibold text-ink max-lg:hidden">{name}</h2>
         <p className="truncate text-xs text-success sm:text-[13px]">
           {kindLabel[c.kind]}
           {c.idVerified && " · ยืนยันตัวตนแล้ว"} · มักตอบ{formatResponseTime(c.responseMinutes)}

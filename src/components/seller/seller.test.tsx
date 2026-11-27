@@ -50,9 +50,10 @@ describe("OverviewView (C8)", () => {
     const todo = screen.getByRole("region", { name: "ต้องจัดการ" });
     expect(within(todo).getByText("คำขอนัด 3 รายการรอคุณยืนยัน")).toBeInTheDocument();
     expect(within(todo).getByRole("link", { name: /ดูคำขอ/ })).toHaveAttribute("href", "/dashboard/leads");
+    // FE-24: straight into edit mode for the rejected listing.
     expect(within(todo).getByRole("link", { name: /แก้ไข/ })).toHaveAttribute(
       "href",
-      "/dashboard/listings?status=rejected",
+      expect.stringMatching(/^\/dashboard\/listings\/sl-[^/]+\/edit\/type$/),
     );
 
     const top = await screen.findByRole("table", { name: "ประกาศที่มีคนดูมากที่สุดใน 7 วัน" });
