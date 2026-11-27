@@ -147,8 +147,9 @@ export function HeroSearch() {
         </div>
       </form>
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
-        <span className="text-white/70">ค้นหาบ่อย</span>
+      {/* Own `hero` backing: the hero video shows through a light tint, so small text needs it for AA. */}
+      <div className="mx-auto mt-5 flex w-fit max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl bg-hero/60 px-4 py-2.5 text-sm">
+        <span className="text-white/80">ค้นหาบ่อย</span>
         {popularSearches.map((s) => (
           <Link
             key={s.label}
