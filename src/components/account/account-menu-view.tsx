@@ -190,10 +190,10 @@ export function AccountMenuView() {
       </Group>
 
       <Group title="ช่วยเหลือ">
-        <Row href="/help" icon={CircleHelp}>
+        <Row href={routes.help} icon={CircleHelp}>
           ศูนย์ช่วยเหลือ
         </Row>
-        <Row href="/help/report" icon={Flag}>
+        <Row href={routes.helpTopic("safety")} icon={Flag}>
           แจ้งประกาศไม่เหมาะสม
         </Row>
         <li>

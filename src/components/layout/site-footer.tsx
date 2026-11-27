@@ -40,7 +40,7 @@ export function SiteFooter() {
           </address>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10">
           {footerNav.map((group) => (
             <nav key={group.title} aria-label={group.title}>
               <h2 className="mb-4 text-sm font-semibold text-white">{group.title}</h2>
@@ -49,7 +49,7 @@ export function SiteFooter() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      // Many footer pages are not built yet; prefetching them logs 404s and wastes bandwidth.
+                      // Far below the fold and rarely used: not worth prefetching on every page.
                       prefetch={false}
                       className="inline-flex min-h-9 items-center text-[15px] text-white/70 hover:text-white"
                     >

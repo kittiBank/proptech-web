@@ -1,5 +1,6 @@
 import type { AdPlacement } from "@/types/api";
 import type { Advertisement } from "@/types/property";
+import { routes } from "./navigation";
 import { photos } from "./images";
 
 /** Mock sponsored banners. Advertisers are fictional. */
@@ -11,7 +12,7 @@ export const advertisements: Record<AdPlacement, Advertisement[]> = {
       title: "สินเชื่อบ้านดอกเบี้ยเริ่ม 2.89% ปีแรก",
       description: "อนุมัติเบื้องต้นออนไลน์ใน 1 วัน ผ่อนนานสูงสุด 40 ปี ไม่มีค่าธรรมเนียมประเมินราคา",
       ctaLabel: "เช็กวงเงินกู้",
-      href: "/advertise?campaign=home-loan",
+      href: routes.mortgageTool,
       image: { src: photos.familyHouse, alt: "บ้านเดี่ยวพร้อมสนามหญ้าหน้าบ้าน" },
     },
     {
@@ -20,7 +21,7 @@ export const advertisements: Record<AdPlacement, Advertisement[]> = {
       title: "แอสเตอร์ สาทร ลงทะเบียนรับสิทธิ์ราคาพิเศษ",
       description: "คอนโด 48 ชั้น 300 ม. จาก BTS ช่องนนทรี ห้องเริ่ม 6.89 ล้าน จำนวนจำกัด",
       ctaLabel: "ลงทะเบียน",
-      href: "/projects/aster-sathorn",
+      href: routes.project("aster-sathorn"),
       image: { src: photos.towerFacade, alt: "ภาพอาคารคอนโดสูงด้านหน้า" },
     },
     {
@@ -29,7 +30,7 @@ export const advertisements: Record<AdPlacement, Advertisement[]> = {
       title: "แต่งคอนโดครบทั้งห้อง เริ่ม 199,000 บาท",
       description: "ออกแบบฟรีภายใน 7 วัน รับประกันงานบิลต์อิน 2 ปี",
       ctaLabel: "ดูผลงาน",
-      href: "/advertise?campaign=interior",
+      href: routes.guides,
       image: { src: photos.brightLiving, alt: "ห้องนั่งเล่นสีขาวตกแต่งครบ" },
     },
   ],

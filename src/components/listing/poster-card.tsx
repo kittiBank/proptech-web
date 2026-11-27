@@ -3,16 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import {
-  BadgeCheck,
-  CalendarPlus,
-  CircleCheck,
-  Flag,
-  MessageCircle,
-  Phone,
-  ShieldAlert,
-  Smartphone,
-} from "lucide-react";
+import { BadgeCheck, CalendarPlus, CircleCheck, MessageCircle, Phone, ShieldAlert, Smartphone } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { BottomActionBar } from "@/components/ui/bottom-action-bar";
@@ -293,14 +284,6 @@ export function PosterCard({ property }: { property: PropertyDetail }) {
         <ShieldAlert className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden="true" />
         <p>นัดดูทรัพย์จริงและตรวจโฉนดหรือสัญญาก่อนโอนเงินทุกครั้ง PropertyHub ไม่เรียกเก็บเงินมัดจำแทนผู้ลงประกาศ</p>
       </aside>
-
-      <a
-        href={`/help/report?listing=${encodeURIComponent(property.code)}`}
-        className="inline-flex items-center gap-2 self-start text-[13px] text-slate underline-offset-4 hover:text-ink hover:underline"
-      >
-        <Flag className="size-3.5" aria-hidden="true" />
-        รายงานประกาศนี้
-      </a>
     </div>
   );
 }

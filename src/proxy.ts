@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { listingAvailability } from "@/lib/api/server";
 import { adminRewrite, isAdminRequest } from "@/lib/admin";
 import { contact } from "@/data/navigation";
+import { legacySearchRedirect } from "@/lib/search-params";
 import { isMaintenanceMode, maintenancePageHtml, maintenanceWindow, retryAfterSeconds } from "@/lib/maintenance";
 
 const LISTING_PATH = /^\/property\/([^/]+)\/?$/;
@@ -19,6 +20,7 @@ const NOT_FOUND_PATH = "/_not-found";
  *   `Retry-After`; `/maintenance` previews it. The admin app stays up. The proxy returns this
  *   response itself because Next ignores a rewrite's `status` in production.
  * - Unknown listings: 404 with D8.
+ * - `/buy` and `/rent`: permanent redirect to `/search` with the mode and filters (FE-23).
  *
  * Closed listings (D9) still answer 200 with `noindex`: a rewrite's status is ignored once the
  * page streams, and a 410 would mean proxying the HTML through a second request.
@@ -50,6 +52,9 @@ export async function proxy(request: NextRequest) {
       },
     });
   }
+
+  const legacy = legacySearchRedirect(pathname, request.nextUrl.searchParams);
+  if (legacy) return NextResponse.redirect(new URL(legacy, request.url), 308);
 
   const slug = LISTING_PATH.exec(pathname)?.[1];
   // If the API is down, let the page load and show its own error state.
